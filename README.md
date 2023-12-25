@@ -40,3 +40,11 @@ Demonstrate the functionality by uploading and downloading files using the clien
 
 This task assesses the candidate's understanding of RPC, their ability to define and implement an RPC interface, and their overall system design and coding skills. 
 Additionally, it allows the interviewer to evaluate error handling and testing practices.
+
+Useful admin commands:
+- Getting the running server program(-s) with the transport protocol, address, ports which it's used:
+netstat -tulpn | grep [SERVER_NAME]
+
+- Getting the RPC info about the running RPC server program(-s) with the transport protocol, address, ports which it's used:
+rpcinfo
+rpcinfo -p
