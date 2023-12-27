@@ -1,0 +1,32 @@
+# Build on a server side
+
+# Initial sources
+SRC_SRV:=prg_serv.c
+SRC_RPC:=../rpcgen/fltr.x
+
+# Server RPC sources
+SRC_RPC_SRV:=$(subst .x,_svc.c,$(SRC_RPC))
+
+# XDR RPC files
+OBJ_RPC_XDR:=$(subst .x,_xdr.o,$(SRC_RPC))
+
+# Executables
+EXE_SRV:=$(subst .c,,$(SRC_SRV))
+
+INCL:=-I/usr/include/tirpc
+LIBS:=-lnsl -ltirpc
+
+DLM:="---------------"
+
+### Execution
+all: TITLE $(EXE_SRV)
+
+TITLE:
+	@echo "$(DLM) Server build $(DLM)"
+
+$(EXE_SRV): $(SRC_SRV) $(SRC_RPC_SRV) $(OBJ_RPC_XDR)
+	gcc $^ $(INCL) -o $@ $(LIBS) 
+
+clean:
+	@echo "$(DLM) Server clean $(DLM)"
+	@rm -fv $(EXE_SRV)
