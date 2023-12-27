@@ -1,0 +1,34 @@
+# Build the RPC files for both server & client
+
+# Initial data
+SRC_RPC:=fltr.x
+
+# Server & client RPC sources
+HDR_RPC:=$(subst .x,.h,$(SRC_RPC))
+SRC_RPC_SRV:=$(subst .x,_svc.c,$(SRC_RPC))
+SRC_RPC_CLN:=$(subst .x,_clnt.c,$(SRC_RPC))
+
+# XDR RPC files
+SRC_RPC_XDR:=$(subst .x,_xdr.c,$(SRC_RPC))
+OBJ_RPC_XDR:=$(subst .x,_xdr.o,$(SRC_RPC))
+
+# The non-standard directories to the header files
+INCL:=-I/usr/include/tirpc
+
+DLM:="---------------"
+
+### Execution
+all: TITLE $(OBJ_RPC_XDR)
+
+TITLE:
+	@echo "$(DLM) RPCGEN build $(DLM)"
+
+$(OBJ_RPC_XDR): $(SRC_RPC_XDR)
+	gcc -c $< $(INCL)
+
+$(HDR_RPC) $(SRC_RPC_SRV) $(SRC_RPC_CLN) $(SRC_RPC_XDR): $(SRC_RPC)
+	rpcgen $<
+
+clean:
+	@echo "$(DLM) RPCGEN clean $(DLM)"
+	@rm -fv $(OBJ_RPC_XDR) $(SRC_RPC_XDR) $(SRC_RPC_CLN) $(SRC_RPC_SRV) $(HDR_RPC) 
