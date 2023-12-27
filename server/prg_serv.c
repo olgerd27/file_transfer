@@ -9,13 +9,20 @@
 extern int errno; // is global, defined in the system's standard C library
 static t_errmsg errmsg;
 
+// TODO: check if these resets are actually required
+void reset_upld(int *rc)
+{
+  *rc = 0;
+  errno = 0;
+  memset(errmsg, 0, strlen(errmsg));
+}
+
 int * upload_file_1_svc(file *file_upld, struct svc_req *)
 {
   static int rc; /* must be static */
-  
-  // reset after previous call
-  rc = 0;
-  errno = 0;
+
+  // Reset the results of the previous call
+  reset_upld(&rc);
 
   // Check the file existance
   if (access(file_upld->name, F_OK) == 0) {
@@ -27,7 +34,6 @@ int * upload_file_1_svc(file *file_upld, struct svc_req *)
 
   // Open the file
   FILE *hfile = fopen(file_upld->name, "wb");
-
   if (hfile == NULL) {
     rc = 2;
     sprintf(errmsg, "Error #%i: Cannot open the file: '%s'.\nSystem error message:\n"
