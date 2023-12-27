@@ -37,10 +37,10 @@ typedef struct file file;
 #define upload_file 1
 extern  int * upload_file_1(file *, CLIENT *);
 extern  int * upload_file_1_svc(file *, struct svc_req *);
-#define download_file 1
+#define download_file 2
 extern  t_flcont * download_file_1(t_flname *, CLIENT *);
 extern  t_flcont * download_file_1_svc(t_flname *, struct svc_req *);
-#define get_error_msg 1
+#define get_error_msg 3
 extern  t_errmsg * get_error_msg_1(void *, CLIENT *);
 extern  t_errmsg * get_error_msg_1_svc(void *, struct svc_req *);
 extern int fltrprog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
@@ -49,10 +49,10 @@ extern int fltrprog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 #define upload_file 1
 extern  int * upload_file_1();
 extern  int * upload_file_1_svc();
-#define download_file 1
+#define download_file 2
 extern  t_flcont * download_file_1();
 extern  t_flcont * download_file_1_svc();
-#define get_error_msg 1
+#define get_error_msg 3
 extern  t_errmsg * get_error_msg_1();
 extern  t_errmsg * get_error_msg_1_svc();
 extern int fltrprog_1_freeresult ();

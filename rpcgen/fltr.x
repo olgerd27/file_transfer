@@ -17,7 +17,7 @@ struct file {
 program FLTRPROG {
    version FLTRVERS {
      int upload_file(file fl) = 1;
-     t_flcont download_file(t_flname filename) = 1;
-     t_errmsg get_error_msg(void) = 1;
+     t_flcont download_file(t_flname filename) = 2;
+     t_errmsg get_error_msg(void) = 3;
    } = 1;
 } = 0x20000027;
