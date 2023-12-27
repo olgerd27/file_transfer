@@ -42,6 +42,12 @@ This task assesses the candidate's understanding of RPC, their ability to define
 Additionally, it allows the interviewer to evaluate error handling and testing practices.
 
 Useful admin commands:
+- Check the status for rpcbind:
+systemctl status rpcbind
+
+- Bring up the rpcbind:
+systemctl start rpcbind
+
 - Getting the running server program(-s) with the transport protocol, address, ports which it's used:
 netstat -tulpn | grep [SERVER_NAME]
 
