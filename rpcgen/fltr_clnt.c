@@ -9,15 +9,15 @@
 /* Default timeout can be changed using clnt_control() */
 static struct timeval TIMEOUT = { 25, 0 };
 
-int *
+errinfo *
 upload_file_1(file *argp, CLIENT *clnt)
 {
-	static int clnt_res;
+	static errinfo clnt_res;
 
 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
 	if (clnt_call (clnt, upload_file,
 		(xdrproc_t) xdr_file, (caddr_t) argp,
-		(xdrproc_t) xdr_int, (caddr_t) &clnt_res,
+		(xdrproc_t) xdr_errinfo, (caddr_t) &clnt_res,
 		TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
 	}
@@ -33,21 +33,6 @@ download_file_1(t_flname *argp, CLIENT *clnt)
 	if (clnt_call (clnt, download_file,
 		(xdrproc_t) xdr_t_flname, (caddr_t) argp,
 		(xdrproc_t) xdr_t_flcont, (caddr_t) &clnt_res,
-		TIMEOUT) != RPC_SUCCESS) {
-		return (NULL);
-	}
-	return (&clnt_res);
-}
-
-t_errmsg *
-get_error_msg_1(void *argp, CLIENT *clnt)
-{
-	static t_errmsg clnt_res;
-
-	memset((char *)&clnt_res, 0, sizeof(clnt_res));
-	if (clnt_call (clnt, get_error_msg,
-		(xdrproc_t) xdr_void, (caddr_t) argp,
-		(xdrproc_t) xdr_t_errmsg, (caddr_t) &clnt_res,
 		TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
 	}

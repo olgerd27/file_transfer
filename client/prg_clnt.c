@@ -2,7 +2,7 @@
  * prg_clnt.c: the client program to initiate the remote file transfers
  *
  * Build this program:
- * gcc prg_client.c ../rpcgen/fltr_clnt.c ../rpcgen/fltr_xdr.o -I/usr/include/tirpc -o prg_client -lnsl -ltirpc
+ * gcc prg_clnt.c ../rpcgen/fltr_clnt.c ../rpcgen/fltr_xdr.o -I/usr/include/tirpc -o prg_client -lnsl -ltirpc
  */
 
 #include <stdio.h>
@@ -16,8 +16,8 @@ int main(int argc, char *argv[])
   int *rc_serv; // code returned from a server
 
   if (argc != 3) {
-     fprintf(stderr, "Usage: %s [host] [directory]\n", argv[0]);
-     return 1;
+    fprintf(stderr, "Usage: %s [host] [directory]\n", argv[0]);
+    return 1;
   }
 
   server = argv[1];
@@ -30,11 +30,11 @@ int main(int argc, char *argv[])
    * on the server designated on the command line.
    */
 
-  clnt = clnt_create(server, DIRPROG, DIRVERS, "tcp");
+  clnt = clnt_create(server, FLTRPROG, FLTRVERS, "tcp");
 
   if (clnt == (CLIENT *)NULL) {
-     clnt_pcreateerror(server);
-     return 1;
+    clnt_pcreateerror(server);
+    return 1;
   }
 
   rc_serv = upload_file_1(&file_obj, clnt);
@@ -42,20 +42,19 @@ int main(int argc, char *argv[])
   // TODO: figure out why here it's used clnt_perror() to produce an error on the server side, 
   // but a bit above it's used the clnt_pcreateerror() function for a similar purpose, isn't it?
   if (rc_serv == (int *)NULL) {
-     clnt_perror(clnt, server);
-     return 1;
-   }
+    clnt_perror(clnt, server);
+    return 1;
+  }
 
   // Okay, we successfully called the remote procedure.
 
   if (*rc_serv != 0) {
     // Remote system error. Print error message and die.
-    printf("!---Error %d: %s\n", *get_error_msg_1());
+    printf("!---Error %d: %s\n", *get_error_msg_1(clnt));
     return *rc_serv;
-   }
+  }
 
   clnt_destroy(clnt);
-
   return 0;
 }
 

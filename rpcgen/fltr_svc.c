@@ -34,7 +34,7 @@ fltrprog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 
 	case upload_file:
 		_xdr_argument = (xdrproc_t) xdr_file;
-		_xdr_result = (xdrproc_t) xdr_int;
+		_xdr_result = (xdrproc_t) xdr_errinfo;
 		local = (char *(*)(char *, struct svc_req *)) upload_file_1_svc;
 		break;
 
@@ -42,12 +42,6 @@ fltrprog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 		_xdr_argument = (xdrproc_t) xdr_t_flname;
 		_xdr_result = (xdrproc_t) xdr_t_flcont;
 		local = (char *(*)(char *, struct svc_req *)) download_file_1_svc;
-		break;
-
-	case get_error_msg:
-		_xdr_argument = (xdrproc_t) xdr_void;
-		_xdr_result = (xdrproc_t) xdr_t_errmsg;
-		local = (char *(*)(char *, struct svc_req *)) get_error_msg_1_svc;
 		break;
 
 	default:

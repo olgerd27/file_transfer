@@ -26,16 +26,6 @@ xdr_t_flcont (XDR *xdrs, t_flcont *objp)
 }
 
 bool_t
-xdr_t_errmsg (XDR *xdrs, t_errmsg *objp)
-{
-	register int32_t *buf;
-
-	 if (!xdr_string (xdrs, objp, SIZE_ERRMSG))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
 xdr_file (XDR *xdrs, file *objp)
 {
 	register int32_t *buf;
@@ -43,6 +33,18 @@ xdr_file (XDR *xdrs, file *objp)
 	 if (!xdr_t_flname (xdrs, &objp->name))
 		 return FALSE;
 	 if (!xdr_t_flcont (xdrs, &objp->cont))
+		 return FALSE;
+	return TRUE;
+}
+
+bool_t
+xdr_errinfo (XDR *xdrs, errinfo *objp)
+{
+	register int32_t *buf;
+
+	 if (!xdr_int (xdrs, &objp->num))
+		 return FALSE;
+	 if (!xdr_string (xdrs, &objp->msg, SIZE_ERRMSG))
 		 return FALSE;
 	return TRUE;
 }

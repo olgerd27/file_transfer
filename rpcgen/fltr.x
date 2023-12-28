@@ -7,18 +7,23 @@ const SIZE_ERRMSG = 512; /* max length for error message */
 
 typedef string t_flname<SIZE_FNAME>; /* file name type */
 typedef opaque t_flcont<>; /* file content type */
-typedef string t_errmsg<SIZE_ERRMSG>; /* error message type */
 
+/* File information */
 struct file {
   t_flname name; /* file name */
   t_flcont cont; /* file content */
 };
 
+/* Error information */
+struct errinfo {
+  int num; /* error number */
+  string msg<SIZE_ERRMSG>; /* error message */
+};
+
 /* The file transfer program definition */
 program FLTRPROG {
    version FLTRVERS {
-     int upload_file(file fl) = 1;
+     errinfo upload_file(file fl) = 1;
      t_flcont download_file(t_flname filename) = 2;
-     t_errmsg get_error_msg(void) = 3;
    } = 1;
 } = 0x20000027;
