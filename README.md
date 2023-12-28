@@ -10,7 +10,7 @@ The server should be capable of storing files and returning them to clients upon
 
 ### Requirements
 **1. File Transfer RPC Interface:**
-Define an RPC interface in an .x file that includes the following remote procedures:
+Define an RPC interface in a `.x` file that includes the following remote procedures:
 
    - `int upload_file(string filename, opaque file_content)`: Upload a file to the server. 
      Return 1 on success, 0 on failure.
@@ -41,17 +41,17 @@ This task assesses the candidate's understanding of RPC, their ability to define
 Additionally, it allows the interviewer to evaluate error handling and testing practices.
 
 ## Useful admin commands:
-- Check the status for rpcbind:
+- Check the status for `rpcbind`:
 ```
 systemctl status rpcbind
 ```
 
-- Bring up the rpcbind:
+- Bring up the `rpcbind`:
 ```
 systemctl start rpcbind
 ```
 
-- Getting the running server program(-s) with the transport protocol, address, ports which it's used:
+- Getting the running server program(-s) with the transport protocol, address, and ports which it's used:
 ```
 netstat -tulpn | grep [SERVER_NAME]
 ```
