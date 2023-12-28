@@ -1,5 +1,5 @@
 /*
- * serv.c: implementation of the fserver function for file transferring.
+ * prg_serv.c: implementation of the server functions for file transfers.
  */
 
 #include <unistd.h>
@@ -14,7 +14,7 @@ void reset_upld(int *rc)
 {
   *rc = 0;
   errno = 0;
-  memset(errmsg, 0, strlen(errmsg));
+  memset(errmsg, 0, sizeof(errmsg));
 }
 
 int * upload_file_1_svc(file *file_upld, struct svc_req *)
@@ -24,7 +24,7 @@ int * upload_file_1_svc(file *file_upld, struct svc_req *)
   // Reset the results of the previous call
   reset_upld(&rc);
 
-  // Check the file existance
+  // Check the file existence
   if (access(file_upld->name, F_OK) == 0) {
     rc = 1;
     sprintf(errmsg, "Error #%i: The specified file '%s' name already exists.\n"
