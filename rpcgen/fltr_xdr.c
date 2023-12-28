@@ -38,13 +38,19 @@ xdr_file (XDR *xdrs, file *objp)
 }
 
 bool_t
-xdr_errinfo (XDR *xdrs, errinfo *objp)
+xdr_errinf (XDR *xdrs, errinf *objp)
 {
 	register int32_t *buf;
 
 	 if (!xdr_int (xdrs, &objp->num))
 		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->msg, SIZE_ERRMSG))
-		 return FALSE;
+	switch (objp->num) {
+	case 0:
+		break;
+	default:
+		 if (!xdr_string (xdrs, &objp->errinf_u.msg, SIZE_ERRMSG))
+			 return FALSE;
+		break;
+	}
 	return TRUE;
 }

@@ -29,19 +29,21 @@ struct file {
 };
 typedef struct file file;
 
-struct errinfo {
+struct errinf {
 	int num;
-	char *msg;
+	union {
+		char *msg;
+	} errinf_u;
 };
-typedef struct errinfo errinfo;
+typedef struct errinf errinf;
 
 #define FLTRPROG 0x20000027
 #define FLTRVERS 1
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define upload_file 1
-extern  errinfo * upload_file_1(file *, CLIENT *);
-extern  errinfo * upload_file_1_svc(file *, struct svc_req *);
+extern  errinf * upload_file_1(file *, CLIENT *);
+extern  errinf * upload_file_1_svc(file *, struct svc_req *);
 #define download_file 2
 extern  t_flcont * download_file_1(t_flname *, CLIENT *);
 extern  t_flcont * download_file_1_svc(t_flname *, struct svc_req *);
@@ -49,8 +51,8 @@ extern int fltrprog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
 #define upload_file 1
-extern  errinfo * upload_file_1();
-extern  errinfo * upload_file_1_svc();
+extern  errinf * upload_file_1();
+extern  errinf * upload_file_1_svc();
 #define download_file 2
 extern  t_flcont * download_file_1();
 extern  t_flcont * download_file_1_svc();
@@ -63,13 +65,13 @@ extern int fltrprog_1_freeresult ();
 extern  bool_t xdr_t_flname (XDR *, t_flname*);
 extern  bool_t xdr_t_flcont (XDR *, t_flcont*);
 extern  bool_t xdr_file (XDR *, file*);
-extern  bool_t xdr_errinfo (XDR *, errinfo*);
+extern  bool_t xdr_errinf (XDR *, errinf*);
 
 #else /* K&R C */
 extern bool_t xdr_t_flname ();
 extern bool_t xdr_t_flcont ();
 extern bool_t xdr_file ();
-extern bool_t xdr_errinfo ();
+extern bool_t xdr_errinf ();
 
 #endif /* K&R C */
 

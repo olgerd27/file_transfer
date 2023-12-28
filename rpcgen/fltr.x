@@ -15,15 +15,21 @@ struct file {
 };
 
 /* Error information */
-struct errinfo {
-  int num; /* error number */
-  string msg<SIZE_ERRMSG>; /* error message */
+/*struct errinfo {
+/*  int num; /* error number */
+/*  string msg<SIZE_ERRMSG>; /* error message */
+/*};*/
+union errinf switch (int num) {
+   case 0:
+     void; /* no error - no message */
+   default:
+     string msg<SIZE_ERRMSG>; /* error occured: return error message */
 };
 
 /* The file transfer program definition */
 program FLTRPROG {
    version FLTRVERS {
-     errinfo upload_file(file fl) = 1;
+     errinf upload_file(file fl) = 1;
      t_flcont download_file(t_flname filename) = 2;
    } = 1;
 } = 0x20000027;
