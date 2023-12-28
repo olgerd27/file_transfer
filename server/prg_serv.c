@@ -9,7 +9,6 @@
 extern int errno; // is global, defined in the system's standard C library
 static t_errmsg errmsg;
 
-// TODO: check if these resets are actually required
 void reset_upld(int *rc)
 {
   *rc = 0;
@@ -42,7 +41,7 @@ int * upload_file_1_svc(file *file_upld, struct svc_req *)
   }
 
   // Write to the file
-  fwrite(file_upld->content.t_flcont_val, 1, file_upld->content.t_flcont_len, hfile);
+  fwrite(file_upld->cont.t_flcont_val, 1, file_upld->cont.t_flcont_len, hfile);
   if (ferror(hfile)) {
     rc = 3;
     sprintf(errmsg, "Error #%i: Cannot write to the file: '%s'.\nSystem error message:\n"

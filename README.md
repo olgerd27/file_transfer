@@ -40,7 +40,7 @@ Define an RPC interface in a `.x` file that includes the following remote proced
 This task assesses the candidate's understanding of RPC, their ability to define and implement an RPC interface, and their overall system design and coding skills. 
 Additionally, it allows the interviewer to evaluate error handling and testing practices.
 
-## Useful admin commands:
+## Useful admin commands
 - Check the status for `rpcbind`:
 ```
 systemctl status rpcbind

@@ -2,15 +2,16 @@
  * fltr.x: The file transfer protocol
  */
 
-const SIZE_FNAME = 255; /* max length of file name */
+const SIZE_FNAME = 256; /* max length for file name */
+const SIZE_ERRMSG = 512; /* max length for error message */
 
 typedef string t_flname<SIZE_FNAME>; /* file name type */
 typedef opaque t_flcont<>; /* file content type */
-typedef string t_errmsg<>; /* error message type */
+typedef string t_errmsg<SIZE_ERRMSG>; /* error message type */
 
 struct file {
   t_flname name; /* file name */
-  t_flcont content; /* file content */
+  t_flcont cont; /* file content */
 };
 
 /* The file transfer program definition */

@@ -13,7 +13,8 @@
 extern "C" {
 #endif
 
-#define SIZE_FNAME 255
+#define SIZE_FNAME 256
+#define SIZE_ERRMSG 512
 
 typedef char *t_flname;
 
@@ -26,7 +27,7 @@ typedef char *t_errmsg;
 
 struct file {
 	t_flname name;
-	t_flcont content;
+	t_flcont cont;
 };
 typedef struct file file;
 

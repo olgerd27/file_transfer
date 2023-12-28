@@ -30,7 +30,7 @@ xdr_t_errmsg (XDR *xdrs, t_errmsg *objp)
 {
 	register int32_t *buf;
 
-	 if (!xdr_string (xdrs, objp, ~0))
+	 if (!xdr_string (xdrs, objp, SIZE_ERRMSG))
 		 return FALSE;
 	return TRUE;
 }
@@ -42,7 +42,7 @@ xdr_file (XDR *xdrs, file *objp)
 
 	 if (!xdr_t_flname (xdrs, &objp->name))
 		 return FALSE;
-	 if (!xdr_t_flcont (xdrs, &objp->content))
+	 if (!xdr_t_flcont (xdrs, &objp->cont))
 		 return FALSE;
 	return TRUE;
 }
