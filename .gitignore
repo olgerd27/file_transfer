@@ -1,4 +1,4 @@
-server/prg_*
-client/prg_*
+*/prg_serv
+*/prg_clnt
 *.o
 *.swp
