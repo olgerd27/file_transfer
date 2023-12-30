@@ -1,0 +1,32 @@
+# Build on a client side
+
+# Initial sources
+SRC_CLN:=prg_clnt.c
+SRC_RPC:=../rpcgen/fltr.x
+
+# Client RPC sources
+SRC_RPC_CLN:=$(subst .x,_clnt.c,$(SRC_RPC))
+
+# XDR RPC files
+OBJ_RPC_XDR:=$(subst .x,_xdr.o,$(SRC_RPC))
+
+# Executables
+EXE_CLN:=$(subst .c,,$(SRC_CLN))
+
+INCL:=-I/usr/include/tirpc
+LIBS:=-lnsl -ltirpc
+
+DLM:="---------------"
+
+### Execution
+all: TITLE $(EXE_CLN)
+
+TITLE:
+	@echo "$(DLM) Client build $(DLM)"
+
+$(EXE_CLN): $(SRC_CLN) $(SRC_RPC_CLN) $(OBJ_RPC_XDR)
+	gcc $^ $(INCL) -o $@ $(LIBS) 
+
+clean:
+	@echo "$(DLM) Client clean $(DLM)"
+	@rm -fv $(EXE_CLN)
