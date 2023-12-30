@@ -2,7 +2,7 @@
  * prg_clnt.c: the client program to initiate the remote file transfers
  *
  * Build this program:
- * gcc prg_clnt.c ../rpcgen/fltr_clnt.c ../rpcgen/fltr_xdr.o -I/usr/include/tirpc -o prg_client -lnsl -ltirpc
+ * gcc prg_clnt.c ../rpcgen/fltr_clnt.c ../rpcgen/fltr_xdr.o -I/usr/include/tirpc -o prg_clnt -lnsl -ltirpc
  */
 
 #include <stdio.h>
@@ -12,11 +12,11 @@ int main(int argc, char *argv[])
 {
   CLIENT *clnt; // client object
   char *server; // server name
+  errinf *res_serv; // result returned from a server
   file file_obj; // file object
-  int *rc_serv; // code returned from a server
 
   if (argc != 3) {
-    fprintf(stderr, "Usage: %s [host] [directory]\n", argv[0]);
+    fprintf(stderr, "Usage: %s [host] [filename]\n", argv[0]);
     return 1;
   }
 
@@ -24,6 +24,10 @@ int main(int argc, char *argv[])
   file_obj.name = argv[2];
 
   // TODO: Read the file content and save it to file_obj.cont
+  const int FILE_SIZE=6;
+  file_obj.cont.t_flcont_val = malloc(FILE_SIZE);
+  strcpy(file_obj.cont.t_flcont_val, "Hello");
+  file_obj.cont.t_flcont_len = FILE_SIZE;
 
   /*
    * Create client "handle" used for calling FLTRPROG 
@@ -33,28 +37,31 @@ int main(int argc, char *argv[])
   clnt = clnt_create(server, FLTRPROG, FLTRVERS, "tcp");
 
   if (clnt == (CLIENT *)NULL) {
+    // Print an error indication why a client handle could not be created.
+    // Used when clnt_create() call fails.
     clnt_pcreateerror(server);
     return 1;
   }
 
-  rc_serv = upload_file_1(&file_obj, clnt);
+  res_serv = upload_file_1(&file_obj, clnt);
 
-  // TODO: figure out why here it's used clnt_perror() to produce an error on the server side, 
-  // but a bit above it's used the clnt_pcreateerror() function for a similar purpose, isn't it?
-  if (rc_serv == (int *)NULL) {
+  if (res_serv == (errinf *)NULL) {
+    // Print a message to standard error indicating why an RPC call failed.
+    // Used after clnt_call(), that is called here by upload_file_1().
     clnt_perror(clnt, server);
     return 1;
   }
 
-  // Okay, we successfully called the remote procedure.
+  /* Okay, we successfully called the remote procedure. */
 
-  if (*rc_serv != 0) {
+  if (res_serv->num != 0) {
     // Remote system error. Print error message and die.
-    printf("!---Error %d: %s\n", *get_error_msg_1(clnt));
-    return *rc_serv;
+    printf("!---Error %d: %s\n", res_serv->errinf_u.msg);
+    return res_serv->num;
   }
 
   clnt_destroy(clnt);
+  free(file_obj.cont.t_flcont_val);
   return 0;
 }
 

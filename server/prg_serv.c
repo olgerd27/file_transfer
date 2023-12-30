@@ -11,16 +11,18 @@ extern int errno; // is global, defined in the system's standard C library
 void reset_upld(errinf *err)
 {
   errno = 0;
-  err->num = 0;
-  memset(err->errinf_u.msg, 0, sizeof(err->errinf_u.msg));
+//  err->num = 0;
+//  memset(err->errinf_u.msg, 0, sizeof(err->errinf_u.msg));
 }
 
 errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
 {
   static errinf res_err; /* must be static */
+  printf("0\n");
 
   // Reset the results of the previous call
   reset_upld(&res_err);
+  printf("1\n");
 
   // Check the file existence
   if (access(file_upld->name, F_OK) == 0) {
@@ -30,6 +32,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
             "Please select a different name for your file.\n", res_err.num, file_upld->name); 
     return &res_err;
   }
+  printf("2\n");
 
   // Open the file
   FILE *hfile = fopen(file_upld->name, "wb");
@@ -40,6 +43,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
             "%s (errno=%i).\n", res_err.num, file_upld->name, strerror(errno), errno); 
     return &res_err;
   }
+  printf("3\n");
 
   // Write to the file
   fwrite(file_upld->cont.t_flcont_val, 1, file_upld->cont.t_flcont_len, hfile);
