@@ -8,36 +8,45 @@
 
 extern int errno; // is global, defined in the system's standard C library
 
+void reset_errmsg(char **errmsg)
+{
+  if (*errmsg == NULL)
+    *errmsg = (char*)malloc(SIZE_ERRMSG);
+  else
+    memset(*errmsg, 0, SIZE_ERRMSG);
+}
+
 void reset_upld(errinf *err)
 {
-  errno = 0;
-//  err->num = 0;
-//  memset(err->errinf_u.msg, 0, sizeof(err->errinf_u.msg));
+  if (errno) errno = 0;
+  if (err->num) err->num = 0;
 }
 
 errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
 {
   static errinf res_err; /* must be static */
-  printf("0\n");
+  printf("[main] 0\n");
 
   // Reset the results of the previous call
   reset_upld(&res_err);
-  printf("1\n");
+  printf("[main] 1\n");
 
   // Check the file existence
   if (access(file_upld->name, F_OK) == 0) {
     res_err.num = 1;
+    reset_errmsg(&res_err.errinf_u.msg);
     sprintf(res_err.errinf_u.msg, 
             "Error #%i: The specified file '%s' name already exists.\n"
             "Please select a different name for your file.\n", res_err.num, file_upld->name); 
     return &res_err;
   }
-  printf("2\n");
+  printf("[main] 2\n");
 
   // Open the file
   FILE *hfile = fopen(file_upld->name, "wb");
   if (hfile == NULL) {
     res_err.num = 2;
+    reset_errmsg(&res_err.errinf_u.msg);
     sprintf(res_err.errinf_u.msg, 
             "Error #%i: Cannot open the file: '%s'.\nSystem error message:\n"
             "%s (errno=%i).\n", res_err.num, file_upld->name, strerror(errno), errno); 
@@ -49,6 +58,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   fwrite(file_upld->cont.t_flcont_val, 1, file_upld->cont.t_flcont_len, hfile);
   if (ferror(hfile)) {
     res_err.num = 3;
+    reset_errmsg(&res_err.errinf_u.msg);
     sprintf(res_err.errinf_u.msg, 
             "Error #%i: Cannot write to the file: '%s'.\nSystem error message:\n"
             "%s (errno=%i).\n", res_err.num, file_upld->name, strerror(errno), errno);
