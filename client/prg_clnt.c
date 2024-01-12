@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 
   if (res_serv->num != 0) {
     // Remote system error. Print error message and die.
-    printf("!---Error %d: %s\n", res_serv->errinf_u.msg);
+    printf("!---Error %d: %s\n", res_serv->num, res_serv->errinf_u.msg);
     return res_serv->num;
   }
 
