@@ -2,6 +2,7 @@
  * prg_serv.c: implementation of the server functions for file transfers.
  */
 
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include "../rpcgen/fltr.h" /* Created by rpcgen */
