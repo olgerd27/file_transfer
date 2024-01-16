@@ -34,7 +34,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   static errinf res_err; /* must be static */
   printf("[main] 0\n");
 
-  // Reset the results of the previous call
+  // Reset the error information remained from the previous call
   reset_err(&res_err);
   printf("[main] 1\n");
 
@@ -56,7 +56,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   if (hfile == NULL) {
     res_err.num = 51;
     sprintf(res_err.errinf_u.msg, 
-            "Cannot open the file: '%s' in the write mode.\n"
+            "Cannot open the file '%s' in the write mode.\n"
             "System error #%i message:\n%s",
             file_upld->name, errno, strerror(errno)); 
     printf("[main 2.1] ERROR #%i\n", res_err.num);
