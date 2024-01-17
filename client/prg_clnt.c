@@ -114,22 +114,15 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  // Get the argument values  
+  // Get the command line arguments
   pserver_name = argv[1];
-  char *filename_src = argv[2]; // source file name on a client side that will be transferred to a server
-  char *filename_dst = argv[3]; // destination file name on a server side that will be saved on a server
   // TODO: move the definitions of both source and destination files to file_upload()
   // Maybe ask user through stdin about these two values.
+  char *filename_src = argv[2]; // a source file name on a client side that will be transferred to a server
+  char *filename_dst = argv[3]; // a name of destination file on a server side that will be saved on a server
 //  printf("[main] 1\n");
 
-  // CLIENT *clnt = create_client(); // create the client object
-  CLIENT *clnt = clnt_create(pserver_name, FLTRPROG, FLTRVERS, "tcp");
-  if (clnt == (CLIENT *)NULL) {
-    // Print an error indication why a client handle could not be created.
-    // Used when clnt_create() call fails.
-    clnt_pcreateerror(pserver_name);
-    exit(5);
-  }
+   CLIENT *clnt = create_client(); // create the client object
 //  printf("[main] 2\n");
 
   file_upload(clnt, filename_src, filename_dst); // upload file to a server
