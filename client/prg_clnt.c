@@ -57,7 +57,7 @@ int varify_args(int argc, char *argv[])
     rc = 3;
   }
   else if ( argc == 5 && (argv[3][0] != '/') ) {
-    // user specified an invalid 1st filename
+    // user specified an invalid 1th (source) filename
     fprintf(stderr, "!--Error: the source filename is invalid: '%s'.\n"
                     "Please specify the full path + name of the file.\n\n"
                     , argv[3]);
@@ -65,7 +65,7 @@ int varify_args(int argc, char *argv[])
     rc = 4;
   }
   else if ( argc == 5 && (argv[4][0] != '/') ) {
-    // user specified an invalid 2nd filename
+    // user specified an invalid 2nd (target) filename
     fprintf(stderr, "!--Error: the target filename is invalid: '%s'.\n"
                     "Please specify the full path + name of the file.\n\n"
                     , argv[4]);
@@ -73,6 +73,37 @@ int varify_args(int argc, char *argv[])
     rc = 5;
   }
   return rc;
+}
+
+// The program execution mode
+enum Mode { mode_upload, mode_download, mode_invalid };
+
+/*
+ * Define the program execution mode
+ */
+enum Mode def_exec_mode(char *act_arg)
+{
+  if (strncmp(act_arg, "-u", 2) == 0)
+    return mode_upload;
+  else if (strncmp(act_arg, "-d", 2) == 0) 
+    return mode_download;
+  else return mode_invalid;
+}
+
+/*
+ * Create client "handle" used for calling FLTRPROG 
+ * on the server designated on the command line.
+ */
+CLIENT * create_client()
+{
+  CLIENT *clnt = clnt_create(pserver_name, FLTRPROG, FLTRVERS, "tcp");
+  if (clnt == (CLIENT *)NULL) {
+    // Print an error indication why a client handle could not be created.
+    // Used when clnt_create() call fails.
+    clnt_pcreateerror(pserver_name);
+    exit(5);
+  }
+  return clnt;
 }
 
 /*
@@ -154,46 +185,37 @@ void file_upload(CLIENT *client, const char *flnm_src, /*const*/ char *flnm_dst)
  */
 void file_download()
 {
-}
-
-/*
- * Create client "handle" used for calling FLTRPROG 
- * on the server designated on the command line.
- */
-CLIENT * create_client()
-{
-  CLIENT *clnt = clnt_create(pserver_name, FLTRPROG, FLTRVERS, "tcp");
-  if (clnt == (CLIENT *)NULL) {
-    // Print an error indication why a client handle could not be created.
-    // Used when clnt_create() call fails.
-    clnt_pcreateerror(pserver_name);
-    exit(5);
-  }
-  return clnt;
+  printf("Download the file...\n");
 }
 
 int main(int argc, char *argv[])
 {
-//  printf("[main] 0\n");
   if (varify_args(argc, argv) != 0) return 1; // check the arguments
 
   // Get the command line arguments
+  enum Mode mode = def_exec_mode(argv[1]);
   pserver_name = argv[2];
-  // TODO: move the definitions of both source and target files to file_upload()
-  // Maybe ask user through stdin about these two values.
   char *filename_src = argv[3]; // a source file name on a client side that will be transferred to a server
   char *filename_dst = argv[4]; // a name of target file on a server side that will be saved on a server
-//  printf("[main] 1\n");
 
    CLIENT *clnt = create_client(); // create the client object
-//  printf("[main] 2\n");
 
-  file_upload(clnt, filename_src, filename_dst); // upload file to a server
-//  printf("[main] 3\n");
+  switch (mode) {
+    case mode_upload:
+      file_upload(clnt, filename_src, filename_dst); // upload file to a server
+      break;
+    case mode_download:
+      file_download();
+      break;
+    case mode_invalid:
+      fprintf(stderr, "Invalid program execution mode\n");
+      break;
+    default:
+      fprintf(stderr, "Unknown program execution mode\n");
+      break;
+  }
 
   clnt_destroy(clnt); // delete the client object
-//  printf("[main] 4\n");
-
   return 0;
 }
 
