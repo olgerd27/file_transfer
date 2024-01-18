@@ -64,22 +64,24 @@ void file_upload(CLIENT *client, const char *flnm_src, /*const*/ char *flnm_dst)
   // Make an upload file through RPC on a server
   res_serv = upload_file_1(&file_obj, client);
 
+  // Freeing the memory that stores the content of a file 
+  // immediately after calling the remote function
+  free(file_obj.cont.t_flcont_val);
+
+  // Print a message to standard error indicating why an RPC call failed.
+  // Used after clnt_call(), that is called here by upload_file_1().
   if (res_serv == (errinf *)NULL) {
-    // Print a message to standard error indicating why an RPC call failed.
-    // Used after clnt_call(), that is called here by upload_file_1().
     clnt_perror(client, pserver_name);
     exit(6);
   }
 
-  /* Okay, we successfully called the remote procedure. */
-
+  // Okay, we successfully called the remote procedure.
+  // Check an error that may occur on the server
   if (res_serv->num != 0) {
     // Remote system error. Print error message and die.
     printf("!---Server error %d: %s\n", res_serv->num, res_serv->errinf_u.msg);
     exit(res_serv->num);
   }
-
-  free(file_obj.cont.t_flcont_val);
 }
 
 /*
