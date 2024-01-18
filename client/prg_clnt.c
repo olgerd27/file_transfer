@@ -55,7 +55,7 @@ void file_upload(CLIENT *client, const char *flnm_src, /*const*/ char *flnm_dst)
   file file_obj; // file object
   errinf *res_serv; // result returned from a server
 
-  // Set the destination file name to the file object
+  // Set the target file name to the file object
   file_obj.name = flnm_dst;
 
   // Get the file content and set it to the file object
@@ -112,16 +112,27 @@ int main(int argc, char *argv[])
 //  printf("[main] 0\n");
   // Check the command line arguments
   if (argc != 4) {
-    fprintf(stderr, "!--Error 1: Usage: %s [host] [file_source] [file_dest]\n", argv[0]);
+    fprintf(stderr, "Usages:\n"
+      "%s [host] -u [file_src_clnt] [file_targ_serv]\n" 
+      "%s [host] -d [file_src_serv] [file_targ_clnt]\n\n"
+      "Options:\n"
+      "host            a remote hostname\n"
+      "-u              upload a file to the server\n"
+      "-d              download a file from the server\n"
+      "file_src_clnt   the source file name on the client side that will be uploaded to a server\n"
+      "file_targ_serv  the target file name on the server side where uploaded file will be saved\n"
+      "file_src_serv   the source file name on the server side that will be downloaded to a client\n"
+      "file_targ_clnt  the target file name on the client side where downloaded file will be saved\n",
+      argv[0], argv[0]);
     return 1;
   }
 
   // Get the command line arguments
   pserver_name = argv[1];
-  // TODO: move the definitions of both source and destination files to file_upload()
+  // TODO: move the definitions of both source and target files to file_upload()
   // Maybe ask user through stdin about these two values.
   char *filename_src = argv[2]; // a source file name on a client side that will be transferred to a server
-  char *filename_dst = argv[3]; // a name of destination file on a server side that will be saved on a server
+  char *filename_dst = argv[3]; // a name of target file on a server side that will be saved on a server
 //  printf("[main] 1\n");
 
    CLIENT *clnt = create_client(); // create the client object
