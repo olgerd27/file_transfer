@@ -11,6 +11,71 @@
 const char *pserver_name; // server name
 
 /*
+ * Print the help information to the user
+ */
+void print_help(char *this_prg_name)
+{
+  fprintf(stderr, "Usages:\n"
+    "%s -u [server] [file_src_clnt] [file_targ_serv]\n" 
+    "%s -d [server] [file_src_serv] [file_targ_clnt]\n"
+    "%s -h\n\n" 
+    "Options:\n"
+    "-u              action: upload a file to the server\n"
+    "-d              action: download a file from the server\n"
+    "server          the name of a server host\n"
+    "file_src_clnt   the source file name on the client side that will be uploaded to a server\n"
+    "file_targ_serv  the target file name on the server side where uploaded file will be saved\n"
+    "file_src_serv   the source file name on the server side that will be downloaded to a client\n"
+    "file_targ_clnt  the target file name on the client side where downloaded file will be saved\n"
+    "-h              print this help info\n"
+    , this_prg_name, this_prg_name, this_prg_name);
+}
+
+/*
+ * Verify the command line arguments
+ */
+int varify_args(int argc, char *argv[])
+{
+  int rc = 0;
+  if ( argc == 2 && (strncmp(argv[1], "-h", 2) == 0) ) {
+    // user wants to see the help
+    print_help(argv[0]); 
+    rc = 1;
+  }
+  else if (argc != 5) {
+    // user specified an invalid number of arguments
+    fprintf(stderr, "!--Error: invalid number of arguments\n\n");
+    print_help(argv[0]); 
+    rc = 2;
+  }
+  else if (argc == 5 && 
+          (strncmp(argv[1], "-u", 2) != 0) && 
+          (strncmp(argv[1], "-d", 2) != 0)) {
+    // user specified an invalid 'action' argument that should mean what he wants to do
+    fprintf(stderr, "!--Error: invalid the action argument: '%s'.\n\n", argv[1]);
+    print_help(argv[0]); 
+    rc = 3;
+  }
+  else if ( argc == 5 && (argv[3][0] != '/') ) {
+    // user specified an invalid 1st filename
+    fprintf(stderr, "!--Error: the source filename is invalid: '%s'.\n"
+                    "Please specify the full path + name of the file.\n\n"
+                    , argv[3]);
+    print_help(argv[0]); 
+    rc = 4;
+  }
+  else if ( argc == 5 && (argv[4][0] != '/') ) {
+    // user specified an invalid 2nd filename
+    fprintf(stderr, "!--Error: the target filename is invalid: '%s'.\n"
+                    "Please specify the full path + name of the file.\n\n"
+                    , argv[4]);
+    print_help(argv[0]); 
+    rc = 5;
+  }
+  return rc;
+}
+
+/*
  * Read the binary file to get its content for transfering
  */
 void read_file(const char *filename, file *fobj)
@@ -110,29 +175,14 @@ CLIENT * create_client()
 int main(int argc, char *argv[])
 {
 //  printf("[main] 0\n");
-  // Check the command line arguments
-  if (argc != 4) {
-    fprintf(stderr, "Usages:\n"
-      "%s [host] -u [file_src_clnt] [file_targ_serv]\n" 
-      "%s [host] -d [file_src_serv] [file_targ_clnt]\n\n"
-      "Options:\n"
-      "host            a remote hostname\n"
-      "-u              upload a file to the server\n"
-      "-d              download a file from the server\n"
-      "file_src_clnt   the source file name on the client side that will be uploaded to a server\n"
-      "file_targ_serv  the target file name on the server side where uploaded file will be saved\n"
-      "file_src_serv   the source file name on the server side that will be downloaded to a client\n"
-      "file_targ_clnt  the target file name on the client side where downloaded file will be saved\n",
-      argv[0], argv[0]);
-    return 1;
-  }
+  if (varify_args(argc, argv) != 0) return 1; // check the arguments
 
   // Get the command line arguments
-  pserver_name = argv[1];
+  pserver_name = argv[2];
   // TODO: move the definitions of both source and target files to file_upload()
   // Maybe ask user through stdin about these two values.
-  char *filename_src = argv[2]; // a source file name on a client side that will be transferred to a server
-  char *filename_dst = argv[3]; // a name of target file on a server side that will be saved on a server
+  char *filename_src = argv[3]; // a source file name on a client side that will be transferred to a server
+  char *filename_dst = argv[4]; // a name of target file on a server side that will be saved on a server
 //  printf("[main] 1\n");
 
    CLIENT *clnt = create_client(); // create the client object
