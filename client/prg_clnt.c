@@ -15,7 +15,7 @@ const char *pserver_name; // server name
  */
 void print_help(char *this_prg_name)
 {
-  fprintf(stderr, "Usages:\n"
+  fprintf(stderr, "Usage:\n"
     "%s -u [server] [file_src_clnt] [file_targ_serv]\n" 
     "%s -d [server] [file_src_serv] [file_targ_clnt]\n"
     "%s -h\n\n" 
@@ -52,13 +52,13 @@ int varify_args(int argc, char *argv[])
           (strncmp(argv[1], "-u", 2) != 0) && 
           (strncmp(argv[1], "-d", 2) != 0)) {
     // user specified an invalid 'action' argument that should mean what he wants to do
-    fprintf(stderr, "!--Error: invalid the action argument: '%s'.\n\n", argv[1]);
+    fprintf(stderr, "!--Error: invalid the 'action' argument: '%s'.\n\n", argv[1]);
     print_help(argv[0]); 
     rc = 3;
   }
   else if ( argc == 5 && (argv[3][0] != '/') ) {
     // user specified an invalid 1th (source) filename
-    fprintf(stderr, "!--Error: the source filename is invalid: '%s'.\n"
+    fprintf(stderr, "!--Error: the passed source filename is invalid: '%s'.\n"
                     "Please specify the full path + name of the file.\n\n"
                     , argv[3]);
     print_help(argv[0]); 
@@ -66,7 +66,7 @@ int varify_args(int argc, char *argv[])
   }
   else if ( argc == 5 && (argv[4][0] != '/') ) {
     // user specified an invalid 2nd (target) filename
-    fprintf(stderr, "!--Error: the target filename is invalid: '%s'.\n"
+    fprintf(stderr, "!--Error: the passed target filename is invalid: '%s'.\n"
                     "Please specify the full path + name of the file.\n\n"
                     , argv[4]);
     print_help(argv[0]); 
@@ -101,7 +101,7 @@ CLIENT * create_client()
     // Print an error indication why a client handle could not be created.
     // Used when clnt_create() call fails.
     clnt_pcreateerror(pserver_name);
-    exit(5);
+    exit(2);
   }
   return clnt;
 }
@@ -118,7 +118,7 @@ void read_file(const char *filename, file *fobj)
   FILE *hfile = fopen(filename, "rb");
   if (hfile == NULL) {
     fprintf(stderr, "!--Error 2: cannot open file '%s' for reading\n", filename);
-    exit(2);
+    exit(3);
   }
 
   // obtain file size
@@ -130,14 +130,14 @@ void read_file(const char *filename, file *fobj)
   *pf_data = (char*)malloc(*pf_len);
   if (*pf_data == NULL) {
     fprintf(stderr, "!--Error 3: memory allocation error, size=%ld\n", *pf_len);
-    exit(3);
+    exit(4);
   }
 
   // copy the file into the buffer
   size_t res_read = fread(*pf_data, 1, *pf_len, hfile);
   if (res_read != *pf_len) {
     fprintf(stderr, "!--Error 4: file '%s' reading error\n", filename);
-    exit(4);
+    exit(5);
   }
 
   fclose(hfile);
@@ -190,17 +190,20 @@ void file_download()
 
 int main(int argc, char *argv[])
 {
-  if (varify_args(argc, argv) != 0) return 1; // check the arguments
+  // Check the passed command-line arguments
+  if (varify_args(argc, argv) != 0)
+    exit(1);
 
   // Get the command line arguments
-  enum Mode mode = def_exec_mode(argv[1]);
+  //enum Mode mode = def_exec_mode(argv[1]); // TODO: delete
   pserver_name = argv[2];
   char *filename_src = argv[3]; // a source file name on a client side that will be transferred to a server
   char *filename_dst = argv[4]; // a name of target file on a server side that will be saved on a server
 
-   CLIENT *clnt = create_client(); // create the client object
+  CLIENT *clnt = create_client(); // create the client object
 
-  switch (mode) {
+  // Determine the program execution mode
+  switch (def_exec_mode(argv[1])) {
     case mode_upload:
       file_upload(clnt, filename_src, filename_dst); // upload file to a server
       break;
@@ -209,10 +212,12 @@ int main(int argc, char *argv[])
       break;
     case mode_invalid:
       fprintf(stderr, "Invalid program execution mode\n");
-      break;
+      clnt_destroy(clnt); // delete the client object
+      exit(7);
     default:
       fprintf(stderr, "Unknown program execution mode\n");
-      break;
+      clnt_destroy(clnt); // delete the client object
+      exit(8);
   }
 
   clnt_destroy(clnt); // delete the client object
