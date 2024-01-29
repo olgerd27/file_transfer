@@ -32,11 +32,11 @@ void reset_err(errinf *err)
 errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
 {
   static errinf res_err; /* must be static */
-  printf("[main] 0\n");
+  printf("[upload_file] 0\n");
 
   // Reset the error information remained from the previous call
   reset_err(&res_err);
-  printf("[main] 1\n");
+  printf("[upload_file] 1\n");
 
   // Check the file existence
   // TODO: if file exists provide a choice to the client what to do next: 
@@ -46,10 +46,10 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
     sprintf(res_err.errinf_u.msg, 
             "The specified file '%s' already exists.\n"
             "Please choose a different name to save a file.", file_upld->name); 
-    printf("[main 1.1] ERROR #%i\n", res_err.num);
+    printf("[upload_file_1_svc 1.1] ERROR #%i\n", res_err.num);
     return &res_err;
   }
-  printf("[main] 2\n");
+  printf("[upload_file] 2\n");
 
   // Open the file
   FILE *hfile = fopen(file_upld->name, "wb");
@@ -59,10 +59,10 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
             "Cannot open the file '%s' in the write mode.\n"
             "System error #%i message:\n%s",
             file_upld->name, errno, strerror(errno)); 
-    printf("[main 2.1] ERROR #%i\n", res_err.num);
+    printf("[upload_file] 2.1 ERROR #%i\n", res_err.num);
     return &res_err;
   }
-  printf("[main] 3\n");
+  printf("[upload_file] 3\n");
 
   // Write to the file
   fwrite(file_upld->cont.t_flcont_val, 1, file_upld->cont.t_flcont_len, hfile);
@@ -72,21 +72,68 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
             "Cannot write to the file: '%s'.\n"
             "System error #%i message:\n%s", 
             file_upld->name, errno, strerror(errno));
-    printf("[main 3.1] ERROR #%i\n", res_err.num);
+    printf("[upload_file] 3.1 ERROR #%i\n", res_err.num);
     fclose(hfile);
     return &res_err;
   }
-  printf("[main] 4\n");
+  printf("[upload_file] 4\n");
 
   fclose(hfile);
-  printf("[main] 5\n");
+  printf("[upload_file] 5\n");
 
   return &res_err;
 }
 
-t_flcont * download_file_1_svc(t_flname *, struct svc_req *)
+t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
 {
   static t_flcont ret_flcont;
+  printf("[download_file] 0\n");
+
+  // Open the file
+  FILE *hfile = fopen(*flname, "rb");
+  if (hfile == NULL) {
+    fprintf(stderr, 
+            "Cannot open the file '%s' in the read mode.\n"
+            "System error #%i message:\n%s",
+            *flname, errno, strerror(errno)); 
+    printf("[download_file] 0.1 File openning error\n");
+    return &ret_flcont;
+  }
+  printf("[download_file] 1\n");
+
+  // Get the file size
+  fseek(hfile, 0, SEEK_END);
+  ret_flcont.t_flcont_len = ftell(hfile);
+  rewind(hfile);
+  printf("[download_file] 2\n");
+
+  // Allocate the memory to store the file content
+  ret_flcont.t_flcont_val = (char*)malloc(ret_flcont.t_flcont_len);
+  if (ret_flcont.t_flcont_val == NULL) {
+    fprintf(stderr, "Memory allocation error (size=%ld) to store the file content:\n'%s'\n", 
+            ret_flcont.t_flcont_len, *flname);
+    printf("[download_file] 2.1 Memory allocation error\n");
+    fclose(hfile);
+    return &ret_flcont;
+  }
+  printf("[download_file] 3\n");
+
+  // Read the file
+  fread(ret_flcont.t_flcont_val, 1, ret_flcont.t_flcont_len, hfile);
+  if (ferror(hfile)) {
+    fprintf(stderr, 
+            "Cannot read the file: '%s'.\n"
+            "System error #%i message:\n%s", 
+            *flname, errno, strerror(errno));
+    printf("[download_file] 3.1 File reading error\n");
+    fclose(hfile);
+    return &ret_flcont;
+  }
+  printf("[download_file] 4\n");
+
+  fclose(hfile);
+  printf("[download_file] 5\n");
+
   return &ret_flcont;
 }
 

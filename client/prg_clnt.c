@@ -160,8 +160,8 @@ void file_upload(CLIENT *client, const char *flnm_src, /*const*/ char *flnm_dst)
   // Make an upload file through RPC on a server
   res_serv = upload_file_1(&file_obj, client);
 
-  // Freeing the memory that stores the content of a file 
-  // immediately after calling the remote function
+  // Freeing the memory that stores the file content
+  // after calling the remote function
   free(file_obj.cont.t_flcont_val);
 
   // Print a message to standard error indicating why an RPC call failed.
@@ -195,7 +195,6 @@ int main(int argc, char *argv[])
     exit(1);
 
   // Get the command line arguments
-  //enum Mode mode = def_exec_mode(argv[1]); // TODO: delete
   pserver_name = argv[2];
   char *filename_src = argv[3]; // a source file name on a client side that will be transferred to a server
   char *filename_dst = argv[4]; // a name of target file on a server side that will be saved on a server
@@ -208,7 +207,7 @@ int main(int argc, char *argv[])
       file_upload(clnt, filename_src, filename_dst); // upload file to a server
       break;
     case mode_download:
-      file_download();
+      file_download(); // download a file from the server
       break;
     case mode_invalid:
       fprintf(stderr, "Invalid program execution mode\n");
