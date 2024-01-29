@@ -16,19 +16,16 @@ const char *pserver_name; // server name
 void print_help(char *this_prg_name)
 {
   fprintf(stderr, "Usage:\n"
-    "%s -u [server] [file_src_clnt] [file_targ_serv]\n" 
-    "%s -d [server] [file_src_serv] [file_targ_clnt]\n"
+    "%s [-u | -d] [server] [file_src] [file_targ]\n" 
     "%s -h\n\n" 
     "Options:\n"
-    "-u              action: upload a file to the server\n"
-    "-d              action: download a file from the server\n"
-    "server          the name of a server host\n"
-    "file_src_clnt   the source file name on the client side that will be uploaded to a server\n"
-    "file_targ_serv  the target file name on the server side where uploaded file will be saved\n"
-    "file_src_serv   the source file name on the server side that will be downloaded to a client\n"
-    "file_targ_clnt  the target file name on the client side where downloaded file will be saved\n"
-    "-h              print this help info\n"
-    , this_prg_name, this_prg_name, this_prg_name);
+    "-u         action: upload a file to the server\n"
+    "-d         action: download a file from the server\n"
+    "server     a name of the server host\n"
+    "file_src   a source file name on a client (if upload action) or server (if download action)\n"
+    "file_targ  a target file name on a server (if upload action) or client (if download action)\n"
+    "-h         action: print this help\n"
+    , this_prg_name, this_prg_name);
 }
 
 /*
@@ -183,7 +180,7 @@ void file_upload(CLIENT *client, const char *flnm_src, /*const*/ char *flnm_dst)
 /*
  * The Download file main function
  */
-void file_download()
+void file_download(CLIENT *client)
 {
   printf("Download the file...\n");
 }
@@ -192,7 +189,7 @@ int main(int argc, char *argv[])
 {
   // Check the passed command-line arguments
   if (varify_args(argc, argv) != 0)
-    exit(1);
+    return 1;
 
   // Get the command line arguments
   pserver_name = argv[2];
@@ -201,22 +198,22 @@ int main(int argc, char *argv[])
 
   CLIENT *clnt = create_client(); // create the client object
 
-  // Determine the program execution mode
+  // Get to know the execution mode and run the corresponding remote function
   switch (def_exec_mode(argv[1])) {
     case mode_upload:
       file_upload(clnt, filename_src, filename_dst); // upload file to a server
       break;
     case mode_download:
-      file_download(); // download a file from the server
+      file_download(clnt); // download a file from the server
       break;
     case mode_invalid:
       fprintf(stderr, "Invalid program execution mode\n");
       clnt_destroy(clnt); // delete the client object
-      exit(7);
+      return 7;
     default:
       fprintf(stderr, "Unknown program execution mode\n");
       clnt_destroy(clnt); // delete the client object
-      exit(8);
+      return 8;
   }
 
   clnt_destroy(clnt); // delete the client object
