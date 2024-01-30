@@ -29,6 +29,9 @@ void reset_err(errinf *err)
   if (errno) errno = 0;
 }
 
+/*
+ * The Upload file main server-side function
+ */
 errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
 {
   static errinf res_err; /* must be static */
@@ -52,6 +55,11 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   printf("[upload_file] 2\n");
 
   // Open the file
+  // TODO: use 'x' mode to check if file exists instead of access() function.
+  // The error message in this case will look like:
+  // "The file '%s' already exists or could not be opened in the write mode.", filename
+  // "errno=%d: %s", errno, strerror(errno)
+  // https://www.geeksforgeeks.org/fopen-for-an-existing-file-in-write-mode/
   FILE *hfile = fopen(file_upld->name, "wb");
   if (hfile == NULL) {
     res_err.num = 51;
@@ -64,12 +72,13 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   }
   printf("[upload_file] 3\n");
 
-  // Write to the file
+  // Write the client file data to a new file
   fwrite(file_upld->cont.t_flcont_val, 1, file_upld->cont.t_flcont_len, hfile);
+  // TODO: add check for a number of characters written to the file
   if (ferror(hfile)) {
     res_err.num = 52;
     sprintf(res_err.errinf_u.msg, 
-            "Cannot write to the file: '%s'.\n"
+	    "Error writing to file: '%s'.\n"
             "System error #%i message:\n%s", 
             file_upld->name, errno, strerror(errno));
     printf("[upload_file] 3.1 ERROR #%i\n", res_err.num);
@@ -84,6 +93,9 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   return &res_err;
 }
 
+/*
+ * The Download file main server-side function
+ */
 t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
 {
   static t_flcont ret_flcont;
@@ -118,11 +130,12 @@ t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
   }
   printf("[download_file] 3\n");
 
-  // Read the file
+  // Read the file content into the buffer
   fread(ret_flcont.t_flcont_val, 1, ret_flcont.t_flcont_len, hfile);
+  // TODO: add check for a number of characters that are read from the file
   if (ferror(hfile)) {
     fprintf(stderr, 
-            "Cannot read the file: '%s'.\n"
+	    "Error writing to file: '%s'.\n"
             "System error #%i message:\n%s", 
             *flname, errno, strerror(errno));
     printf("[download_file] 3.1 File reading error\n");
