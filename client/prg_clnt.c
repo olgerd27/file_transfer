@@ -12,85 +12,162 @@
 const char *pserver_name; // server name
 
 /*
- * Print the help information to the user
+ * Print the help info
+ *
+ * Input parameters:
+ * this_prg_name: this program name
+ * extend_help: 1 - print an extended help info
  */
-void print_help(char *this_prg_name)
+void print_help(char *this_prg_name, int extend_help)
 {
+  
+  // Print the extended part of help info
+  if (extend_help == 1)
+    fprintf(stderr, "The RPC client program that uploads files to and downloads from the server.\n\n");
+
+  // Print the mandatory part of help info
   fprintf(stderr, "Usage:\n"
-    "%s [-u | -d] [server] [file_src] [file_targ]\n" 
-    "%s -h\n\n" 
-    "Options:\n"
-    "-u         action: upload a file to the server\n"
-    "-d         action: download a file from the server\n"
-    "server     a server hostname\n"
-    "file_src   a source file name on a client (if upload action) or server (if download action) side\n"
-    "file_targ  a target file name on a server (if upload action) or client (if download action) side\n"
-    "-h         action: print this help\n"
-    "\nExamples:\n"
-    "1 Upload the local file /tmp/file to server 'serva' and save it there as /tmp/file_upld:\n"
-    "%s -u serva /tmp/file /tmp/file_upld\n\n"
-    "2 Download the remote file /tmp/file from server 'servb' and save it locally as /tmp/file_down:\n"
-    "%s -d servb /tmp/file /tmp/file_down\n"
-    , this_prg_name, this_prg_name, this_prg_name, this_prg_name);
+    "%s [-u | -d] [server] [file_src] [file_targ]\n"
+    "%s [-h]\n\n", this_prg_name, this_prg_name); 
+
+  // Print the extended part of help info
+  if (extend_help == 1)
+    fprintf(stderr,
+      "Options:\n"
+      "-u         action: upload a file to the server\n"
+      "-d         action: download a file from the server\n"
+      "server     a server hostname\n"
+      "file_src   a source file name on a client (if upload action) or server (if download action) side\n"
+      "file_targ  a target file name on a server (if upload action) or client (if download action) side\n"
+      "-h         action: print this help\n"
+      "\nExamples:\n"
+      "1 Upload the local file /tmp/file to server 'serva' and save it there as /tmp/file_upld:\n"
+      "%s -u serva /tmp/file /tmp/file_upld\n\n"
+      "2 Download the remote file /tmp/file from server 'servb' and save it locally as /tmp/file_down:\n"
+      "%s -d servb /tmp/file /tmp/file_down\n"
+      , this_prg_name, this_prg_name);
+    else
+      fprintf(stderr, "To see the extended help info use '-h' option.\n");
 }
 
 /*
  * Verify the command line arguments
  */
-int varify_args(int argc, char *argv[])
+int verify_args(int argc, char *argv[])
 {
   int rc = 0;
-  if ( argc == 2 && (strncmp(argv[1], "-h", 2) == 0) ) {
+  if ( argc == 2 && strncmp(argv[1], "-h", 2) == 0 ) {
     // user wants to see the help
-    print_help(argv[0]); 
-    rc = 1;
+    print_help(argv[0], 1);
+    rc = 0;
   }
   else if (argc != 5) {
-    // user specified an invalid number of arguments
+    // user specified an invalid number of arguments.
+    // After this 'if' it's not needed to check the number of args
     fprintf(stderr, "!--Error: invalid number of arguments\n\n");
-    print_help(argv[0]); 
+    print_help(argv[0], 0);
     rc = 2;
   }
-  else if (argc == 5 && 
-          (strncmp(argv[1], "-u", 2) != 0) && 
-          (strncmp(argv[1], "-d", 2) != 0)) {
+  else if (strncmp(argv[1], "-u", 2) != 0 && 
+           strncmp(argv[1], "-d", 2) != 0) {
     // user specified an invalid 'action' argument that should mean what he wants to do
     fprintf(stderr, "!--Error: invalid the 'action' argument: '%s'.\n\n", argv[1]);
-    print_help(argv[0]); 
+    print_help(argv[0], 0);
     rc = 3;
   }
-  else if ( argc == 5 && (argv[3][0] != '/') ) {
+  else if (argv[3][0] != '/') {
     // user specified an invalid 1th (source) filename
     fprintf(stderr, "!--Error: the passed source filename is invalid: '%s'.\n"
-                    "Please specify the full path + name of the file.\n\n"
+                    "Please specify the full path+name of the file.\n\n"
                     , argv[3]);
-    print_help(argv[0]); 
+    print_help(argv[0], 0);
     rc = 4;
   }
-  else if ( argc == 5 && (argv[4][0] != '/') ) {
+  else if (argv[4][0] != '/') {
     // user specified an invalid 2nd (target) filename
     fprintf(stderr, "!--Error: the passed target filename is invalid: '%s'.\n"
-                    "Please specify the full path + name of the file.\n\n"
+                    "Please specify the full path+name of the file.\n\n"
                     , argv[4]);
-    print_help(argv[0]); 
+    print_help(argv[0], 0);
     rc = 5;
   }
   return rc;
 }
 
-// The program execution mode
-enum Mode { mode_upload, mode_download, mode_invalid };
+enum Action { act_upload, act_download, act_help, act_invalid };
 
-/*
- * Define the program execution mode
+// TODO: specify the correct errors numbers in exit() and fprintf()
+enum Action process_args(int argc, char *argv[])
+{
+  enum Action action = act_invalid;
+  if (argc == 1) {
+    // user didn't pass any arguments
+    print_help(argv[0], 0);
+    exit(1);
+  }
+  else if (argc >= 2 && argv[1][0] == '-') {
+    // process the action arguments  
+    switch (argv[1][1]) {
+      case 'u':
+        // user wants to upload file to a server
+	action = act_upload;
+        break;
+      case 'd':
+        // user wants to download file from a server
+	action = act_download;
+        break;
+      case 'h':
+        // user wants to see the help
+	action = act_help;
+        break;
+      default:
+        // invalid action
+	fprintf(stderr, "!--Error ??: invalid action has been passed\n\n");
+	print_help(argv[0], 0);
+	exit(2);
+    }
+  }
+  else if (argc != 5) {
+    // user specified an invalid number of arguments.
+    fprintf(stderr, "!--Error ??: invalid number of arguments\n\n");
+    print_help(argv[0], 0);
+    exit(3);
+  }
+  else if (argv[3][0] != '/') {
+    // user specified an invalid the 1th filename (source)
+    fprintf(stderr, "!--Error ??: passed an invalid source filename: '%s'.\n"
+                    "Please specify the full path+name of the file.\n\n"
+                    , argv[3]);
+    print_help(argv[0], 0);
+    exit(4);
+  }
+  else if (argv[4][0] != '/') {
+    // user specified an invalid the 2nd filename (target)
+    // TODO: maybe combine this 'if' case with the previous one just to not have so many
+    fprintf(stderr, "!--Error ??: passed an invalid target filename: '%s'.\n"
+                    "Please specify the full path+name of the file.\n\n"
+                    , argv[4]);
+    print_help(argv[0], 0);
+    exit(5);
+  }
+  return action;
+}
+
+/* 
+ * The program execution modes
  */
-enum Mode def_exec_mode(char *act_arg)
+//enum Action { act_upload, act_download, act_help, act_invalid };
+
+enum Action def_exec_mode(char *act_arg)
 {
   if (strncmp(act_arg, "-u", 2) == 0)
-    return mode_upload;
+    return act_upload;
   else if (strncmp(act_arg, "-d", 2) == 0) 
-    return mode_download;
-  else return mode_invalid;
+    return act_download;
+  else if (strncmp(act_arg, "-h", 2) == 0) 
+    return act_help;
+  else
+    return act_invalid;
 }
 
 /*
@@ -257,8 +334,11 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
 int main(int argc, char *argv[])
 {
   // Check the passed command-line arguments
-  if (varify_args(argc, argv) != 0)
-    return 1;
+//  int rc_vrf_args = verify_args(argc, argv);
+//  if (rc_vrf_args != 0)
+//    return rc_vrf_args;
+  enum Action action = process_args(argc, argv);
+  // Action is correct here, client can be created
 
   // Get the command line arguments
   pserver_name = argv[2];
@@ -268,19 +348,20 @@ int main(int argc, char *argv[])
   CLIENT *clnt = create_client(); // create the client object
 
   // Get to know the execution mode and run the corresponding remote function
-  switch (def_exec_mode(argv[1])) {
-    case mode_upload:
+//  switch (def_exec_mode(argv[1])) {
+  switch(action) {
+    case act_upload:
       // upload file to a server
       file_upload(clnt, filename_src, filename_dst);
       break;
-    case mode_download:
+    case act_download:
       // download file from the server
       file_download(clnt, filename_src, filename_dst);
       break;
-    case mode_invalid:
-      fprintf(stderr, "Invalid program execution mode\n");
-      clnt_destroy(clnt); // delete the client object
-      return 7;
+    case act_help:
+      // print the help info
+      print_help(argv[0], 1);
+      break;
     default:
       fprintf(stderr, "Unknown program execution mode\n");
       clnt_destroy(clnt); // delete the client object
