@@ -338,7 +338,15 @@ int main(int argc, char *argv[])
 //  if (rc_vrf_args != 0)
 //    return rc_vrf_args;
   enum Action action = process_args(argc, argv);
-  // Action is correct here, client can be created
+
+  // The help action isn't the RPC-like one. 
+  // Print the help info if it was choosen and exit
+  if (action == act_help) {
+    print_help(argv[0], 1);
+    return 0;
+  }
+
+  // A RPC-like action is correct here, client can be created
 
   // Get the command line arguments
   pserver_name = argv[2];
@@ -357,10 +365,6 @@ int main(int argc, char *argv[])
     case act_download:
       // download file from the server
       file_download(clnt, filename_src, filename_dst);
-      break;
-    case act_help:
-      // print the help info
-      print_help(argv[0], 1);
       break;
     default:
       fprintf(stderr, "Unknown program execution mode\n");
