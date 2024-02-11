@@ -48,52 +48,11 @@ void print_help(char *this_prg_name, int extend_help)
 }
 
 /*
- * Verify the command line arguments
+ * The supported program actions
  */
-int verify_args(int argc, char *argv[])
-{
-  int rc = 0;
-  if ( argc == 2 && strncmp(argv[1], "-h", 2) == 0 ) {
-    // user wants to see the help
-    print_help(argv[0], 1);
-    rc = 0;
-  }
-  else if (argc != 5) {
-    // user specified an invalid number of arguments.
-    // After this 'if' it's not needed to check the number of args
-    fprintf(stderr, "!--Error: invalid number of arguments\n\n");
-    print_help(argv[0], 0);
-    rc = 2;
-  }
-  else if (strncmp(argv[1], "-u", 2) != 0 && 
-           strncmp(argv[1], "-d", 2) != 0) {
-    // user specified an invalid 'action' argument that should mean what he wants to do
-    fprintf(stderr, "!--Error: invalid the 'action' argument: '%s'.\n\n", argv[1]);
-    print_help(argv[0], 0);
-    rc = 3;
-  }
-  else if (argv[3][0] != '/') {
-    // user specified an invalid 1th (source) filename
-    fprintf(stderr, "!--Error: the passed source filename is invalid: '%s'.\n"
-                    "Please specify the full path+name of the file.\n\n"
-                    , argv[3]);
-    print_help(argv[0], 0);
-    rc = 4;
-  }
-  else if (argv[4][0] != '/') {
-    // user specified an invalid 2nd (target) filename
-    fprintf(stderr, "!--Error: the passed target filename is invalid: '%s'.\n"
-                    "Please specify the full path+name of the file.\n\n"
-                    , argv[4]);
-    print_help(argv[0], 0);
-    rc = 5;
-  }
-  return rc;
-}
-
 enum Action { act_upload, act_download, act_help, act_invalid };
 
-// TODO: specify the correct errors numbers in exit() and fprintf()
+// Verify the command-line arguments and determine the action
 enum Action process_args(int argc, char *argv[])
 {
   enum Action action = act_invalid;
@@ -121,7 +80,7 @@ enum Action process_args(int argc, char *argv[])
         break;
       default:
         // invalid action
-	fprintf(stderr, "!--Error ??: invalid action has been passed\n\n");
+	fprintf(stderr, "!--Error 2: invalid action has been passed\n\n");
 	print_help(argv[0], 0);
 	exit(2);
     }
@@ -147,30 +106,13 @@ enum Action process_args(int argc, char *argv[])
   // User specified an invalid source filename on a remote server
   if (action == act_download && argv[3][0] != '/') {
     fprintf(stderr, 
-            "!--Error 4: passed an invalid source filename.\n"
+            "!--Error 5: passed an invalid source filename.\n"
             "Please specify the full path+name for the downloaded (source) file on the remote host.\n\n");
     print_help(argv[0], 0);
-    exit(4);
+    exit(5);
   }
 
   return action;
-}
-
-/* 
- * The program execution modes
- */
-//enum Action { act_upload, act_download, act_help, act_invalid };
-
-enum Action def_exec_mode(char *act_arg)
-{
-  if (strncmp(act_arg, "-u", 2) == 0)
-    return act_upload;
-  else if (strncmp(act_arg, "-d", 2) == 0) 
-    return act_download;
-  else if (strncmp(act_arg, "-h", 2) == 0) 
-    return act_help;
-  else
-    return act_invalid;
 }
 
 /*
@@ -184,14 +126,15 @@ CLIENT * create_client()
     // Print an error indication why a client handle could not be created.
     // Used when clnt_create() call fails.
     clnt_pcreateerror(rmt_host);
-    exit(2);
+    exit(6);
   }
   return clnt;
 }
 
 /*
- * Read the file to get its content for transfering
+ * The section to do the File Upload
  */
+// Read the file to get its content for transfering
 void read_file(const char *filename, file *fobj)
 {
   // Create the pointers for quick access
@@ -204,7 +147,7 @@ void read_file(const char *filename, file *fobj)
     fprintf(stderr, "!--Error 3: cannot open file '%s' for reading\n"
                     "System error #%i message:\n%s\n",
                     filename, errno, strerror(errno));
-    exit(3);
+    exit(10);
   }
 
   // Obtain file size
@@ -216,7 +159,7 @@ void read_file(const char *filename, file *fobj)
   *pf_data = (char*)malloc(*pf_len);
   if (*pf_data == NULL) {
     fprintf(stderr, "!--Error 4: memory allocation error, size=%ld\n", *pf_len);
-    exit(4);
+    exit(11);
   }
 
   // Read the file content into the buffer
@@ -225,16 +168,15 @@ void read_file(const char *filename, file *fobj)
     fprintf(stderr, "!--Error 5: error reading from file: '%s'.\n"
                     "System error #%i message:\n%s\n", 
                     filename, errno, strerror(errno));
-    exit(5);
+    exit(12);
   }
 
   // Close the file
   fclose(hfile);
 }
 
-/*
- * The Upload file main function
- */
+// The Upload file main function
+// Error numbers range: 10-15
 void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm_dst_serv)
 {
   file file_obj; // file object
@@ -258,7 +200,7 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
   // Used after clnt_call(), that is called here by upload_file_1().
   if (srv_errinf == (errinf *)NULL) {
     clnt_perror(client, rmt_host);
-    exit(6);
+    exit(13);
   }
 
   // Okay, we successfully called the remote procedure.
@@ -271,7 +213,10 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
   }
 }
 
-// Save a file downloaded on the server to a new file
+/*
+ * The section to do the File Download
+ */
+// Save a file downloaded on the server to a new local file
 void save_file(const char *flname, t_flcont *flcont)
 {
   // Open the file 
@@ -281,7 +226,7 @@ void save_file(const char *flname, t_flcont *flcont)
       "!--Error 3: The file '%s' already exists or could not be opened in the write mode.\n"
       "System error #%i message:\n%s\n", 
       flname, errno, strerror(errno));
-    exit(3);
+    exit(16);
   }
 
   // Write the server file data to a new file
@@ -292,16 +237,15 @@ void save_file(const char *flname, t_flcont *flcont)
             "System error #%i message:\n%s\n", 
             flname, errno, strerror(errno));
     fclose(hfile);
-    exit(7);
+    exit(17);
   }
 
   // Close the file
   fclose(hfile);
 }
 
-/*
- * The Download file main function
- */
+// The main function to download the file
+// Error numbers range: 15-20
 void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_clnt)
 {
   t_flcont *srv_flcont; // result from a server - content of a downloaded file
@@ -313,7 +257,7 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
   // Used after clnt_call(), that is called here by download_file_1().
   if (srv_flcont == (t_flcont *)NULL) {
     clnt_perror(client, rmt_host);
-    exit(6);
+    exit(15);
   }
 
   // Okay, we successfully called the remote procedure.
@@ -336,20 +280,18 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
 
 int main(int argc, char *argv[])
 {
-  // Check the passed command-line arguments
-//  int rc_vrf_args = verify_args(argc, argv);
-//  if (rc_vrf_args != 0)
-//    return rc_vrf_args;
+  // Verify the passed command-line arguments and determine the action
   enum Action action = process_args(argc, argv);
 
-  // The help action isn't the RPC-like action. It should be called before setting up RPC parameters.
+  // The help action is not the RPC action. 
+  // It should be called before setting up RPC parameters.
   // Print the help info if it was choosen and exit.
   if (action == act_help) {
     print_help(argv[0], 1);
     return 0;
   }
 
-  // A RPC-like action is correct here, client can be created
+  // RPC action is determined, client can be created
 
   // Get the command line arguments
   rmt_host = argv[2]; // a remote host name
@@ -358,8 +300,7 @@ int main(int argc, char *argv[])
 
   CLIENT *clnt = create_client(); // create the client object
 
-  // Get to know the execution mode and run the corresponding remote function
-//  switch (def_exec_mode(argv[1])) {
+  // Perform the RPC action
   switch(action) {
     case act_upload:
       // upload file to a server
@@ -372,7 +313,7 @@ int main(int argc, char *argv[])
     default:
       fprintf(stderr, "Unknown program execution mode\n");
       clnt_destroy(clnt); // delete the client object
-      return 8;
+      return 7;
   }
 
   clnt_destroy(clnt); // delete the client object
