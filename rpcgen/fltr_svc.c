@@ -34,7 +34,7 @@ fltrprog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 
 	case upload_file:
 		_xdr_argument = (xdrproc_t) xdr_file;
-		_xdr_result = (xdrproc_t) xdr_errinf;
+		_xdr_result = (xdrproc_t) xdr_int;
 		local = (char *(*)(char *, struct svc_req *)) upload_file_1_svc;
 		break;
 

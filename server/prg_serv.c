@@ -7,68 +7,43 @@
 #include <errno.h>
 #include "../rpcgen/fltr.h" /* Created by rpcgen */
 
-extern int errno; // is global, defined in the system's standard C library
+// Global system variable that store the error number
+extern int errno;
 
-/*
- * Reset/init the error information
- */
-void reset_err(errinf *err)
+// Reset/init the error state 
+void reset_err(int *rc)
 {
-  // allocate the memory for error messages
-  if (!err->errinf_u.msg)
-    err->errinf_u.msg = (char*)malloc(SIZE_ERRMSG);
-
-  // reset the error information that is remained from the previous case of an error
-  if (err->num) {
-    err->num = 0;
-    if (err->errinf_u.msg)
-      memset(err->errinf_u.msg, 0, SIZE_ERRMSG);
-  }
+  // reset the return code: 
+  // 1 - success, 0 - failure
+  *rc = 1;
 
   // reset the system error number
   if (errno) errno = 0;
 }
 
-/*
- * The Upload file main server-side function
+/* 
+ * The Upload file main function
  */
-errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
+//errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
+int * upload_file_1_svc(file *file_upld, struct svc_req *)
 {
-  static errinf res_err; /* must be static */
+  static int rc; /* must be static */
   printf("[upload_file] 0\n");
 
-  // Reset the error information remained from the previous call
-  reset_err(&res_err);
+  // Reset an error state remained from the previous call
+  reset_err(&rc);
   printf("[upload_file] 1\n");
 
-  // Check the file existence
-  // TODO: if file exists provide a choice to the client what to do next: 
-  // Specify different name, Overwrite, Cancel
-  if (access(file_upld->name, F_OK) == 0) {
-    res_err.num = 50;
-    sprintf(res_err.errinf_u.msg, 
-            "The specified file '%s' already exists.\n"
-            "Please choose a different name to save a file.", file_upld->name); 
-    printf("[upload_file_1_svc 1.1] ERROR #%i\n", res_err.num);
-    return &res_err;
-  }
-  printf("[upload_file] 2\n");
-
   // Open the file
-  // TODO: use 'x' mode to check if file exists instead of access() function.
-  // The error message in this case will look like:
-  // "The file '%s' already exists or could not be opened in the write mode.", filename
-  // "errno=%d: %s", errno, strerror(errno)
-  // https://www.geeksforgeeks.org/fopen-for-an-existing-file-in-write-mode/
-  FILE *hfile = fopen(file_upld->name, "wb");
+  FILE *hfile = fopen(file_upld->name, "wbx");
   if (hfile == NULL) {
-    res_err.num = 51;
-    sprintf(res_err.errinf_u.msg, 
-            "Cannot open the file '%s' in the write mode.\n"
-            "System error #%i message:\n%s",
+    printf("[upload_file] 2.1\n");
+    fprintf(stderr, 
+            "!--Error 50: The file '%s' already exists or could not be opened in the write mode.\n"
+            "System error #%i message:\n%s\n",
             file_upld->name, errno, strerror(errno)); 
-    printf("[upload_file] 2.1 ERROR #%i\n", res_err.num);
-    return &res_err;
+    rc = 0;
+    return &rc;
   }
   printf("[upload_file] 3\n");
 
@@ -76,25 +51,24 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   fwrite(file_upld->cont.t_flcont_val, 1, file_upld->cont.t_flcont_len, hfile);
   // TODO: add check for a number of characters written to the file
   if (ferror(hfile)) {
-    res_err.num = 52;
-    sprintf(res_err.errinf_u.msg, 
-	    "Error writing to file: '%s'.\n"
-            "System error #%i message:\n%s", 
-            file_upld->name, errno, strerror(errno));
-    printf("[upload_file] 3.1 ERROR #%i\n", res_err.num);
+    printf("[upload_file] 3.1\n");
+    fprintf(stderr, "!--Error 51: Cannot write to the file: '%s'.\n"
+                    "System error #%i message:\n%s", 
+                    file_upld->name, errno, strerror(errno));
     fclose(hfile);
-    return &res_err;
+    rc = 0;
+    return &rc;
   }
   printf("[upload_file] 4\n");
 
   fclose(hfile);
   printf("[upload_file] 5\n");
 
-  return &res_err;
+  return &rc;
 }
 
 /*
- * The Download file main server-side function
+ * The Download file main function
  */
 t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
 {
@@ -104,11 +78,10 @@ t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
   // Open the file
   FILE *hfile = fopen(*flname, "rb");
   if (hfile == NULL) {
-    fprintf(stderr, 
-            "Cannot open the file '%s' in the read mode.\n"
-            "System error #%i message:\n%s",
-            *flname, errno, strerror(errno)); 
-    printf("[download_file] 0.1 File openning error\n");
+    printf("[download_file] 0.1\n");
+    fprintf(stderr, "!--Error 60: Cannot open the file '%s' in the read mode.\n"
+                    "System error #%i message:\n%s",
+                    *flname, errno, strerror(errno)); 
     return &ret_flcont;
   }
   printf("[download_file] 1\n");
@@ -122,9 +95,9 @@ t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
   // Allocate the memory to store the file content
   ret_flcont.t_flcont_val = (char*)malloc(ret_flcont.t_flcont_len);
   if (ret_flcont.t_flcont_val == NULL) {
-    fprintf(stderr, "Memory allocation error (size=%ld) to store the file content:\n'%s'\n", 
-            ret_flcont.t_flcont_len, *flname);
-    printf("[download_file] 2.1 Memory allocation error\n");
+    printf("[download_file] 2.1\n");
+    fprintf(stderr, "!--Error 61: Memory allocation error (size=%ld) to store the file content:\n'%s'\n", 
+                    ret_flcont.t_flcont_len, *flname);
     fclose(hfile);
     return &ret_flcont;
   }
@@ -134,11 +107,10 @@ t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
   fread(ret_flcont.t_flcont_val, 1, ret_flcont.t_flcont_len, hfile);
   // TODO: add check for a number of characters that are read from the file
   if (ferror(hfile)) {
-    fprintf(stderr, 
-	    "Error writing to file: '%s'.\n"
-            "System error #%i message:\n%s", 
-            *flname, errno, strerror(errno));
-    printf("[download_file] 3.1 File reading error\n");
+    printf("[download_file] 3.1\n");
+    fprintf(stderr, "!--Error 62: Cannot read the file: '%s'.\n"
+                    "System error #%i message:\n%s", 
+                    *flname, errno, strerror(errno));
     fclose(hfile);
     return &ret_flcont;
   }

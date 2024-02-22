@@ -11,7 +11,7 @@ const char *rmt_host; // a remote host name
 /*
  * Print the help info
  *
- * Input parameters:
+ * Input:
  * this_prg_name - this program name
  * extend_help   - print the extended (1), or short help info (0)
  */
@@ -86,7 +86,7 @@ enum Action process_args(int argc, char *argv[])
     }
   }
 
-  // User specified an invalid number of arguments
+  // User specified an invalid number of arguments.
   // argc should be 5 except if help was choosen
   if ( action != act_help && argc != 5 ) {
     fprintf(stderr, "!--Error 3: invalid number of arguments\n\n");
@@ -97,8 +97,8 @@ enum Action process_args(int argc, char *argv[])
   // User specified an invalid target filename on a remote server
   if (action == act_upload && argv[4][0] != '/') {
     fprintf(stderr, 
-            "!--Error 4: passed an invalid target filename.\n"
-            "Please specify the full path+name for the uploaded (target) file on the remote host.\n\n");
+      "!--Error 4: passed an invalid target filename.\n"
+      "Please specify the full path+name for the uploaded (target) file on the remote host.\n\n");
     print_help(argv[0], 0);
     exit(4);
   }
@@ -106,8 +106,8 @@ enum Action process_args(int argc, char *argv[])
   // User specified an invalid source filename on a remote server
   if (action == act_download && argv[3][0] != '/') {
     fprintf(stderr, 
-            "!--Error 5: passed an invalid source filename.\n"
-            "Please specify the full path+name for the downloaded (source) file on the remote host.\n\n");
+      "!--Error 5: passed an invalid source filename.\n"
+      "Please specify the full path+name for the downloaded (source) file on the remote host.\n\n");
     print_help(argv[0], 0);
     exit(5);
   }
@@ -132,7 +132,7 @@ CLIENT * create_client()
 }
 
 /*
- * The section to do the File Upload
+ * Upload File section
  */
 // Read the file to get its content for transfering
 void read_file(const char *filename, file *fobj)
@@ -175,13 +175,12 @@ void read_file(const char *filename, file *fobj)
   fclose(hfile);
 }
 
-// The Upload file main function
+// The main function to Upload file
 // Error numbers range: 10-15
 void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm_dst_serv)
 {
   file file_obj; // file object
-  errinf *srv_errinf; // result from a server - error info
-  // TODO: is a memory freeing required for srv_errinf?
+  int *rc_srv; // the server returned code: 1 - success, 0 - failure
 
   // Set the target file name to the file object
   file_obj.name = flnm_dst_serv;
@@ -190,7 +189,7 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
   read_file(flnm_src_clnt, &file_obj);
 
   // Make a file upload to a server through RPC
-  srv_errinf = upload_file_1(&file_obj, client);
+  rc_srv = upload_file_1(&file_obj, client);
 
   // Freeing the memory that stores the file content
   // after calling the remote function
@@ -198,23 +197,23 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by upload_file_1().
-  if (srv_errinf == (errinf *)NULL) {
+  if (rc_srv == (int *)NULL) {
     clnt_perror(client, rmt_host);
     exit(13);
   }
 
-  // Okay, we successfully called the remote procedure.
-
   // Check an error that may occur on the server
-  if (srv_errinf->num != 0) {
+  if (*rc_srv == 0) {
     // Remote system error. Print error message and die.
-    printf("!---Server error %d: %s\n", srv_errinf->num, srv_errinf->errinf_u.msg);
-    exit(srv_errinf->num);
+    printf("Error uploading file on server\n");
+    exit(14);
   }
+
+  // Okay, we successfully called the remote procedure.
 }
 
 /*
- * The section to do the File Download
+ * Download File section
  */
 // Save a file downloaded on the server to a new local file
 void save_file(const char *flname, t_flcont *flcont)
@@ -244,7 +243,7 @@ void save_file(const char *flname, t_flcont *flcont)
   fclose(hfile);
 }
 
-// The main function to download the file
+// The main function to Download file
 // Error numbers range: 15-20
 void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_clnt)
 {
