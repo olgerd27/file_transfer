@@ -36,24 +36,38 @@ int * upload_file_1_svc(file *file_upld, struct svc_req *)
 
   // Open the file
   FILE *hfile = fopen(file_upld->name, "wbx");
+  printf("[upload_file] 2\n");
+
   if (hfile == NULL) {
     printf("[upload_file] 2.1\n");
     fprintf(stderr, 
             "!--Error 50: The file '%s' already exists or could not be opened in the write mode.\n"
-            "System error #%i message:\n%s\n",
+            "System error #%i: %s\n",
             file_upld->name, errno, strerror(errno)); 
     rc = 0;
     return &rc;
   }
-  printf("[upload_file] 3\n");
 
   // Write the client file data to a new file
-  fwrite(file_upld->cont.t_flcont_val, 1, file_upld->cont.t_flcont_len, hfile);
-  // TODO: add check for a number of characters written to the file
-  if (ferror(hfile)) {
+  size_t nwrt = fwrite(file_upld->cont.t_flcont_val, 1, file_upld->cont.t_flcont_len, hfile);
+  printf("[upload_file] 3\n");
+
+  // Check a number of written items 
+  if (nwrt < file_upld->cont.t_flcont_len) {
     printf("[upload_file] 3.1\n");
-    fprintf(stderr, "!--Error 51: Cannot write to the file: '%s'.\n"
-                    "System error #%i message:\n%s", 
+    fprintf(stderr, "!--Error 51: partial writing to the file: '%s'.\n"
+                    "System error #%i: %s", 
+                    file_upld->name, errno, strerror(errno));
+    fclose(hfile);
+    rc = 0;
+    return &rc;
+  }
+
+  // Check if an error has been occurred during the writing operation
+  if (ferror(hfile)) {
+    printf("[upload_file] 3.2\n");
+    fprintf(stderr, "!--Error 52: error occurred while writing to the file: '%s'.\n"
+                    "System error #%i: %s", 
                     file_upld->name, errno, strerror(errno));
     fclose(hfile);
     rc = 0;
@@ -73,51 +87,65 @@ int * upload_file_1_svc(file *file_upld, struct svc_req *)
 t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
 {
   static t_flcont ret_flcont;
-  printf("[download_file] 0\n");
+  printf("[download_file] 1\n");
 
   // Open the file
   FILE *hfile = fopen(*flname, "rb");
+  printf("[download_file] 2\n");
+
   if (hfile == NULL) {
-    printf("[download_file] 0.1\n");
+    printf("[download_file] 2.1\n");
     fprintf(stderr, "!--Error 60: Cannot open the file '%s' in the read mode.\n"
-                    "System error #%i message:\n%s",
+                    "System error #%i: %s",
                     *flname, errno, strerror(errno)); 
-    return &ret_flcont;
+    return (t_flcont *)NULL;
   }
-  printf("[download_file] 1\n");
 
   // Get the file size
   fseek(hfile, 0, SEEK_END);
   ret_flcont.t_flcont_len = ftell(hfile);
   rewind(hfile);
-  printf("[download_file] 2\n");
+  printf("[download_file] 3\n");
 
   // Allocate the memory to store the file content
   ret_flcont.t_flcont_val = (char*)malloc(ret_flcont.t_flcont_len);
+  printf("[download_file] 4\n");
+
   if (ret_flcont.t_flcont_val == NULL) {
-    printf("[download_file] 2.1\n");
+    printf("[download_file] 4.1\n");
     fprintf(stderr, "!--Error 61: Memory allocation error (size=%ld) to store the file content:\n'%s'\n", 
                     ret_flcont.t_flcont_len, *flname);
     fclose(hfile);
-    return &ret_flcont;
+    return (t_flcont *)NULL;
   }
-  printf("[download_file] 3\n");
 
   // Read the file content into the buffer
-  fread(ret_flcont.t_flcont_val, 1, ret_flcont.t_flcont_len, hfile);
-  // TODO: add check for a number of characters that are read from the file
-  if (ferror(hfile)) {
-    printf("[download_file] 3.1\n");
-    fprintf(stderr, "!--Error 62: Cannot read the file: '%s'.\n"
-                    "System error #%i message:\n%s", 
+  size_t nrd = fread(ret_flcont.t_flcont_val, 1, ret_flcont.t_flcont_len, hfile);
+  printf("[download_file] 5\n");
+
+  // Check a number of items read
+  if (nrd < ret_flcont.t_flcont_len) {
+    printf("[download_file] 5.1\n");
+    fprintf(stderr, "!--Error 62: partial reading of the file: '%s'.\n"
+                    "System error #%i: %s", 
                     *flname, errno, strerror(errno));
     fclose(hfile);
-    return &ret_flcont;
+    return (t_flcont *)NULL;
   }
-  printf("[download_file] 4\n");
+
+  // Check if an error has been occurred during the reading operation
+  if (ferror(hfile)) {
+    printf("[download_file] 5.2\n");
+    fprintf(stderr, "!--Error 63: error occurred while reading of the file: '%s'.\n"
+                    "System error #%i: %s", 
+                    *flname, errno, strerror(errno));
+    fclose(hfile);
+    return (t_flcont *)NULL;
+  }
+  printf("[download_file] 6\n");
 
   fclose(hfile);
-  printf("[download_file] 5\n");
+  printf("[download_file] 7\n");
 
   return &ret_flcont;
 }

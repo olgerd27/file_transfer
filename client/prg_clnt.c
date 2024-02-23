@@ -145,7 +145,7 @@ void read_file(const char *filename, file *fobj)
   FILE *hfile = fopen(filename, "rb");
   if (hfile == NULL) {
     fprintf(stderr, "!--Error 3: cannot open file '%s' for reading\n"
-                    "System error #%i message:\n%s\n",
+                    "System error #%i: %s\n",
                     filename, errno, strerror(errno));
     exit(10);
   }
@@ -164,10 +164,13 @@ void read_file(const char *filename, file *fobj)
 
   // Read the file content into the buffer
   size_t nch = fread(*pf_data, 1, *pf_len, hfile);
-  if (nch != *pf_len || ferror(hfile)) {
-    fprintf(stderr, "!--Error 5: error reading from file: '%s'.\n"
-                    "System error #%i message:\n%s\n", 
+
+  // Check a number of items read and if an error has been occurred
+  if (nch < *pf_len || ferror(hfile)) {
+    fprintf(stderr, "!--Error 5: error reading of the file: '%s'.\n"
+                    "System error #%i: %s\n", 
                     filename, errno, strerror(errno));
+    fclose(hfile);
     exit(12);
   }
 
@@ -223,18 +226,19 @@ void save_file(const char *flname, t_flcont *flcont)
   if (hfile == NULL) {
     fprintf(stderr, 
       "!--Error 3: The file '%s' already exists or could not be opened in the write mode.\n"
-      "System error #%i message:\n%s\n", 
+      "System error #%i: %s\n", 
       flname, errno, strerror(errno));
     exit(16);
   }
 
   // Write the server file data to a new file
   size_t nch = fwrite(flcont->t_flcont_val, 1, flcont->t_flcont_len, hfile);
-  if (nch != flcont->t_flcont_len || ferror(hfile)) {
-    fprintf(stderr, 
-	    "!--Error 7: error writing to file: '%s'.\n"
-            "System error #%i message:\n%s\n", 
-            flname, errno, strerror(errno));
+
+  // Check a number of writtem items and if an error has been occurred
+  if (nch < flcont->t_flcont_len || ferror(hfile)) {
+    fprintf(stderr, "!--Error 7: error writing to the file: '%s'.\n"
+                    "System error #%i: %s\n", 
+                    flname, errno, strerror(errno));
     fclose(hfile);
     exit(17);
   }
@@ -261,14 +265,6 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
 
   // Okay, we successfully called the remote procedure.
 
-  // Check an error that may occur on the server
-  // TODO: implement a status return of a remote procedure call
-  //if (srv_errinf->num != 0) {
-    // Remote system error. Print error message and die.
-  //  printf("!---Server error %d: %s\n", srv_errinf->num, srv_errinf->errinf_u.msg);
-  //  exit(srv_errinf->num);
-  //}
-
   save_file(flnm_dst_clnt, srv_flcont);
 
   // TODO: is a memory freeing required for srv_flcont or srv_flcont->t_flcont_val?
@@ -283,7 +279,7 @@ int main(int argc, char *argv[])
   enum Action action = process_args(argc, argv);
 
   // The help action is not the RPC action. 
-  // It should be called before setting up RPC parameters.
+  // It should be called before setting up the RPC parameters.
   // Print the help info if it was choosen and exit.
   if (action == act_help) {
     print_help(argv[0], 1);
