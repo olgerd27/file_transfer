@@ -133,6 +133,7 @@ CLIENT * create_client()
 
 /*
  * Upload File section
+ * Error numbers range: 10-19
  */
 // Read the file to get its content for transfering
 void read_file(const char *filename, file *fobj)
@@ -144,7 +145,7 @@ void read_file(const char *filename, file *fobj)
   // Open the file
   FILE *hfile = fopen(filename, "rb");
   if (hfile == NULL) {
-    fprintf(stderr, "!--Error 3: cannot open file '%s' for reading\n"
+    fprintf(stderr, "!--Error 10: cannot open file '%s' for reading\n"
                     "System error #%i: %s\n",
                     filename, errno, strerror(errno));
     exit(10);
@@ -158,7 +159,7 @@ void read_file(const char *filename, file *fobj)
   // Allocate memory to contain the whole file
   *pf_data = (char*)malloc(*pf_len);
   if (*pf_data == NULL) {
-    fprintf(stderr, "!--Error 4: memory allocation error, size=%ld\n", *pf_len);
+    fprintf(stderr, "!--Error 11: memory allocation error, size=%ld\n", *pf_len);
     exit(11);
   }
 
@@ -167,7 +168,7 @@ void read_file(const char *filename, file *fobj)
 
   // Check a number of items read and if an error has been occurred
   if (nch < *pf_len || ferror(hfile)) {
-    fprintf(stderr, "!--Error 5: error reading of the file: '%s'.\n"
+    fprintf(stderr, "!--Error 12: error reading of the file: '%s'.\n"
                     "System error #%i: %s\n", 
                     filename, errno, strerror(errno));
     fclose(hfile);
@@ -179,7 +180,6 @@ void read_file(const char *filename, file *fobj)
 }
 
 // The main function to Upload file
-// Error numbers range: 10-15
 void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm_dst_serv)
 {
   file file_obj; // file object
@@ -208,7 +208,7 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
   // Check an error that may occur on the server
   if (*rc_srv == 0) {
     // Remote system error. Print error message and die.
-    printf("Error uploading file on server\n");
+    printf("!--Error 14: Error uploading file on server\n");
     exit(14);
   }
 
@@ -217,6 +217,7 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
 
 /*
  * Download File section
+ * Error numbers range: 20-29
  */
 // Save a file downloaded on the server to a new local file
 void save_file(const char *flname, t_flcont *flcont)
@@ -225,10 +226,10 @@ void save_file(const char *flname, t_flcont *flcont)
   FILE *hfile = fopen(flname, "wbx");
   if (hfile == NULL) {
     fprintf(stderr, 
-      "!--Error 3: The file '%s' already exists or could not be opened in the write mode.\n"
+      "!--Error 21: The file '%s' already exists or could not be opened in the write mode.\n"
       "System error #%i: %s\n", 
       flname, errno, strerror(errno));
-    exit(16);
+    exit(21);
   }
 
   // Write the server file data to a new file
@@ -236,11 +237,11 @@ void save_file(const char *flname, t_flcont *flcont)
 
   // Check a number of writtem items and if an error has been occurred
   if (nch < flcont->t_flcont_len || ferror(hfile)) {
-    fprintf(stderr, "!--Error 7: error writing to the file: '%s'.\n"
+    fprintf(stderr, "!--Error 22: error writing to the file: '%s'.\n"
                     "System error #%i: %s\n", 
                     flname, errno, strerror(errno));
     fclose(hfile);
-    exit(17);
+    exit(22);
   }
 
   // Close the file
@@ -248,7 +249,6 @@ void save_file(const char *flname, t_flcont *flcont)
 }
 
 // The main function to Download file
-// Error numbers range: 15-20
 void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_clnt)
 {
   t_flcont *srv_flcont; // result from a server - content of a downloaded file
@@ -260,17 +260,20 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
   // Used after clnt_call(), that is called here by download_file_1().
   if (srv_flcont == (t_flcont *)NULL) {
     clnt_perror(client, rmt_host);
-    exit(15);
+    exit(20);
   }
 
   // Okay, we successfully called the remote procedure.
+  
+  // Try to free a memory on a remote server
+  // TODO: most probably it's required to call fltrprog_1_freeresult() 
 
+  // Save the remote file content to a local file
   save_file(flnm_dst_clnt, srv_flcont);
 
-  // TODO: is a memory freeing required for srv_flcont or srv_flcont->t_flcont_val?
-  // Freeing the memory that stores the file content
-  // after calling the remote function
-  // free(file_obj.cont.t_flcont_val);
+  // Free the local memory with a remote file content
+  if (srv_flcont)
+    free(srv_flcont->t_flcont_val);
 }
 
 int main(int argc, char *argv[])

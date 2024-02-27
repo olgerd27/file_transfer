@@ -147,6 +147,9 @@ t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
   fclose(hfile);
   printf("[download_file] 7\n");
 
+  // TODO: free the memory the ret_flcont.t_flcont_val pointer points to
+  // Maybe it's needed to implement and use fltrprog_1_freeresult() function declared in rpcgen/fltr.h
+
   return &ret_flcont;
 }
 
