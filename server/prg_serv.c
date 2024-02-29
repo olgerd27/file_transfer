@@ -10,8 +10,11 @@
 // Global system variable that store the error number
 extern int errno;
 
-// Reset/init the error state 
-void reset_err(int *rc)
+/* 
+ * A Section to Upload file
+ */
+// Reset the variables (state) for the upload function
+void reset_upld(int *rc)
 {
   // reset the return code: 
   // 1 - success, 0 - failure
@@ -21,17 +24,14 @@ void reset_err(int *rc)
   if (errno) errno = 0;
 }
 
-/* 
- * The Upload file main function
- */
-//errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
+// The main function to Upload a file
 int * upload_file_1_svc(file *file_upld, struct svc_req *)
 {
   static int rc; /* must be static */
   printf("[upload_file] 0\n");
 
   // Reset an error state remained from the previous call
-  reset_err(&rc);
+  reset_upld(&rc);
   printf("[upload_file] 1\n");
 
   // Open the file
@@ -82,19 +82,39 @@ int * upload_file_1_svc(file *file_upld, struct svc_req *)
 }
 
 /*
- * The Download file main function
+ * A Section to Download file
  */
+// Reset the variables (state) for the download function
+void reset_dwld(t_flcont *file_cont)
+{
+  // freeing memory for the contents of the downloaded file that was allocated during 
+  // the previous call of the server 'download' function
+  if (file_cont != NULL && file_cont->t_flcont_val != NULL) {
+    free(file_cont->t_flcont_val);
+    file_cont->t_flcont_val = NULL;
+    file_cont->t_flcont_len = 0;
+  }
+
+  // reset the system error number
+  if (errno) errno = 0;
+}
+
+// The main function to Download a file
 t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
 {
   static t_flcont ret_flcont;
   printf("[download_file] 1\n");
 
-  // Open the file
-  FILE *hfile = fopen(*flname, "rb");
+  // Reset the state
+  reset_dwld(&ret_flcont);
   printf("[download_file] 2\n");
 
+  // Open the file
+  FILE *hfile = fopen(*flname, "rb");
+  printf("[download_file] 3\n");
+
   if (hfile == NULL) {
-    printf("[download_file] 2.1\n");
+    printf("[download_file] 3.1\n");
     fprintf(stderr, "!--Error 60: Cannot open the file '%s' in the read mode.\n"
                     "System error #%i: %s",
                     *flname, errno, strerror(errno)); 
@@ -105,14 +125,14 @@ t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
   fseek(hfile, 0, SEEK_END);
   ret_flcont.t_flcont_len = ftell(hfile);
   rewind(hfile);
-  printf("[download_file] 3\n");
+  printf("[download_file] 4\n");
 
   // Allocate the memory to store the file content
   ret_flcont.t_flcont_val = (char*)malloc(ret_flcont.t_flcont_len);
-  printf("[download_file] 4\n");
+  printf("[download_file] 5\n");
 
   if (ret_flcont.t_flcont_val == NULL) {
-    printf("[download_file] 4.1\n");
+    printf("[download_file] 5.1\n");
     fprintf(stderr, "!--Error 61: Memory allocation error (size=%ld) to store the file content:\n'%s'\n", 
                     ret_flcont.t_flcont_len, *flname);
     fclose(hfile);
@@ -121,31 +141,33 @@ t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
 
   // Read the file content into the buffer
   size_t nrd = fread(ret_flcont.t_flcont_val, 1, ret_flcont.t_flcont_len, hfile);
-  printf("[download_file] 5\n");
+  printf("[download_file] 6\n");
 
   // Check a number of items read
   if (nrd < ret_flcont.t_flcont_len) {
-    printf("[download_file] 5.1\n");
+    printf("[download_file] 6.1\n");
     fprintf(stderr, "!--Error 62: partial reading of the file: '%s'.\n"
                     "System error #%i: %s", 
                     *flname, errno, strerror(errno));
+    // TODO: add memory freeing for ret_flcont.t_flcont_val
     fclose(hfile);
     return (t_flcont *)NULL;
   }
 
   // Check if an error has been occurred during the reading operation
   if (ferror(hfile)) {
-    printf("[download_file] 5.2\n");
+    printf("[download_file] 6.2\n");
     fprintf(stderr, "!--Error 63: error occurred while reading of the file: '%s'.\n"
                     "System error #%i: %s", 
                     *flname, errno, strerror(errno));
+    // TODO: add memory freeing for ret_flcont.t_flcont_val
     fclose(hfile);
     return (t_flcont *)NULL;
   }
-  printf("[download_file] 6\n");
+  printf("[download_file] 7\n");
 
   fclose(hfile);
-  printf("[download_file] 7\n");
+  printf("[download_file] 8\n");
 
   // TODO: free the memory the ret_flcont.t_flcont_val pointer points to
   // Maybe it's needed to implement and use fltrprog_1_freeresult() function declared in rpcgen/fltr.h
