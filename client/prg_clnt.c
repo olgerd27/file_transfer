@@ -265,9 +265,6 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
 
   // Okay, we successfully called the remote procedure.
   
-  // Try to free a memory on a remote server
-  // TODO: most probably it's required to call fltrprog_1_freeresult() 
-
   // Save the remote file content to a local file
   save_file(flnm_dst_clnt, srv_flcont);
 
