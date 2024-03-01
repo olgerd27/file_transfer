@@ -135,6 +135,16 @@ CLIENT * create_client()
  * Upload File section
  * Error numbers range: 10-19
  */
+// Free the memory for storing a file content
+void free_file_cont(file *pfile)
+{
+  if (pfile && pfile->cont.t_flcont_val) {
+    free(pfile->cont.t_flcont_val);
+    pfile->cont.t_flcont_val = NULL;
+    pfile->cont.t_flcont_len = 0;
+  }
+}
+
 // Read the file to get its content for transfering
 void read_file(const char *filename, file *fobj)
 {
@@ -172,6 +182,7 @@ void read_file(const char *filename, file *fobj)
                     "System error #%i: %s\n", 
                     filename, errno, strerror(errno));
     fclose(hfile);
+    free_file_cont(fobj); // free the file content memory in case of error
     exit(12);
   }
 
@@ -196,12 +207,13 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
 
   // Freeing the memory that stores the file content
   // after calling the remote function
-  free(file_obj.cont.t_flcont_val);
+  free_file_cont(&file_obj); // free the file content memory
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by upload_file_1().
   if (rc_srv == (int *)NULL) {
     clnt_perror(client, rmt_host);
+    free_file_cont(&file_obj); // free the file content memory in case of error
     exit(13);
   }
 
@@ -209,6 +221,7 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
   if (*rc_srv == 0) {
     // Remote system error. Print error message and die.
     printf("!--Error 14: Error uploading file on server\n");
+    free_file_cont(&file_obj); // free the file content memory in case of error
     exit(14);
   }
 

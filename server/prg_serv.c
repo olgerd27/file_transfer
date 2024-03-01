@@ -150,7 +150,7 @@ t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
                     "System error #%i: %s", 
                     *flname, errno, strerror(errno));
     fclose(hfile);
-    reset_dwld(&ret_flcont); // reset the state in case of error
+    reset_dwld(&ret_flcont); // free the file content memory in case of error
     return (t_flcont *)NULL;
   }
 
@@ -161,7 +161,7 @@ t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
                     "System error #%i: %s", 
                     *flname, errno, strerror(errno));
     fclose(hfile);
-    reset_dwld(&ret_flcont); // reset the state in case of error
+    reset_dwld(&ret_flcont); // free the file content memory in case of error
     return (t_flcont *)NULL;
   }
   printf("[download_file] 7\n");
