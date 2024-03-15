@@ -51,8 +51,8 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
     sprintf(res_err.errinf_u.msg, 
             "The file '%s' already exists or could not be opened in the write mode.\n"
             "System error %i: %s\n", file_upld->name, errno, strerror(errno)); 
-    // TODO: add fprintf to stderr with info about this error that will be printed on server side like:
-    // "Error %i: File Upload Failed\n%s", res_err.num, res_err.errinf_u.msg
+    // TODO: implement logging and put there the full error info taken from res_err.errinf_u.msg
+    fprintf(stderr, "Error %i: File Upload Failed\n", res_err.num);
     return &res_err;
   }
 
@@ -67,8 +67,8 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
     sprintf(res_err.errinf_u.msg, 
             "Partial writing to the file: '%s'.\n"
             "System error %i: %s", file_upld->name, errno, strerror(errno));
-    // TODO: add fprintf to stderr with info about this error that will be printed on server side like:
-    // "Error %i: File Upload Failed\n%s", res_err.num, res_err.errinf_u.msg
+    // TODO: implement logging and put there the full error info taken from res_err.errinf_u.msg
+    fprintf(stderr, "Error %i: File Upload Failed\n", res_err.num);
     fclose(hfile);
     return &res_err;
   }
@@ -81,8 +81,8 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
     sprintf(res_err.errinf_u.msg, 
             "Error occurred while writing to the file: '%s'.\n"
             "System error %i: %s", file_upld->name, errno, strerror(errno));
-    // TODO: add fprintf to stderr with info about this error that will be printed on server side like:
-    // "Error %i: File Upload Failed\n%s", res_err.num, res_err.errinf_u.msg
+    // TODO: implement logging and put there the full error info taken from res_err.errinf_u.msg
+    fprintf(stderr, "Error %i: File Upload Failed\n", res_err.num);
     fclose(hfile);
     return &res_err;
   }
@@ -114,7 +114,7 @@ void reset_dwld(t_flcont *file_cont)
 
 // The main function to Download a file
 // TODO: implement a return of the error number + message from the download function 
-// in a similar way as from the upload function. For now, it's not clear for a lient 
+// in a similar way as from the upload function. For now, it's not clear for a client 
 // why the server's download function returns NULL in case of some problems.
 t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
 {

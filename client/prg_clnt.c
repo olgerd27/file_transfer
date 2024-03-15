@@ -288,7 +288,8 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
   save_file(flnm_dst_clnt, srv_flcont);
 
   // Free the local memory with a remote file content
-  free(srv_flcont->t_flcont_val);
+  if (srv_flcont)
+    free(srv_flcont->t_flcont_val);
 }
 
 int main(int argc, char *argv[])
