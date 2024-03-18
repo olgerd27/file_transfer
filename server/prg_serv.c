@@ -10,9 +10,6 @@
 // Global system variable that store the error number
 extern int errno;
 
-/* 
- * The Upload file Section
- */
 // Reset the error info (an error state)
 void reset_err(errinf *p_err)
 {
@@ -36,6 +33,9 @@ void reset_err(errinf *p_err)
   if (errno) errno = 0;
 }
 
+/* 
+ * The Upload file Section
+ */
 // The main function to Upload a file
 errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
 {
@@ -115,9 +115,6 @@ void reset_file_cont(t_flcont *file_cont)
 }
 
 // The main function to Download a file
-// TODO: implement a return of the error number + message from the download function 
-// in a similar way as from the upload function. For now, it's not clear for a client 
-// why the server's download function returns NULL in case of some problems.
 flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
 {
   static flcont_errinf ret_flerr; /* must be static */
@@ -138,8 +135,12 @@ flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
 
   if (hfile == NULL) {
     printf("[download_file] 3.1\n");
-    fprintf(stderr, "!--Error 60: Cannot open the file '%s' in the read mode.\n"
-                    "System error %i: %s", *flname, errno, strerror(errno));
+    p_errinf->num = 60;
+    sprintf(p_errinf->errinf_u.msg,
+            "Cannot open the file '%s' in the read mode.\n"
+            "System error %i: %s", *flname, errno, strerror(errno));
+    // TODO: implement logging and put there the full error info taken from p_errinf.errinf_u.msg
+    fprintf(stderr, "Error %i: File Download Failed\n", p_errinf->num);
     return (flcont_errinf *)NULL;
   }
 
@@ -155,8 +156,12 @@ flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
 
   if (p_flcnt->t_flcont_val == NULL) {
     printf("[download_file] 5.1\n");
-    fprintf(stderr, "!--Error 61: Memory allocation error (size=%ld) to store the file content:\n'%s'\n", 
-                    p_flcnt->t_flcont_len, *flname);
+    p_errinf->num = 61;
+    sprintf(p_errinf->errinf_u.msg,
+            "Memory allocation error (size=%ld) to store the file content:\n'%s'\n", 
+            p_flcnt->t_flcont_len, *flname);
+    // TODO: implement logging and put there the full error info taken from p_errinf.errinf_u.msg
+    fprintf(stderr, "Error %i: File Download Failed\n", p_errinf->num);
     fclose(hfile);
     return (flcont_errinf *)NULL;
   }
@@ -168,8 +173,12 @@ flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
   // Check a number of items read
   if (nch < p_flcnt->t_flcont_len) {
     printf("[download_file] 6.1\n");
-    fprintf(stderr, "!--Error 62: partial reading of the file: '%s'.\n"
-                    "System error #%i: %s", *flname, errno, strerror(errno));
+    p_errinf->num = 62;
+    sprintf(p_errinf->errinf_u.msg,
+            "Partial reading of the file: '%s'.\n"
+            "System error %i: %s", *flname, errno, strerror(errno));
+    // TODO: implement logging and put there the full error info taken from p_errinf.errinf_u.msg
+    fprintf(stderr, "Error %i: File Download Failed\n", p_errinf->num);
     fclose(hfile);
     reset_file_cont(p_flcnt); // deallocate the file content
     return (flcont_errinf *)NULL;
@@ -179,8 +188,12 @@ flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
   // Check if an error has been occurred during the reading operation
   if (ferror(hfile)) {
     printf("[download_file] 7.1\n");
-    fprintf(stderr, "!--Error 63: error occurred while reading the file: '%s'.\n"
-                    "System error #%i: %s", *flname, errno, strerror(errno));
+    p_errinf->num = 63;
+    sprintf(p_errinf->errinf_u.msg,
+            "Error occurred while reading the file: '%s'.\n"
+            "System error %i: %s", *flname, errno, strerror(errno));
+    // TODO: implement logging and put there the full error info taken from p_errinf.errinf_u.msg
+    fprintf(stderr, "Error %i: File Download Failed\n", p_errinf->num);
     fclose(hfile);
     reset_file_cont(p_flcnt); // deallocate the file content
     return (flcont_errinf *)NULL;
