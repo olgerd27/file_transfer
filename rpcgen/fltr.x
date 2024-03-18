@@ -22,10 +22,16 @@ union errinf switch (int num) {
     string msg<SIZE_ERRMSG>; /* error occured: return error message */
 };
 
+/* File content + error information */
+struct flcont_errinf {
+  t_flcont file_cont; /* file content */
+  errinf err_inf; /* error information */
+};
+
 /* The file transfer program definition */
 program FLTRPROG {
    version FLTRVERS {
      errinf upload_file(file fl) = 1;
-     t_flcont download_file(t_flname filename) = 2;
+     flcont_errinf download_file(t_flname filename) = 2;
    } = 1;
 } = 0x20000027;

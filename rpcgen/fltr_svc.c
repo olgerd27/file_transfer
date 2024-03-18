@@ -40,7 +40,7 @@ fltrprog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 
 	case download_file:
 		_xdr_argument = (xdrproc_t) xdr_t_flname;
-		_xdr_result = (xdrproc_t) xdr_t_flcont;
+		_xdr_result = (xdrproc_t) xdr_flcont_errinf;
 		local = (char *(*)(char *, struct svc_req *)) download_file_1_svc;
 		break;
 

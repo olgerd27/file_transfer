@@ -54,3 +54,15 @@ xdr_errinf (XDR *xdrs, errinf *objp)
 	}
 	return TRUE;
 }
+
+bool_t
+xdr_flcont_errinf (XDR *xdrs, flcont_errinf *objp)
+{
+	register int32_t *buf;
+
+	 if (!xdr_t_flcont (xdrs, &objp->file_cont))
+		 return FALSE;
+	 if (!xdr_errinf (xdrs, &objp->err_inf))
+		 return FALSE;
+	return TRUE;
+}

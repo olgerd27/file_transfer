@@ -13,18 +13,23 @@ extern int errno;
 /* 
  * The Upload file Section
  */
-// Reset the variables (state) for the 'upload' function
-void reset_upld(errinf *err)
+// Reset the error info (an error state)
+void reset_err(errinf *p_err)
 {
-  // allocate the memory for error messages
-  if (!err->errinf_u.msg)
-    err->errinf_u.msg = (char*)malloc(SIZE_ERRMSG);
+  if (!p_err) {
+    fprintf(stderr, "Cannot reset error information, p_err=%p\n", (void*)p_err);
+    exit(1);
+  }
+
+  // initial allocation of the memory for error messages
+  if (!p_err->errinf_u.msg)
+    p_err->errinf_u.msg = (char*)malloc(SIZE_ERRMSG);
 
   // reset the error information that is remained from the previous case when error has occurred
-  if (err->num) {
-    err->num = 0;
-    if (err->errinf_u.msg)
-      memset(err->errinf_u.msg, 0, SIZE_ERRMSG);
+  if (p_err->num) {
+    p_err->num = 0;
+    if (p_err->errinf_u.msg)
+      memset(p_err->errinf_u.msg, 0, SIZE_ERRMSG);
   }
 
   // reset the system error number
@@ -37,8 +42,8 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   static errinf res_err; /* must be static */
   printf("[upload_file] 0\n");
 
-  // Reset a state remained after a previous call of this function
-  reset_upld(&res_err);
+  // Reset an error state remained after a previous call of this function
+  reset_err(&res_err);
   printf("[upload_file] 1\n");
 
   // Open the file
@@ -77,7 +82,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   // Check if an error has been occurred during the writing operation
   if (ferror(hfile)) {
     printf("[upload_file] 4.1\n");
-    res_err.num = 51;
+    res_err.num = 52;
     sprintf(res_err.errinf_u.msg, 
             "Error occurred while writing to the file: '%s'.\n"
             "System error %i: %s", file_upld->name, errno, strerror(errno));
@@ -97,93 +102,94 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
 /*
  * The Download file Section
  */
-// Reset the variables (state) for the 'download' function
-void reset_dwld(t_flcont *file_cont)
+// Reset (deallocate) the file content
+void reset_file_cont(t_flcont *file_cont)
 {
-  // freeing memory for the contents of the downloaded file that was allocated during 
+  // freeing memory for the downloaded file content that was allocated during 
   // the previous call of the 'download' function
-  if (file_cont != NULL && file_cont->t_flcont_val != NULL) {
+  if (file_cont && file_cont->t_flcont_val) {
     free(file_cont->t_flcont_val);
     file_cont->t_flcont_val = NULL;
     file_cont->t_flcont_len = 0;
   }
-
-  // reset the system error number
-  if (errno) errno = 0;
 }
 
 // The main function to Download a file
 // TODO: implement a return of the error number + message from the download function 
 // in a similar way as from the upload function. For now, it's not clear for a client 
 // why the server's download function returns NULL in case of some problems.
-t_flcont * download_file_1_svc(t_flname *flname, struct svc_req *)
+flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
 {
-  static t_flcont ret_flcont; /* must be static */
+  static flcont_errinf ret_flerr; /* must be static */
+  static t_flcont *p_flcnt = &ret_flerr.file_cont;
+  static errinf *p_errinf = &ret_flerr.err_inf;
   printf("[download_file] 0\n");
 
-  // Reset a state remained after a previous call of this function
-  reset_dwld(&ret_flcont);
+  // Reset (deallocate) the file content
+  reset_file_cont(p_flcnt);
   printf("[download_file] 1\n");
-
+  // Reset an error state remained after a previous call of this function
+  reset_err(p_errinf);
+  printf("[download_file] 2\n");
 
   // Open the file
   FILE *hfile = fopen(*flname, "rb");
-  printf("[download_file] 2\n");
+  printf("[download_file] 3\n");
 
   if (hfile == NULL) {
-    printf("[download_file] 2.1\n");
+    printf("[download_file] 3.1\n");
     fprintf(stderr, "!--Error 60: Cannot open the file '%s' in the read mode.\n"
                     "System error %i: %s", *flname, errno, strerror(errno));
-    return (t_flcont *)NULL;
+    return (flcont_errinf *)NULL;
   }
 
   // Get the file size
   fseek(hfile, 0, SEEK_END);
-  ret_flcont.t_flcont_len = ftell(hfile);
+  p_flcnt->t_flcont_len = ftell(hfile);
   rewind(hfile);
-  printf("[download_file] 3\n");
-
-  // Allocate the memory to store the file content
-  ret_flcont.t_flcont_val = (char*)malloc(ret_flcont.t_flcont_len);
   printf("[download_file] 4\n");
 
-  if (ret_flcont.t_flcont_val == NULL) {
-    printf("[download_file] 4.1\n");
+  // Allocate the memory to store the file content
+  p_flcnt->t_flcont_val = (char*)malloc(p_flcnt->t_flcont_len);
+  printf("[download_file] 5\n");
+
+  if (p_flcnt->t_flcont_val == NULL) {
+    printf("[download_file] 5.1\n");
     fprintf(stderr, "!--Error 61: Memory allocation error (size=%ld) to store the file content:\n'%s'\n", 
-                    ret_flcont.t_flcont_len, *flname);
+                    p_flcnt->t_flcont_len, *flname);
     fclose(hfile);
-    return (t_flcont *)NULL;
+    return (flcont_errinf *)NULL;
   }
 
   // Read the file content into the buffer
-  size_t nch = fread(ret_flcont.t_flcont_val, 1, ret_flcont.t_flcont_len, hfile);
-  printf("[download_file] 5\n");
+  size_t nch = fread(p_flcnt->t_flcont_val, 1, p_flcnt->t_flcont_len, hfile);
+  printf("[download_file] 6\n");
 
   // Check a number of items read
-  if (nch < ret_flcont.t_flcont_len) {
-    printf("[download_file] 5.1\n");
+  if (nch < p_flcnt->t_flcont_len) {
+    printf("[download_file] 6.1\n");
     fprintf(stderr, "!--Error 62: partial reading of the file: '%s'.\n"
                     "System error #%i: %s", *flname, errno, strerror(errno));
     fclose(hfile);
-    reset_dwld(&ret_flcont); // free the file content memory in case of error
-    return (t_flcont *)NULL;
-  }
-  printf("[download_file] 6\n");
-
-  // Check if an error has been occurred during the reading operation
-  if (ferror(hfile)) {
-    printf("[download_file] 6.1\n");
-    fprintf(stderr, "!--Error 63: error occurred while reading the file: '%s'.\n"
-                    "System error #%i: %s", *flname, errno, strerror(errno));
-    fclose(hfile);
-    reset_dwld(&ret_flcont); // free the file content memory in case of error
-    return (t_flcont *)NULL;
+    reset_file_cont(p_flcnt); // deallocate the file content
+    return (flcont_errinf *)NULL;
   }
   printf("[download_file] 7\n");
 
-  fclose(hfile);
+  // Check if an error has been occurred during the reading operation
+  if (ferror(hfile)) {
+    printf("[download_file] 7.1\n");
+    fprintf(stderr, "!--Error 63: error occurred while reading the file: '%s'.\n"
+                    "System error #%i: %s", *flname, errno, strerror(errno));
+    fclose(hfile);
+    reset_file_cont(p_flcnt); // deallocate the file content
+    return (flcont_errinf *)NULL;
+  }
   printf("[download_file] 8\n");
 
-  return &ret_flcont;
+  fclose(hfile);
+  printf("[download_file] 9\n");
+
+  return &ret_flerr;
 }
 

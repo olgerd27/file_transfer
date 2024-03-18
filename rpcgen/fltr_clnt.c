@@ -24,15 +24,15 @@ upload_file_1(file *argp, CLIENT *clnt)
 	return (&clnt_res);
 }
 
-t_flcont *
+flcont_errinf *
 download_file_1(t_flname *argp, CLIENT *clnt)
 {
-	static t_flcont clnt_res;
+	static flcont_errinf clnt_res;
 
 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
 	if (clnt_call (clnt, download_file,
 		(xdrproc_t) xdr_t_flname, (caddr_t) argp,
-		(xdrproc_t) xdr_t_flcont, (caddr_t) &clnt_res,
+		(xdrproc_t) xdr_flcont_errinf, (caddr_t) &clnt_res,
 		TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);
 	}
