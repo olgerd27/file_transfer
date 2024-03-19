@@ -133,6 +133,9 @@ flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
   FILE *hfile = fopen(*flname, "rb");
   printf("[download_file] 3\n");
 
+  // TODO: the program is freezes if this if is true (if file name is incorrect).
+  // Figure out why it happens and imitate the same situation in upload function
+  // (when function returns NULL) just to see if it'll freeze as well. 
   if (hfile == NULL) {
     printf("[download_file] 3.1\n");
     p_errinf->num = 60;

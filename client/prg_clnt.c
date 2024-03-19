@@ -80,7 +80,7 @@ enum Action process_args(int argc, char *argv[])
         break;
       default:
         // invalid action
-	fprintf(stderr, "!--Error 2: invalid action has been passed\n\n");
+	fprintf(stderr, "!--Error 2: an invalid action has passed\n\n");
 	print_help(argv[0], 0);
 	exit(2);
     }
@@ -129,20 +129,23 @@ CLIENT * create_client()
   return clnt;
 }
 
+// Free the memory for storing file content
+void free_file_cont(t_flcont *p_flcont)
+{
+  if (p_flcont && p_flcont->t_flcont_val) {
+    free(p_flcont->t_flcont_val);
+    p_flcont->t_flcont_val = NULL;
+    p_flcont->t_flcont_len = 0;
+  } else {
+    fprintf(stderr, "!--Error 8: Cannot free the file content, p_flcont=%p\n", (void*)p_flcont);
+    exit(8);
+  }
+}
+
 /*
  * The Upload File section
  * Error numbers range: 10-19
  */
-// Free the memory for storing a file content
-void free_file_cont(file *pfile)
-{
-  if (pfile && pfile->cont.t_flcont_val) {
-    free(pfile->cont.t_flcont_val);
-    pfile->cont.t_flcont_val = NULL;
-    pfile->cont.t_flcont_len = 0;
-  }
-}
-
 // Read the file to get its content for transfering
 void read_file(const char *filename, file *fobj)
 {
@@ -175,13 +178,13 @@ void read_file(const char *filename, file *fobj)
   // Read the file content into the buffer
   size_t nch = fread(*pf_data, 1, *pf_len, hfile);
 
-  // Check a number of items read and if an error has been occurred
+  // Check a number of items read and if an error has occurred
   if (nch < *pf_len || ferror(hfile)) {
     fprintf(stderr, "!--Error 12: file reading error: '%s'.\n"
                     "System error %i: %s\n",
                     filename, errno, strerror(errno));
     fclose(hfile);
-    free_file_cont(fobj); // free the file content memory in case of error
+    free_file_cont(&fobj->cont); // free the file content memory in case of error
     exit(12);
   }
 
@@ -193,7 +196,7 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
 {
   file file_obj; // file object
   errinf *srv_errinf; // result from a server - error info
-  // TODO: is a memory freeing required for srv_errinf?
+  // TODO: figure out if a memory freeing required for srv_errinf?
 
   // Set the target file name to the file object
   file_obj.name = flnm_dst_serv;
@@ -204,27 +207,26 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
   // Make a file upload to a server through RPC
   srv_errinf = upload_file_1(&file_obj, client);
 
-  // Freeing the memory that stores the file content
-  // after calling the remote function
-  free_file_cont(&file_obj); // free the file content memory
-
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by upload_file_1().
   if (srv_errinf == (errinf *)NULL) {
     clnt_perror(client, rmt_host);
-    free_file_cont(&file_obj); // free the file content memory in case of error
+    free_file_cont(&file_obj.cont); // free the file content memory in case of error
     exit(13);
   }
 
   // Check an error that may occur on the server
   if (srv_errinf->num != 0) {
-    // Remote system error. Print error message and die.
+    // Error on a server has occurred. Print error message and die.
     fprintf(stderr, "!--Server error %d: %s\n", srv_errinf->num, srv_errinf->errinf_u.msg);
-    free_file_cont(&file_obj); // free the file content memory in case of error
-    exit(srv_errinf->num);
+    free_file_cont(&file_obj.cont); // free the file content memory in case of error
+    exit(14);
   }
 
   // Okay, we successfully called the remote procedure.
+
+  // Freeing the memory that stores the file content
+  free_file_cont(&file_obj.cont); // free the file content memory
 }
 
 /*
@@ -238,22 +240,23 @@ void save_file(const char *flname, t_flcont *flcont)
   FILE *hfile = fopen(flname, "wbx");
   if (hfile == NULL) {
     fprintf(stderr, 
-      "!--Error 21: The file '%s' already exists or could not be opened in the write mode.\n"
+      "!--Error 22: The file '%s' already exists or could not be opened in the write mode.\n"
       "System error %i: %s\n", 
       flname, errno, strerror(errno));
-    exit(21);
+    exit(22);
   }
 
   // Write the server file data to a new file
   size_t nch = fwrite(flcont->t_flcont_val, 1, flcont->t_flcont_len, hfile);
 
-  // Check a number of writtem items and if an error has been occurred
+  // Check a number of writtem items and if an error has occurred
   if (nch < flcont->t_flcont_len || ferror(hfile)) {
-    fprintf(stderr, "!--Error 22: error writing to the file: '%s'.\n"
-                    "System error %i: %s\n",
-                    flname, errno, strerror(errno));
+    fprintf(stderr,
+            "!--Error 23: error writing to the file: '%s'.\n"
+            "System error %i: %s\n",
+            flname, errno, strerror(errno));
     fclose(hfile);
-    exit(22);
+    exit(23);
   }
 
   fclose(hfile);
@@ -262,14 +265,15 @@ void save_file(const char *flname, t_flcont *flcont)
 // The main function to Download file
 void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_clnt)
 {
-  t_flcont *srv_flcont; // result from a server - content of a downloaded file
+  // Result from a server - the downloaded file content and error info
+  flcont_errinf *srv_flerr;
 
   // Make a file download from a server through RPC
-  srv_flcont = download_file_1(&flnm_src_serv, client);
+  srv_flerr = download_file_1(&flnm_src_serv, client);
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by download_file_1().
-  if (srv_flcont == (t_flcont *)NULL) {
+  if (srv_flerr == (flcont_errinf *)NULL) {
     clnt_perror(client, rmt_host);
     exit(20);
   }
@@ -278,18 +282,18 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
 
   // Check an error that may occur on the server
   // TODO: implement a status return of a download remote procedure call like:
-  // if (srv_errinf->num != 0) {
-  // Remote system error. Print error message and die.
-  // printf("!---Server error %d: %s\n", srv_errinf->num, srv_errinf->errinf_u.msg);
-  // exit(srv_errinf->num);
-  // }
+  if (srv_flerr->err_inf.num != 0) {
+    // Error on a server has occurred. Print error message and die.
+    fprintf(stderr, "!--Server error %d: %s\n", 
+            srv_flerr->err_inf.num, srv_flerr->err_inf.errinf_u.msg);
+    exit(21);
+  }
   
   // Save the remote file content to a local file
-  save_file(flnm_dst_clnt, srv_flcont);
+  save_file(flnm_dst_clnt, &srv_flerr->file_cont);
 
   // Free the local memory with a remote file content
-  if (srv_flcont)
-    free(srv_flcont->t_flcont_val);
+  free_file_cont(&srv_flerr->file_cont); // free the file content memory
 }
 
 int main(int argc, char *argv[])
