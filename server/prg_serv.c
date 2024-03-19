@@ -55,7 +55,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
     res_err.num = 50;
     sprintf(res_err.errinf_u.msg, 
             "The file '%s' already exists or could not be opened in the write mode.\n"
-            "System error %i: %s\n", file_upld->name, errno, strerror(errno)); 
+            "System server error %i: %s\n", file_upld->name, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from res_err.errinf_u.msg
     fprintf(stderr, "Error %i: File Upload Failed\n", res_err.num);
     return &res_err;
@@ -71,7 +71,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
     res_err.num = 51;
     sprintf(res_err.errinf_u.msg, 
             "Partial writing to the file: '%s'.\n"
-            "System error %i: %s", file_upld->name, errno, strerror(errno));
+            "System server error %i: %s", file_upld->name, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from res_err.errinf_u.msg
     fprintf(stderr, "Error %i: File Upload Failed\n", res_err.num);
     fclose(hfile);
@@ -85,7 +85,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
     res_err.num = 52;
     sprintf(res_err.errinf_u.msg, 
             "Error occurred while writing to the file: '%s'.\n"
-            "System error %i: %s", file_upld->name, errno, strerror(errno));
+            "System server error %i: %s", file_upld->name, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from res_err.errinf_u.msg
     fprintf(stderr, "Error %i: File Upload Failed\n", res_err.num);
     fclose(hfile);
@@ -94,7 +94,7 @@ errinf * upload_file_1_svc(file *file_upld, struct svc_req *)
   printf("[upload_file] 5\n");
 
   fclose(hfile);
-  printf("[upload_file] 6\n");
+  printf("[upload_file] 6\n\n");
 
   return &res_err;
 }
@@ -133,18 +133,15 @@ flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
   FILE *hfile = fopen(*flname, "rb");
   printf("[download_file] 3\n");
 
-  // TODO: the program is freezes if this if is true (if file name is incorrect).
-  // Figure out why it happens and imitate the same situation in upload function
-  // (when function returns NULL) just to see if it'll freeze as well. 
   if (hfile == NULL) {
     printf("[download_file] 3.1\n");
     p_errinf->num = 60;
     sprintf(p_errinf->errinf_u.msg,
             "Cannot open the file '%s' in the read mode.\n"
-            "System error %i: %s", *flname, errno, strerror(errno));
+            "System server error %i: %s", *flname, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_errinf.errinf_u.msg
     fprintf(stderr, "Error %i: File Download Failed\n", p_errinf->num);
-    return (flcont_errinf *)NULL;
+    return &ret_flerr;
   }
 
   // Get the file size
@@ -166,7 +163,8 @@ flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
     // TODO: implement logging and put there the full error info taken from p_errinf.errinf_u.msg
     fprintf(stderr, "Error %i: File Download Failed\n", p_errinf->num);
     fclose(hfile);
-    return (flcont_errinf *)NULL;
+    printf("[download_file] 5.2\n");
+    return &ret_flerr;
   }
 
   // Read the file content into the buffer
@@ -179,12 +177,14 @@ flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
     p_errinf->num = 62;
     sprintf(p_errinf->errinf_u.msg,
             "Partial reading of the file: '%s'.\n"
-            "System error %i: %s", *flname, errno, strerror(errno));
+            "System server error %i: %s", *flname, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_errinf.errinf_u.msg
     fprintf(stderr, "Error %i: File Download Failed\n", p_errinf->num);
     fclose(hfile);
+    printf("[download_file] 6.2\n");
     reset_file_cont(p_flcnt); // deallocate the file content
-    return (flcont_errinf *)NULL;
+    printf("[download_file] 6.3\n");
+    return &ret_flerr;
   }
   printf("[download_file] 7\n");
 
@@ -194,17 +194,19 @@ flcont_errinf * download_file_1_svc(t_flname *flname, struct svc_req *)
     p_errinf->num = 63;
     sprintf(p_errinf->errinf_u.msg,
             "Error occurred while reading the file: '%s'.\n"
-            "System error %i: %s", *flname, errno, strerror(errno));
+            "System server error %i: %s", *flname, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_errinf.errinf_u.msg
     fprintf(stderr, "Error %i: File Download Failed\n", p_errinf->num);
     fclose(hfile);
+    printf("[download_file] 7.2\n");
     reset_file_cont(p_flcnt); // deallocate the file content
-    return (flcont_errinf *)NULL;
+    printf("[download_file] 7.3\n");
+    return &ret_flerr;
   }
   printf("[download_file] 8\n");
 
   fclose(hfile);
-  printf("[download_file] 9\n");
+  printf("[download_file] 9\n\n");
 
   return &ret_flerr;
 }

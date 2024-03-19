@@ -281,7 +281,6 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
   // Okay, we successfully called the remote procedure.
 
   // Check an error that may occur on the server
-  // TODO: implement a status return of a download remote procedure call like:
   if (srv_flerr->err_inf.num != 0) {
     // Error on a server has occurred. Print error message and die.
     fprintf(stderr, "!--Server error %d: %s\n", 
