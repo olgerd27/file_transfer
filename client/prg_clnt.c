@@ -137,7 +137,9 @@ void free_file_cont(t_flcont *p_flcont)
     p_flcont->t_flcont_val = NULL;
     p_flcont->t_flcont_len = 0;
   } else {
-    fprintf(stderr, "!--Error 8: Cannot free the file content, p_flcont=%p\n", (void*)p_flcont);
+    fprintf(stderr, 
+            "!--Error 8: Cannot free the file content. len=%i, ptr to val=%p, p_flcont=%p\n", 
+            p_flcont->t_flcont_len, p_flcont->t_flcont_val, p_flcont);
     exit(8);
   }
 }
@@ -146,13 +148,36 @@ void free_file_cont(t_flcont *p_flcont)
  * The Upload File section
  * Error numbers range: 10-19
  */
+
+// Get the file size
+unsigned get_file_size(FILE *hfile)
+{
+  fseek(hfile, 0, SEEK_END);
+  unsigned size = ftell(hfile);
+  rewind(hfile);
+  return size;
+}
+
+// Allocate the memory to store the file content.
+// A pointer to the allocated memory set to p_fcont and return as a result.
+char * alloc_mem_file_cont(FILE *hfile, t_flcont *p_fcont)
+{
+  // Obtain file size
+  p_fcont->t_flcont_len = get_file_size(hfile);
+
+  // Allocate memory to contain the whole file
+  p_fcont->t_flcont_val = (char*)malloc(p_fcont->t_flcont_len);
+  if (p_fcont->t_flcont_val == NULL) {
+    fprintf(stderr, "!--Error 11: memory allocation error, size=%ld\n", p_fcont->t_flcont_len);
+    fclose(hfile);
+    exit(11);
+  }
+  return p_fcont->t_flcont_val;
+}
+
 // Read the file to get its content for transfering
 void read_file(const char *filename, file *fobj)
 {
-  // Create the pointers for quick access
-  u_int *pf_len = &fobj->cont.t_flcont_len; // pointer to file length
-  char **pf_data = &fobj->cont.t_flcont_val; // pointer to file data
-
   // Open the file
   FILE *hfile = fopen(filename, "rb");
   if (hfile == NULL) {
@@ -162,24 +187,15 @@ void read_file(const char *filename, file *fobj)
     exit(10);
   }
 
-  // Obtain file size
-  fseek(hfile, 0, SEEK_END);
-  *pf_len = ftell(hfile);
-  rewind(hfile);
-
-  // Allocate memory to contain the whole file
-  *pf_data = (char*)malloc(*pf_len);
-  if (*pf_data == NULL) {
-    fprintf(stderr, "!--Error 11: memory allocation error, size=%ld\n", *pf_len);
-    fclose(hfile);
-    exit(11);
-  }
+  // Allocate the memory to store the file content
+  if ( alloc_mem_file_cont(hfile, &fobj->cont) == NULL )
+    return;
 
   // Read the file content into the buffer
-  size_t nch = fread(*pf_data, 1, *pf_len, hfile);
+  size_t nch = fread(fobj->cont.t_flcont_val, 1, fobj->cont.t_flcont_len, hfile);
 
   // Check a number of items read and if an error has occurred
-  if (nch < *pf_len || ferror(hfile)) {
+  if (nch < fobj->cont.t_flcont_len || ferror(hfile)) {
     fprintf(stderr, "!--Error 12: file reading error: '%s'.\n"
                     "System error %i: %s\n",
                     filename, errno, strerror(errno));
