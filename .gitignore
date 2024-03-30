@@ -2,6 +2,7 @@
 */prg_clnt
 *.o
 *.swp
+*a.out
 
 # Ignore all the file in test_trans_files except file_orig.txt
 test/test_trans_files/*
