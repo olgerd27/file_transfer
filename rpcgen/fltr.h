@@ -23,45 +23,45 @@ typedef struct {
 	char *t_flcont_val;
 } t_flcont;
 
-struct file {
+struct file_inf {
 	t_flname name;
 	t_flcont cont;
 };
-typedef struct file file;
+typedef struct file_inf file_inf;
 
-struct errinf {
+struct err_inf {
 	int num;
 	union {
 		char *msg;
-	} errinf_u;
+	} err_inf_u;
 };
-typedef struct errinf errinf;
+typedef struct err_inf err_inf;
 
-struct flcont_errinf {
-	t_flcont file_cont;
-	errinf err_inf;
+struct file_err {
+	file_inf file;
+	err_inf err;
 };
-typedef struct flcont_errinf flcont_errinf;
+typedef struct file_err file_err;
 
 #define FLTRPROG 0x20000027
 #define FLTRVERS 1
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define upload_file 1
-extern  errinf * upload_file_1(file *, CLIENT *);
-extern  errinf * upload_file_1_svc(file *, struct svc_req *);
+extern  err_inf * upload_file_1(file_inf *, CLIENT *);
+extern  err_inf * upload_file_1_svc(file_inf *, struct svc_req *);
 #define download_file 2
-extern  flcont_errinf * download_file_1(t_flname *, CLIENT *);
-extern  flcont_errinf * download_file_1_svc(t_flname *, struct svc_req *);
+extern  file_err * download_file_1(t_flname *, CLIENT *);
+extern  file_err * download_file_1_svc(t_flname *, struct svc_req *);
 extern int fltrprog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
 #define upload_file 1
-extern  errinf * upload_file_1();
-extern  errinf * upload_file_1_svc();
+extern  err_inf * upload_file_1();
+extern  err_inf * upload_file_1_svc();
 #define download_file 2
-extern  flcont_errinf * download_file_1();
-extern  flcont_errinf * download_file_1_svc();
+extern  file_err * download_file_1();
+extern  file_err * download_file_1_svc();
 extern int fltrprog_1_freeresult ();
 #endif /* K&R C */
 
@@ -70,16 +70,16 @@ extern int fltrprog_1_freeresult ();
 #if defined(__STDC__) || defined(__cplusplus)
 extern  bool_t xdr_t_flname (XDR *, t_flname*);
 extern  bool_t xdr_t_flcont (XDR *, t_flcont*);
-extern  bool_t xdr_file (XDR *, file*);
-extern  bool_t xdr_errinf (XDR *, errinf*);
-extern  bool_t xdr_flcont_errinf (XDR *, flcont_errinf*);
+extern  bool_t xdr_file_inf (XDR *, file_inf*);
+extern  bool_t xdr_err_inf (XDR *, err_inf*);
+extern  bool_t xdr_file_err (XDR *, file_err*);
 
 #else /* K&R C */
 extern bool_t xdr_t_flname ();
 extern bool_t xdr_t_flcont ();
-extern bool_t xdr_file ();
-extern bool_t xdr_errinf ();
-extern bool_t xdr_flcont_errinf ();
+extern bool_t xdr_file_inf ();
+extern bool_t xdr_err_inf ();
+extern bool_t xdr_file_err ();
 
 #endif /* K&R C */
 

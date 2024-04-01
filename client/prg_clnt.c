@@ -176,7 +176,7 @@ char * alloc_mem_file_cont(FILE *hfile, t_flcont *p_fcont)
 }
 
 // Read the file to get its content for transfering
-void read_file(const char *filename, file *fobj)
+void read_file(const char *filename, file_inf *fileinf)
 {
   // Open the file
   FILE *hfile = fopen(filename, "rb");
@@ -188,19 +188,19 @@ void read_file(const char *filename, file *fobj)
   }
 
   // Allocate the memory to store the file content
-  if ( alloc_mem_file_cont(hfile, &fobj->cont) == NULL )
+  if ( alloc_mem_file_cont(hfile, &fileinf->cont) == NULL )
     return;
 
   // Read the file content into the buffer
-  size_t nch = fread(fobj->cont.t_flcont_val, 1, fobj->cont.t_flcont_len, hfile);
+  size_t nch = fread(fileinf->cont.t_flcont_val, 1, fileinf->cont.t_flcont_len, hfile);
 
   // Check a number of items read and if an error has occurred
-  if (nch < fobj->cont.t_flcont_len || ferror(hfile)) {
+  if (nch < fileinf->cont.t_flcont_len || ferror(hfile)) {
     fprintf(stderr, "!--Error 12: file reading error: '%s'.\n"
                     "System error %i: %s\n",
                     filename, errno, strerror(errno));
     fclose(hfile);
-    free_file_cont(&fobj->cont); // free the file content memory in case of error
+    free_file_cont(&fileinf->cont); // free the file content memory in case of error
     exit(12);
   }
 
@@ -210,39 +210,39 @@ void read_file(const char *filename, file *fobj)
 // The main function to Upload file
 void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm_dst_serv)
 {
-  file file_obj; // file object
-  errinf *srv_errinf; // result from a server - error info
+  file_inf file_inf; // file info object
+  err_inf *srv_errinf; // result from a server - error info
   // TODO: figure out if a memory freeing required for srv_errinf?
 
   // Set the target file name to the file object
-  file_obj.name = flnm_dst_serv;
+  file_inf.name = flnm_dst_serv;
 
   // Get the file content and set it to the file object
-  read_file(flnm_src_clnt, &file_obj);
+  read_file(flnm_src_clnt, &file_inf);
 
   // Make a file upload to a server through RPC
-  srv_errinf = upload_file_1(&file_obj, client);
+  srv_errinf = upload_file_1(&file_inf, client);
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by upload_file_1().
-  if (srv_errinf == (errinf *)NULL) {
+  if (srv_errinf == (err_inf *)NULL) {
     clnt_perror(client, rmt_host);
-    free_file_cont(&file_obj.cont); // free the file content memory in case of error
+    free_file_cont(&file_inf.cont); // free the file content memory in case of error
     exit(13);
   }
 
   // Check an error that may occur on the server
   if (srv_errinf->num != 0) {
     // Error on a server has occurred. Print error message and die.
-    fprintf(stderr, "!--Server error %d: %s\n", srv_errinf->num, srv_errinf->errinf_u.msg);
-    free_file_cont(&file_obj.cont); // free the file content memory in case of error
+    fprintf(stderr, "!--Server error %d: %s\n", srv_errinf->num, srv_errinf->err_inf_u.msg);
+    free_file_cont(&file_inf.cont); // free the file content memory in case of error
     exit(14);
   }
 
   // Okay, we successfully called the remote procedure.
 
   // Freeing the memory that stores the file content
-  free_file_cont(&file_obj.cont); // free the file content memory
+  free_file_cont(&file_inf.cont); // free the file content memory
 }
 
 /*
@@ -282,14 +282,14 @@ void save_file(const char *flname, t_flcont *flcont)
 void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_clnt)
 {
   // Result from a server - the downloaded file content and error info
-  flcont_errinf *srv_flerr;
+  file_err *srv_flerr;
 
   // Make a file download from a server through RPC
   srv_flerr = download_file_1(&flnm_src_serv, client);
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by download_file_1().
-  if (srv_flerr == (flcont_errinf *)NULL) {
+  if (srv_flerr == (file_err *)NULL) {
     clnt_perror(client, rmt_host);
     exit(20);
   }
@@ -297,18 +297,18 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
   // Okay, we successfully called the remote procedure.
 
   // Check an error that may occur on the server
-  if (srv_flerr->err_inf.num != 0) {
+  if (srv_flerr->err.num != 0) {
     // Error on a server has occurred. Print error message and die.
     fprintf(stderr, "!--Server error %d: %s\n", 
-            srv_flerr->err_inf.num, srv_flerr->err_inf.errinf_u.msg);
+            srv_flerr->err.num, srv_flerr->err.err_inf_u.msg);
     exit(21);
   }
   
   // Save the remote file content to a local file
-  save_file(flnm_dst_clnt, &srv_flerr->file_cont);
+  save_file(flnm_dst_clnt, &srv_flerr->file.cont);
 
   // Free the local memory with a remote file content
-  free_file_cont(&srv_flerr->file_cont); // free the file content memory
+  free_file_cont(&srv_flerr->file.cont); // free the file content memory
 }
 
 int main(int argc, char *argv[])

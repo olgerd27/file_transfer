@@ -20,7 +20,7 @@ static void
 fltrprog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 {
 	union {
-		file upload_file_1_arg;
+		file_inf upload_file_1_arg;
 		t_flname download_file_1_arg;
 	} argument;
 	char *result;
@@ -33,14 +33,14 @@ fltrprog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 		return;
 
 	case upload_file:
-		_xdr_argument = (xdrproc_t) xdr_file;
-		_xdr_result = (xdrproc_t) xdr_errinf;
+		_xdr_argument = (xdrproc_t) xdr_file_inf;
+		_xdr_result = (xdrproc_t) xdr_err_inf;
 		local = (char *(*)(char *, struct svc_req *)) upload_file_1_svc;
 		break;
 
 	case download_file:
 		_xdr_argument = (xdrproc_t) xdr_t_flname;
-		_xdr_result = (xdrproc_t) xdr_flcont_errinf;
+		_xdr_result = (xdrproc_t) xdr_file_err;
 		local = (char *(*)(char *, struct svc_req *)) download_file_1_svc;
 		break;
 

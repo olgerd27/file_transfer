@@ -26,7 +26,7 @@ xdr_t_flcont (XDR *xdrs, t_flcont *objp)
 }
 
 bool_t
-xdr_file (XDR *xdrs, file *objp)
+xdr_file_inf (XDR *xdrs, file_inf *objp)
 {
 	register int32_t *buf;
 
@@ -38,7 +38,7 @@ xdr_file (XDR *xdrs, file *objp)
 }
 
 bool_t
-xdr_errinf (XDR *xdrs, errinf *objp)
+xdr_err_inf (XDR *xdrs, err_inf *objp)
 {
 	register int32_t *buf;
 
@@ -48,7 +48,7 @@ xdr_errinf (XDR *xdrs, errinf *objp)
 	case 0:
 		break;
 	default:
-		 if (!xdr_string (xdrs, &objp->errinf_u.msg, SIZE_ERRMSG))
+		 if (!xdr_string (xdrs, &objp->err_inf_u.msg, SIZE_ERRMSG))
 			 return FALSE;
 		break;
 	}
@@ -56,13 +56,13 @@ xdr_errinf (XDR *xdrs, errinf *objp)
 }
 
 bool_t
-xdr_flcont_errinf (XDR *xdrs, flcont_errinf *objp)
+xdr_file_err (XDR *xdrs, file_err *objp)
 {
 	register int32_t *buf;
 
-	 if (!xdr_t_flcont (xdrs, &objp->file_cont))
+	 if (!xdr_file_inf (xdrs, &objp->file))
 		 return FALSE;
-	 if (!xdr_errinf (xdrs, &objp->err_inf))
+	 if (!xdr_err_inf (xdrs, &objp->err))
 		 return FALSE;
 	return TRUE;
 }

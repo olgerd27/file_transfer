@@ -9,29 +9,29 @@ typedef string t_flname<SIZE_FNAME>; /* file name type */
 typedef opaque t_flcont<>; /* file content type */
 
 /* File information */
-struct file {
+struct file_inf {
   t_flname name; /* file name */
   t_flcont cont; /* file content */
 };
 
 /* Error information */
-union errinf switch (int num) {
+union err_inf switch (int num) {
   case 0:
     void; /* no error - no message */
   default:
     string msg<SIZE_ERRMSG>; /* error occured: return error message */
 };
 
-/* File content + error information */
-struct flcont_errinf {
-  t_flcont file_cont; /* file content */
-  errinf err_inf; /* error information */
+/* File + error info */
+struct file_err {
+  file_inf file; /* file info */
+  err_inf err; /* error info */
 };
 
 /* The file transfer program definition */
 program FLTRPROG {
    version FLTRVERS {
-     errinf upload_file(file fl) = 1;
-     flcont_errinf download_file(t_flname filename) = 2;
+     err_inf upload_file(file_inf fileinf) = 1;
+     file_err download_file(t_flname filename) = 2;
    } = 1;
 } = 0x20000027;
