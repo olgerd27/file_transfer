@@ -132,15 +132,16 @@ CLIENT * create_client()
 // Free the memory for storing file content
 void free_file_cont(t_flcont *p_flcont)
 {
+  if (!p_flcont) {
+    fprintf(stderr, "!--Error 8: Cannot free the file content. p_flcont=%p\n", p_flcont);
+    exit(8);
+  }
+
+  // free the file content
   if (p_flcont && p_flcont->t_flcont_val) {
     free(p_flcont->t_flcont_val);
     p_flcont->t_flcont_val = NULL;
     p_flcont->t_flcont_len = 0;
-  } else {
-    fprintf(stderr, 
-            "!--Error 8: Cannot free the file content. len=%i, ptr to val=%p, p_flcont=%p\n", 
-            p_flcont->t_flcont_len, p_flcont->t_flcont_val, p_flcont);
-    exit(8);
   }
 }
 
@@ -242,7 +243,7 @@ void file_upload(CLIENT *client, const char *flnm_src_clnt, /*const*/ char *flnm
   // Okay, we successfully called the remote procedure.
 
   // Freeing the memory that stores the file content
-  free_file_cont(&file_inf.cont); // free the file content memory
+  free_file_cont(&file_inf.cont);
 }
 
 /*
@@ -308,7 +309,7 @@ void file_download(CLIENT *client, char *flnm_src_serv, const char *flnm_dst_cln
   save_file(flnm_dst_clnt, &srv_flerr->file.cont);
 
   // Free the local memory with a remote file content
-  free_file_cont(&srv_flerr->file.cont); // free the file content memory
+  free_file_cont(&srv_flerr->file.cont);
 }
 
 int main(int argc, char *argv[])

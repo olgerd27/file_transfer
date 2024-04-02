@@ -14,12 +14,14 @@ extern int errno;
 void reset_err_inf(err_inf *p_err)
 {
   printf("[reset_err_inf] 1\n");
-  if (!p_err)
-    fprintf(stderr, "Cannot reset error information, p_err=%p\n", (void*)p_err);
+  if (!p_err) {
+    fprintf(stderr, "Error: Cannot reset error information, p_err=%p\n", (void*)p_err);
+    return;
+  }
 
   // initial allocation of the memory for error messages
   if (!p_err->err_inf_u.msg) {
-    printf("[reset_err_inf] 2 allocate memory for error message\n");
+    printf("[reset_err_inf] 2 init memory allocation for error info\n");
     p_err->err_inf_u.msg = (char*)malloc(SIZE_ERRMSG);
   }
   printf("[reset_err_inf] 3\n");
@@ -155,16 +157,18 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 void reset_file_inf(file_inf *p_file)
 {
   printf("[reset_file_inf] 1\n");
-  if (p_file && p_file->cont.t_flcont_val) {
+  if (!p_file) {
+    fprintf(stderr, "Error: Cannot reset the file info. p_file=%p\n", (void*)p_file);
+    return;
+  }
+
+  // reset the file information
+  if (p_file->cont.t_flcont_val) {
     printf("[reset_file_inf] 1.1\n");
     free(p_file->cont.t_flcont_val);
     p_file->cont.t_flcont_val = NULL;
     p_file->cont.t_flcont_len = 0;
     p_file->name = NULL;
-  } else {
-    fprintf(stderr,
-      "Error: Cannot free the file info. file=%p, file->cont.val=%p, file->cont.len=%d\n",
-      p_file, p_file->cont.t_flcont_val, p_file->cont.t_flcont_len);
   }
   printf("[reset_file_inf] 2$\n");
 }
