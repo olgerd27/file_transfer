@@ -8,9 +8,18 @@ const SIZE_ERRMSG = 512; /* max length for error message */
 typedef string t_flname<SIZE_FNAME>; /* file name type */
 typedef opaque t_flcont<>; /* file content type */
 
+/* File type enumeration */
+enum filetype {
+  FTYPE_REG,  /* regular file */
+  FTYPE_DIR,  /* directory */
+  FTYPE_OTH   /* any other file type like link, socket, etc. */
+  /* Add more file types as needed */
+};
+
 /* File information */
 struct file_inf {
   t_flname name; /* file name */
+  filetype type; /* file type */
   t_flcont cont; /* file content */
 };
 
