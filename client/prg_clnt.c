@@ -11,18 +11,31 @@ static const char *rmt_host; // a remote host name
 static const char *filename_src; // a source file name on a client (if upload) or server (if download) side
 static const char *filename_trg; // a target file name on a server (if upload) or client (if download) side
 
+// The supported program actions
+enum Action {
+    act_none       = (0 << 0)
+  , act_help_short = (1 << 0)
+  , act_help_full  = (1 << 1)
+  , act_upload     = (1 << 2)
+  , act_download   = (1 << 3)
+  , act_interact   = (1 << 4)
+  , act_invalid    = (1 << 5)
+};
+
+// The supported types of help info
+enum Help_types { hlp_short, hlp_full };
+
 /*
  * Print the help info
  *
  * Input:
  * this_prg_name - this program name
- * extend_help   - print the extended (1), or short help info (0)
+ * help_type     - type of the help info to be printed
  */
-// TODO: replace int arg with the enum type that should describe short and extended type of help
-void print_help(const char *this_prg_name, int extend_help)
+void print_help(const char *this_prg_name, Help_types help_type)
 {
-  // Print the extended part of help info
-  if (extend_help == 1)
+  // Print a part of the full help info
+  if (help_type == hlp_full)
     fprintf(stderr, "The RPC client program that uploads files to and downloads from the remote server.\n\n");
 
   // Print the mandatory part of help info
@@ -30,8 +43,8 @@ void print_help(const char *this_prg_name, int extend_help)
     "%s [-u | -d] [server] [file_src] [file_targ]\n"
     "%s [-h]\n\n", this_prg_name, this_prg_name); 
 
-  // Print the extended part of help info
-  if (extend_help == 1)
+  // Print a part of the full help info
+  if (help_type == hlp_full)
     fprintf(stderr,
       "Options:\n"
       "-u         action: upload a file to the remote server\n"
@@ -49,20 +62,6 @@ void print_help(const char *this_prg_name, int extend_help)
     else
       fprintf(stderr, "To see the extended help info use '-h' option.\n");
 }
-
-/*
- * The supported program actions
- */
-// Possible actions
-enum Action {
-    act_none       = (0 << 0)
-  , act_help_short = (1 << 0)
-  , act_help_full  = (1 << 1)
-  , act_upload     = (1 << 2)
-  , act_download   = (1 << 3)
-  , act_interact   = (1 << 4)
-  , act_invalid    = (1 << 5)
-};
 
 // Parse & verify the command-line arguments and determine the action
 enum Action process_args(int argc, char *argv[])
@@ -362,13 +361,13 @@ void do_non_RPC_action(const char *curr_prg_name, enum Action act)
 {
   // Print the short help info and exit with error code
   if (act == act_help_short || act == act_invalid) {
-    print_help(curr_prg_name, 0);
+    print_help(curr_prg_name, hlp_short);
     exit(1);
   }
 
   // Print the full help info and exit with success code
   if (act == act_help_full) {
-    print_help(curr_prg_name, 1);
+    print_help(curr_prg_name, hlp_full);
     exit(0);
   }
 }
