@@ -26,6 +26,7 @@ typedef struct {
 enum filetype {
 	FTYPE_REG = 0,
 	FTYPE_DIR = 1,
+	FTYPE_OTH = 2,
 };
 typedef enum filetype filetype;
 

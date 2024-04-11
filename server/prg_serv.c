@@ -60,20 +60,20 @@ FILE * open_file_write_x(const t_flname fname, err_inf *p_err)
   return hfile;
 }
 
-// Write a content of the client file to a new file
+// Write a content of the client file to a new file.
 // RC: 0 on success; >0 on failure
-int write_file(FILE *hfile, const t_flname fname, t_flcont *p_fcont, err_inf *p_err)
+int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 {
   printf("[write_file] 1\n");
-  size_t nch = fwrite(p_fcont->t_flcont_val, 1, p_fcont->t_flcont_len, hfile);
+  size_t nch = fwrite(p_file->cont.t_flcont_val, 1, p_file->cont.t_flcont_len, hfile);
 
   // Check a number of written items 
-  if (nch < p_fcont->t_flcont_len) {
+  if (nch < p_file->cont.t_flcont_len) {
     printf("[write_file] 1.1 error partial writing to a file\n");
     p_err->num = 51;
     sprintf(p_err->err_inf_u.msg, 
             "Partial writing to the file: '%s'.\n"
-            "System server error %i: %s", fname, errno, strerror(errno));
+            "System server error %i: %s", p_file->name, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
     fprintf(stderr, "File Upload Failed - error %i\n", p_err->num);
     fclose(hfile);
@@ -87,7 +87,7 @@ int write_file(FILE *hfile, const t_flname fname, t_flcont *p_fcont, err_inf *p_
     p_err->num = 52;
     sprintf(p_err->err_inf_u.msg, 
             "Failed to read from the file: '%s'\n"
-            "System server error %i: %s", fname, errno, strerror(errno));
+            "System server error %i: %s", p_file->name, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
     fprintf(stderr, "File Upload Failed - error %i\n", p_err->num);
     fclose(hfile);
@@ -97,7 +97,7 @@ int write_file(FILE *hfile, const t_flname fname, t_flcont *p_fcont, err_inf *p_
   return 0;
 }
 
-// Close a file stream
+// Close file stream.
 // This function doesn't print an error message to stderr and doesn't reset the file buffer if necessary.
 // Customers must do this by themselves.
 int close_file(FILE *hfile, const t_flname fname, err_inf *p_err)
@@ -133,7 +133,7 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
   }
 
   // Write a content of the client file to a new file
-  if ( write_file(hfile, file_upld->name, &file_upld->cont, &ret_err) != 0 ) {
+  if ( write_file(hfile, file_upld, &ret_err) != 0 ) {
     printf("[upload_file] 1.2 error write to a file\n\n");
     return &ret_err;
   }
@@ -202,8 +202,8 @@ unsigned get_file_size(FILE *hfile)
   return size;
 }
 
-// Allocate the memory to store the file content
-// A pointer to the allocated memory set to p_fcont and return as a result.
+// Allocate the memory to store the file content.
+// A pointer to the allocated memory set to p_file and return as a result.
 char * alloc_mem_file_cont(FILE *hfile, file_inf *p_file, err_inf *p_err)
 {
   printf("[alloc_mem_file_cont] 1\n");
@@ -224,7 +224,7 @@ char * alloc_mem_file_cont(FILE *hfile, file_inf *p_file, err_inf *p_err)
   return p_file->cont.t_flcont_val;
 }
 
-// Read the file content into the buffer
+// Read the file content into the buffer.
 // RC: 0 on success; >0 on failure
 int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 {
