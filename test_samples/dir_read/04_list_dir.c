@@ -86,6 +86,7 @@ int ls_dir(const char *dirname)
 
   // Variant 2 - use the directories path+name concatenations. Decided to use this one.
   char            fullpath[PATHLEN_MAX]; // for variant 1
+  int             offset_dn; // offset in fullpath for the dirname
 
   // Open the current working directory
   if ( (hdir = opendir(dirname)) == NULL ) {
@@ -93,12 +94,18 @@ int ls_dir(const char *dirname)
     return 2;
   }
 
+  // Init the full path - copy the current directory + '/'
+  offset_dn = snprintf(fullpath, PATHLEN_MAX, "%s/", dirname); // '\0' appends automatically
+  if (offset_dn < 0) {
+    fprintf(stderr, "Invalid filename: '%s'\n", dirname);
+    return 3;
+  }
+
   /* Loop through directory entries. */
   while ((dp = readdir(hdir)) != NULL) {
 
     /* Construct full path to the directory entry */
-    memset(fullpath, 0, PATHLEN_MAX);
-    snprintf(fullpath, PATHLEN_MAX, "%s/%s", dirname, dp->d_name);
+    snprintf(fullpath + offset_dn, PATHLEN_MAX - offset_dn, "%s", dp->d_name); // '\0' appends automatically
 
     /* Get entry's information. */
 //    if (lstat(dp->d_name, &statbuf) == -1) // for variant 1

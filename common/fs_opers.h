@@ -7,7 +7,8 @@
 enum filetype file_type(const char *file);
 
 // List the directory content.
-// RC: 0 - success, >0 - failure
+// dirname - the directory name
+// RC:  0 - success, >0 - failure
 int ls_dir(const char *dirname);
 
 // Get the filename in the interactive mode

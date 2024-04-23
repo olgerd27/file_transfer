@@ -13,12 +13,9 @@
 
 #include "fs_opers.h"
 
-#define LEN_PATH_MAX 1024
-#define LEN_FNAME_MAX 255
-
 // Global system variable that store the error number
 extern int errno;
-static char *filename_src; // TODO: delete, it's just for test
+static char filename_src[PATH_MAX]; // TODO: delete, it's just for test
 
 // Return a letter of a file type used in Unix-like OS
 static char get_file_type_unix(mode_t mode)
@@ -79,42 +76,55 @@ enum filetype file_type(const char *filepath)
 }
 
 // List the directory content.
-// dirpath - a full path to the directory.
-int ls_dir(const char *dirpath)
+// dirname - the directory name
+// RC:  0 - success, >0 - failure
+int ls_dir(const char *dirname)
 {
   DIR            *hdir;
-  struct dirent  *dp;
+  struct dirent  *de; // directory entry
   struct stat     statbuf;
   char            strperm[11];
   struct passwd  *pwd;
   struct group   *grp;
   struct tm      *tm;
   char            datestring[256];
-  char            fullpath[LEN_PATH_MAX]; // TODO: replace with PATH_MAX here and through the function
+  char            fullpath[PATH_MAX]; // the PATH_MAX constant is declared in <limits.h>
+  int             offset_dn; // offset from the beginning in fullpath for the constant string dirname+'/'
+  int             len_fname; // length of a filename
 
-  // Open the current working directory
-  if ( (hdir = opendir(dirpath)) == NULL ) {
-    fprintf(stderr, "Cannot open directory %s\n%s\n", dirpath, strerror(errno));
+  // Open the passed directory
+  if ( (hdir = opendir(dirname)) == NULL ) {
+    fprintf(stderr, "[ls_dir] Cannot open directory '%s'\n%s\n", dirname, strerror(errno));
+    return 1;
+  }
+
+  // Init the full path with the first constant part dirname+'/'
+  offset_dn = snprintf(fullpath, PATH_MAX, "%s/", dirname); // '\0' appends automatically
+  if (offset_dn < 0) {
+    fprintf(stderr, "[ls_dir] Invalid dirname: '%s'\n", dirname);
+    closedir(hdir);
     return 2;
   }
 
-  /* Loop through directory entries. */
-  while ((dp = readdir(hdir)) != NULL) {
+  /* Loop through directory entries */
+  while ((de = readdir(hdir)) != NULL) {
 
-    /* Construct full path to the directory entry */
-    // TODO: skip the dirpath part of fullpath, since it's the constant part of string
-    // and we don't need to delete and print it each time in the loop
-    memset(fullpath, 0, LEN_PATH_MAX);
-    snprintf(fullpath, LEN_PATH_MAX, "%s/%s", dirpath, dp->d_name);
+    // Construct the full path to the directory entry
+    // A NULL-character appends automatically
+    len_fname = snprintf(fullpath + offset_dn, PATH_MAX - offset_dn, "%s", de->d_name);
+    if (len_fname < 0) {
+      fprintf(stderr, "[ls_dir] Invalid filename: '%s'\n", de->d_name);
+      continue;
+    }
 
-    /* Get entry's information. */
+    // Get entry's information
     if (lstat(fullpath, &statbuf) == -1)
         continue;
 
-    /* Print out type and permissions. */
+    // Print out type and permissions
     printf("%s", str_perm(statbuf.st_mode, strperm));
 
-    /* Print out owner's name if it is found using getpwuid(). */
+    // Print out owner's name if it is found using getpwuid()
     // TODO: determine the length of the field as a max length among all the entries
     // And then the following format can be used: "  %-Ns"
     if ((pwd = getpwuid(statbuf.st_uid)) != NULL)
@@ -122,26 +132,26 @@ int ls_dir(const char *dirpath)
     else
         printf("  %-8d", statbuf.st_uid);
 
-    /* Print out group name if it is found using getgrgid(). */
+    // Print out group name if it is found using getgrgid()
     if ((grp = getgrgid(statbuf.st_gid)) != NULL)
         printf(" %-8.8s", grp->gr_name);
     else
         printf(" %-8d", statbuf.st_gid);
 
-    /* Print size of file. */
+    // Print size of file
     printf(" %9jd", (intmax_t)statbuf.st_size);
 
     tm = localtime(&statbuf.st_mtime);
 
-    /* Get localized date string. */
+    // Get localized date string
     // TODO: the ls command has 2 different formats for this date&time string:
     // - if a mod. time is less than 1 year then it's used the format with time and without year,
     // - if a mod. time is more than 1 year then it's used the format without time but with year.
     // I suppose a similar approach can be used here. 
-    // Maybe used difftime() function to determine format.
+    // Maybe use difftime() function to determine the format.
     strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
 
-    printf(" %s %s\n", datestring, dp->d_name);
+    printf(" %s %s\n", datestring, de->d_name);
   }
 
   closedir(hdir);
@@ -164,15 +174,15 @@ char * get_filename_inter(const char *dir_start)
   //        >> for target file:
   //        - if it does NOT exist - OK and return its full path+name
   //        - if it exists (type doesn't matter) - error and message like file exists, please specify another one
-  char filename[LEN_FNAME_MAX]; // a file name without path
+  char filename[NAME_MAX]; // a file name without path, NAME_MAX is defined in limits.h
 //  char fullpath[PATH_MAX]; // a file full path+name, PATH_MAX is taken from limits.h
-  char *fullpath = malloc(PATH_MAX); // a file full path+name, PATH_MAX is taken from limits.h
+  char *fullpath = malloc(PATH_MAX); // a file full path+name, PATH_MAX is defined in limits.h
   int offset = 0; // an offset from the beginning of fullpath to control the added strings
   int nch_wrt = 0; // a number of written characters in fullpath
 
-  // init the full path and offset
+  // Init the full path and offset
   offset = strlen(dir_start);
-  strncpy(fullpath, dir_start, offset + 1); // use offset here as it means the copied string length
+  strncpy(fullpath, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to offset for it
   printf("[get_filename_inter] 0, fullpath: '%s'\n", fullpath);
 
   while (file_type(fullpath) == FTYPE_DIR) {
@@ -181,28 +191,29 @@ char * get_filename_inter(const char *dir_start)
     if (ls_dir(fullpath) != 0)
       return NULL; // TODO: check the return value, maybe it should be some other one
 
-    // Get user choice
+    // Get user input
     printf("\n>>> ");
-    if (fgets(filename, LEN_FNAME_MAX, stdin) == NULL)
+    if (fgets(filename, NAME_MAX, stdin) == NULL)
       return NULL; // TODO: check the return value, maybe it should be some other one
     printf("\n");
+
+    // Removing trailing newline character from fgets() input
+    filename[strcspn(filename, "\n")] = '\0';
     printf("[get_filename_inter] 1, filename: '%s'\n", filename);
 
     // TODO: verify inputted filename, if len==0, print warning and continue
 
-    // Removing trailing newline character from fgets() input
-    filename[strcspn(filename, "\n")] = '\0';
-
     // Construct the full path+name of the choosed file
     nch_wrt = snprintf(fullpath + offset, PATH_MAX - offset, "/%s", filename);
-    printf("[get_filename_inter] 2, fullpath: '%s'\n", fullpath);
 
     // Verify the fullpath construction
     if (nch_wrt < 0) {
       fprintf(stderr, "Invalid filename: '%s'\n", filename);
       return NULL; // TODO: check the return value, maybe it should be some other one
     }
-    else offset += nch_wrt;
+    else offset += nch_wrt; // increment the offset by the number of chars written to fullpath
+
+    printf("[get_filename_inter] 2, fullpath: '%s'\n", fullpath);
   }
   return fullpath;
 }
