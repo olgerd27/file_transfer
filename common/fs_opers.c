@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -6,16 +8,14 @@
 #include <time.h>
 #include <locale.h>
 #include <langinfo.h>
-#include <stdio.h>
 #include <stdint.h>
-#include <string.h>
 #include <errno.h>
 
 #include "fs_opers.h"
 
 // Global system variable that store the error number
 extern int errno;
-static char filename_src[PATH_MAX]; // TODO: delete, it's just for test
+static char filename_src[PATH_MAX]; // TODO: delete, it's just for testing
 
 // Return a letter of a file type used in Unix-like OS
 static char get_file_type_unix(mode_t mode)
@@ -75,9 +75,11 @@ enum filetype file_type(const char *filepath)
   return ftype;
 }
 
-// List the directory content.
-// dirname - the directory name
-// RC:  0 - success, >0 - failure
+/*
+ * List the directory content.
+ * - dirname -> the directory name
+ * RC:  0 on success, >0 on failure.
+ */
 int ls_dir(const char *dirname)
 {
   DIR            *hdir;
@@ -90,7 +92,7 @@ int ls_dir(const char *dirname)
   char            datestring[256];
   char            fullpath[PATH_MAX]; // the PATH_MAX constant is declared in <limits.h>
   int             offset_dn; // offset from the beginning in fullpath for the constant string dirname+'/'
-  int             len_fname; // length of a filename
+  int             nwrt_fname; // number of characters written to the fullpath in each iteration
 
   // Open the passed directory
   if ( (hdir = opendir(dirname)) == NULL ) {
@@ -110,9 +112,9 @@ int ls_dir(const char *dirname)
   while ((de = readdir(hdir)) != NULL) {
 
     // Construct the full path to the directory entry
-    // A NULL-character appends automatically
-    len_fname = snprintf(fullpath + offset_dn, PATH_MAX - offset_dn, "%s", de->d_name);
-    if (len_fname < 0) {
+    // A NULL-character appends to fullpath automatically
+    nwrt_fname = snprintf(fullpath + offset_dn, PATH_MAX - offset_dn, "%s", de->d_name);
+    if (nwrt_fname < 0) {
       fprintf(stderr, "[ls_dir] Invalid filename: '%s'\n", de->d_name);
       continue;
     }
@@ -158,8 +160,13 @@ int ls_dir(const char *dirname)
   return 0;
 }
 
-// Get the filename in the interactive mode
-char * get_filename_inter(const char *dir_start)
+/*
+ * Get the filename in the interactive mode.
+ * - dir_start -> a starting directory for the traversal
+ * - file_res  -> a result file path+name to put the result, memory should be allocated outside
+ * RC: returns file_res on success, and NULL on failure.
+ */
+char * get_filename_inter(const char *dir_start, char *file_res)
 {
   // 1. ls dir
   // 2. get user input
@@ -174,55 +181,68 @@ char * get_filename_inter(const char *dir_start)
   //        >> for target file:
   //        - if it does NOT exist - OK and return its full path+name
   //        - if it exists (type doesn't matter) - error and message like file exists, please specify another one
-  char filename[NAME_MAX]; // a file name without path, NAME_MAX is defined in limits.h
-//  char fullpath[PATH_MAX]; // a file full path+name, PATH_MAX is taken from limits.h
-  char *fullpath = malloc(PATH_MAX); // a file full path+name, PATH_MAX is defined in limits.h
-  int offset = 0; // an offset from the beginning of fullpath to control the added strings
-  int nch_wrt = 0; // a number of written characters in fullpath
+  char file_inp[NAME_MAX]; // inputted file name (without a path)
+  int len_fname_inp; // length of the inputted filename
+  int offset; // offset from the beginning of file_res for the added subdir/file
+  int nwrt_fname; // number of characters written to file_res in each iteration
 
   // Init the full path and offset
   offset = strlen(dir_start);
-  strncpy(fullpath, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to offset for it
-  printf("[get_filename_inter] 0, fullpath: '%s'\n", fullpath);
+  strncpy(file_res, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to offset for it
+  printf("[get_filename_inter] 0, file_res: '%s'\n", file_res);
 
-  while (file_type(fullpath) == FTYPE_DIR) {
+  while (file_type(file_res) == FTYPE_DIR) {
 
     // Print the directory content
-    if (ls_dir(fullpath) != 0)
-      return NULL; // TODO: check the return value, maybe it should be some other one
+    if (ls_dir(file_res) != 0) return NULL;
 
     // Get user input
     printf("\n>>> ");
-    if (fgets(filename, NAME_MAX, stdin) == NULL)
-      return NULL; // TODO: check the return value, maybe it should be some other one
+    if (fgets(file_inp, NAME_MAX, stdin) == NULL) {
+      fprintf(stderr, "Read error occurred. Please make the input again\n");
+      continue;
+    }
     printf("\n");
 
     // Removing trailing newline character from fgets() input
-    filename[strcspn(filename, "\n")] = '\0';
-    printf("[get_filename_inter] 1, filename: '%s'\n", filename);
+    file_inp[strcspn(file_inp, "\n")] = '\0';
+    printf("[get_filename_inter] 1, file_inp: '%s'\n", file_inp);
 
-    // TODO: verify inputted filename, if len==0, print warning and continue
+    // Verify if inputted file_inp is empty (user just press ENTER)
+    len_fname_inp = strlen(file_inp);
+    if (len_fname_inp == 0) continue;
+
+    // TODO: if input start from '/' - user specified a full path
+    // and it should be placed in file_res from beginning.
 
     // Construct the full path+name of the choosed file
-    nch_wrt = snprintf(fullpath + offset, PATH_MAX - offset, "/%s", filename);
+    nwrt_fname = snprintf(file_res + offset, PATH_MAX - offset, "/%s", file_inp);
 
-    // Verify the fullpath construction
-    if (nch_wrt < 0) {
-      fprintf(stderr, "Invalid filename: '%s'\n", filename);
-      return NULL; // TODO: check the return value, maybe it should be some other one
+    // Verify the file_res construction
+    // Check if nothing has written to a full path of the res filename
+    if (nwrt_fname < 0) {
+      fprintf(stderr, "Invalid filename: '%s'\n", file_inp);
+      return NULL;
     }
-    else offset += nch_wrt; // increment the offset by the number of chars written to fullpath
 
-    printf("[get_filename_inter] 2, fullpath: '%s'\n", fullpath);
+    // Check if the whole inputted filename was added to a full path of the res filename
+    if (nwrt_fname != len_fname_inp + 1) { /* added '+1' as '/' was also written */
+      fprintf(stderr, "Cannot append the inputted filename to the result filename\n");
+      return NULL;
+    }
+
+   // Increment the offset by the number of chars written to file_res (after completed checks)
+   offset += nwrt_fname;
+
+    printf("[get_filename_inter] 2, file_res: '%s'\n", file_res);
   }
-  return fullpath;
+  return file_res;
 }
 
-// TODO: delete, it's just for tests
+// TODO: delete, it's just for testing
 int main()
 {
-  filename_src = get_filename_inter(".");
-  printf("Choosed file: '%s'\n", filename_src);
-  free(filename_src);
+  if (get_filename_inter(".", filename_src))
+    printf("Choosed file: '%s'\n", filename_src);
   return 0;
 }
