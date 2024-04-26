@@ -184,6 +184,7 @@ char * get_filename_inter(const char *dir_start, char *file_res)
   char file_inp[NAME_MAX]; // inputted file name (without a path)
   int len_fname_inp; // length of the inputted filename
   int offset; // offset from the beginning of file_res for the added subdir/file
+  int offset_fullpath; // offset from the beginning of file_inp; set 1 if a full path was inputted
   int nwrt_fname; // number of characters written to file_res in each iteration
 
   // Init the full path and offset
@@ -204,7 +205,7 @@ char * get_filename_inter(const char *dir_start, char *file_res)
     }
     printf("\n");
 
-    // Removing trailing newline character from fgets() input
+    // Remove a trailing newline character remained from fgets() input
     file_inp[strcspn(file_inp, "\n")] = '\0';
     printf("[get_filename_inter] 1, file_inp: '%s'\n", file_inp);
 
@@ -212,11 +213,16 @@ char * get_filename_inter(const char *dir_start, char *file_res)
     len_fname_inp = strlen(file_inp);
     if (len_fname_inp == 0) continue;
 
-    // TODO: if input start from '/' - user specified a full path
-    // and it should be placed in file_res from beginning.
+    // If user specified a full path, reset the file_res
+    if (*file_inp == '/') {
+      memset(file_res, 0, offset);
+      offset = 0;
+      offset_fullpath = 1; // set 1 for a full path to skip the first '/' symbol
+    }
+    else offset_fullpath = 0; // no need to skip symbols for relative pathes
 
     // Construct the full path+name of the choosed file
-    nwrt_fname = snprintf(file_res + offset, PATH_MAX - offset, "/%s", file_inp);
+    nwrt_fname = snprintf(file_res + offset, PATH_MAX - offset, "/%s", file_inp + offset_fullpath);
 
     // Verify the file_res construction
     // Check if nothing has written to a full path of the res filename
@@ -226,7 +232,8 @@ char * get_filename_inter(const char *dir_start, char *file_res)
     }
 
     // Check if the whole inputted filename was added to a full path of the res filename
-    if (nwrt_fname != len_fname_inp + 1) { /* added '+1' as '/' was also written */
+    // Add '+1' as '/' was also written, and substruct offset_fullpath
+    if (nwrt_fname != len_fname_inp + 1 - offset_fullpath) {
       fprintf(stderr, "Cannot append the inputted filename to the result filename\n");
       return NULL;
     }
