@@ -48,11 +48,14 @@ static char * str_perm(mode_t mode, char *strmode)
   return strmode;
 }
 
-// Return the filetype (defined in fltr.h) for the specified file
-// filepath - a full path to the file.
+/*
+ * Return the filetype (defined in fltr.h) for the specified file.
+ * - filepath - a full path to the file.
+ * RC: returns a filetype enum value defined in the RPC fltr.x file.
+ */
 enum filetype file_type(const char *filepath)
 {
-  printf("[file_type] 0, filepath: '%s'\n", filepath);
+//  printf("[file_type] 0, filepath: '%s'\n", filepath);
   enum filetype ftype;
   struct stat statbuf;
 
@@ -71,7 +74,7 @@ enum filetype file_type(const char *filepath)
       ftype = FTYPE_OTH;
       break;
   }
-  printf("[file_type] $, filetype: %d\n", (int)ftype);
+//  printf("[file_type] $, filetype: %d\n", (int)ftype);
   return ftype;
 }
 
@@ -96,14 +99,15 @@ int ls_dir(const char *dirname)
 
   // Open the passed directory
   if ( (hdir = opendir(dirname)) == NULL ) {
-    fprintf(stderr, "[ls_dir] Cannot open directory '%s'\n%s\n", dirname, strerror(errno));
+//    fprintf(stderr, "Cannot open directory '%s'\n%s\n", dirname, strerror(errno));
+    perror("Failed to open the specified directory");
     return 1;
   }
 
   // Init the full path with the first constant part dirname+'/'
   offset_dn = snprintf(fullpath, PATH_MAX, "%s/", dirname); // '\0' appends automatically
   if (offset_dn < 0) {
-    fprintf(stderr, "[ls_dir] Invalid dirname: '%s'\n", dirname);
+    fprintf(stderr, "Invalid dirname: '%s'\n", dirname);
     closedir(hdir);
     return 2;
   }
@@ -115,7 +119,7 @@ int ls_dir(const char *dirname)
     // A NULL-character appends to fullpath automatically
     nwrt_fname = snprintf(fullpath + offset_dn, PATH_MAX - offset_dn, "%s", de->d_name);
     if (nwrt_fname < 0) {
-      fprintf(stderr, "[ls_dir] Invalid filename: '%s'\n", de->d_name);
+      fprintf(stderr, "Invalid filename: '%s'\n", de->d_name);
       continue;
     }
 
@@ -163,7 +167,7 @@ int ls_dir(const char *dirname)
 /*
  * Get user input of filename.
  * - filename -> the allocated string array to put the input
- * RC:  0 on success, >0 on failure.
+ * RC: 0 on success, >0 on failure.
  */
 static int input_filename(char *filename)
 {
@@ -201,45 +205,55 @@ char * get_filename_inter(const char *dir_start, char *file_res)
   //        >> for target file:
   //        - if it does NOT exist - OK and return its full path+name
   //        - if it exists (type doesn't matter) - error and message like file exists, please specify another one
-  char fname_full[NAME_MAX];
+  char path_curr[PATH_MAX]; // current path used to walk through the directories and construct file_res
   char fname_inp[NAME_MAX]; // inputted file name (without a path)
   int len_fname_inp; // length of the inputted filename
-  int offset; // offset from the beginning of file_res for the added subdir/file
+  int offset; // offset from the beginning of the current path for the added subdir/file
   int offset_fullpath; // offset from the beginning of fname_inp; set 1 if a full path was inputted
-  int nwrt_fname; // number of characters written to file_res in each iteration
+  int nwrt_fname; // number of characters written to the current path in each iteration
 
   // Init the full path and offset
-  offset = strlen(dir_start);
-  strncpy(file_res, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to offset for it
-  printf("[get_filename_inter] 0, file_res: '%s'\n", file_res);
+  offset = strlen(dir_start); // define offset as the start dir length that will be copied into path_curr
+  strncpy(path_curr, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to offset for it
+//  printf("[get_filename_inter] 0, path_curr: '%s'\n", path_curr);
 
-  while (file_type(file_res) == FTYPE_DIR) {
+  while (file_type(path_curr) == FTYPE_DIR) {
+
+    // Convert the current path to the correct full (absolute) path
+    if (!realpath(path_curr, file_res)) {
+      perror("Failed to resolve the specified path");
+      return NULL;
+    }
+
+    // Print the full path of the current directory
+    printf("%s:\n", file_res);
 
     // Print the directory content
-    if (ls_dir(file_res) != 0)
+    // TODO: modify behaviour: no need to return, just delete the added subdir and wait for the next user input
+    if (ls_dir(path_curr) != 0)
       return NULL;
 
     // Get user input of filename
     if (input_filename(fname_inp) != 0)
       continue;
-    printf("[get_filename_inter] 1, fname_inp: '%s'\n", fname_inp);
+//    printf("[get_filename_inter] 1, fname_inp: '%s'\n", fname_inp);
 
-    // Verify if inputted fname_inp is empty (user just press ENTER)
+    // Check if inputted fname_inp is empty (user just pressed ENTER)
     len_fname_inp = strlen(fname_inp);
     if (len_fname_inp == 0) continue;
 
-    // If user specified a full path, reset the file_res
+    // If user specified a full path, reset the path_curr
     if (*fname_inp == '/') {
-      memset(file_res, 0, offset);
+      memset(path_curr, 0, offset);
       offset = 0;
       offset_fullpath = 1; // set 1 for a full path to skip the first '/' symbol
     }
     else offset_fullpath = 0; // no need to skip symbols for relative pathes
 
     // Construct the full path+name of the choosed file
-    nwrt_fname = snprintf(file_res + offset, PATH_MAX - offset, "/%s", fname_inp + offset_fullpath);
+    nwrt_fname = snprintf(path_curr + offset, PATH_MAX - offset, "/%s", fname_inp + offset_fullpath);
 
-    // Verify the file_res construction
+    // Verify the path_curr construction
     // Check if nothing has written to a full path of the res filename
     if (nwrt_fname < 0) {
       fprintf(stderr, "Invalid filename: '%s'\n", fname_inp);
@@ -253,10 +267,10 @@ char * get_filename_inter(const char *dir_start, char *file_res)
       return NULL;
     }
 
-   // Increment the offset by the number of chars written to file_res (after completed checks)
+   // Increment the offset by the number of chars written to path_curr (after completed checks)
    offset += nwrt_fname;
 
-    printf("[get_filename_inter] 2, file_res: '%s'\n", file_res);
+//    printf("[get_filename_inter] 2, path_curr: '%s'\n", path_curr);
   }
   return file_res;
 }

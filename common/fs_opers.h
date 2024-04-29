@@ -3,8 +3,12 @@
 
 #include "../rpcgen/fltr.h"
 
-// Return the filetype (defined in fltr.h) for the specified file
-enum filetype file_type(const char *file);
+/*
+ * Return the filetype (defined in fltr.h) for the specified file.
+ * - filepath - a full path to the file.
+ * RC: returns a filetype enum value defined in the RPC fltr.x file.
+ */
+enum filetype file_type(const char *filepath)
 
 /*
  * Get the filename in the interactive mode.
