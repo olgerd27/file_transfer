@@ -7,3 +7,6 @@
 # Ignore all the file in test_trans_files except file_orig.txt
 test/test_trans_files/*
 !test/test_trans_files/file_orig.txt
+
+# Ignore a content of this directory as it can have "no permissions" files
+test/file_types/*

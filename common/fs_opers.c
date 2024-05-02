@@ -176,7 +176,6 @@ static int input_filename(char *filename)
     fprintf(stderr, "Read error occurred. Please make the input again\n");
     return 1;
   }
-  printf("\n");
 
   // Remove a trailing newline character remained from fgets() input
   filename[strcspn(filename, "\n")] = '\0';
@@ -184,13 +183,20 @@ static int input_filename(char *filename)
   return 0;
 }
 
+// Copy a path from path_src to path_trg.
+// Return a number of the written characters.
+int copy_path(char *path_src, char *path_trg)
+{
+  return snprintf(path_trg, PATH_MAX, "%s", path_src);
+}
+
 /*
  * Get the filename in the interactive mode.
  * - dir_start -> a starting directory for the traversal
- * - file_res  -> a result file path+name to put the result, memory should be allocated outside
- * RC: returns file_res on success, and NULL on failure.
+ * - path_res  -> a result file path+name to put the result, memory should be allocated outside
+ * RC: returns path_res on success, and NULL on failure.
  */
-char * get_filename_inter(const char *dir_start, char *file_res)
+char * get_filename_inter(const char *dir_start, char *path_res)
 {
   // 1. ls dir
   // 2. get user input
@@ -205,7 +211,8 @@ char * get_filename_inter(const char *dir_start, char *file_res)
   //        >> for target file:
   //        - if it does NOT exist - OK and return its full path+name
   //        - if it exists (type doesn't matter) - error and message like file exists, please specify another one
-  char path_curr[PATH_MAX]; // current path used to walk through the directories and construct file_res
+  char path_curr[PATH_MAX]; // current path used to walk through the directories and construct path_res
+  char path_prev[PATH_MAX]; // a copy of the previous path to restore it if necessary
   char fname_inp[NAME_MAX]; // inputted file name (without a path)
   int len_fname_inp; // length of the inputted filename
   int offset; // offset from the beginning of the current path for the added subdir/file
@@ -215,23 +222,51 @@ char * get_filename_inter(const char *dir_start, char *file_res)
   // Init the full path and offset
   offset = strlen(dir_start); // define offset as the start dir length that will be copied into path_curr
   strncpy(path_curr, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to offset for it
+  strcpy(path_prev, "/"); // init the previous path with a root dir as a guaranteed valid path
 //  printf("[get_filename_inter] 0, path_curr: '%s'\n", path_curr);
 
-  while (file_type(path_curr) == FTYPE_DIR) {
+//  while (file_type(path_curr) == FTYPE_DIR) {
+  while (1) {
 
-    // Convert the current path to the correct full (absolute) path
-    if (!realpath(path_curr, file_res)) {
-      perror("Failed to resolve the specified path");
-      return NULL;
+    // TODO: move this decision-making piece of code to function like:
+    // char* evaluate_path_type(char *path_curr, const char *path_prev, char *path_res, int *offset, enum filetype *ftype),
+    // it returns path_res when file was successfully selected, and 0 otherwise.
+    // The code to call the evaluate_path_type() function and operate the while-loop:
+    // if (evaluate_path_type(path_curr, path_prev, path_res, &offset, &filetype))
+    //   return path_res; // return the selected file
+    // if (ftype == FTYPE_DIR || ftype == FTYPE_REG); // continue the current loop iteration
+    // else if (ftype == FTYPE_OTH || ftype == FTYPE_INV)
+    //   continue; // start a new loop iteration
+    enum filetype ftype = file_type(path_curr);
+    switch (ftype) {
+      case FTYPE_DIR:
+      case FTYPE_REG:
+        // Convert the current path to the correct full (absolute) path
+        if (!realpath(path_curr, path_res)) {
+          perror("Failed to resolve the specified path");
+          offset = copy_path(path_prev, path_curr); // restore the previous valid path
+        }
+        else if (ftype == FTYPE_REG)
+	  return path_res; // return the selected file
+        break; // continue the loop
+      case FTYPE_OTH:
+        fprintf(stderr, "Invalid file: Only the regular file can be chosen\n");
+	offset = copy_path(path_prev, path_curr); // restore the previous valid path
+        continue;
+      case FTYPE_INV:
+        perror("Invalid file");
+	offset = copy_path(path_prev, path_curr); // restore the previous valid path
+        continue;
     }
 
     // Print the full path of the current directory
-    printf("%s:\n", file_res);
+    printf("\n%s:\n", path_res);
 
     // Print the directory content
-    // TODO: modify behaviour: no need to return, just delete the added subdir and wait for the next user input
-    if (ls_dir(path_curr) != 0)
-      return NULL;
+    if (ls_dir(path_curr) != 0) {
+      offset = copy_path(path_prev, path_curr); // restore the previous valid path
+      continue;
+    }
 
     // Get user input of filename
     if (input_filename(fname_inp) != 0)
@@ -242,8 +277,12 @@ char * get_filename_inter(const char *dir_start, char *file_res)
     len_fname_inp = strlen(fname_inp);
     if (len_fname_inp == 0) continue;
 
-    // If user specified a full path, reset the path_curr
+    // Set the previous path before changing the current one
+    copy_path(path_curr, path_prev);
+
+    // Settings for full and relative path
     if (*fname_inp == '/') {
+      // If user specified a full path, reset the path_curr
       memset(path_curr, 0, offset);
       offset = 0;
       offset_fullpath = 1; // set 1 for a full path to skip the first '/' symbol
@@ -272,7 +311,7 @@ char * get_filename_inter(const char *dir_start, char *file_res)
 
 //    printf("[get_filename_inter] 2, path_curr: '%s'\n", path_curr);
   }
-  return file_res;
+  return path_res;
 }
 
 // TODO: delete, it's just for testing

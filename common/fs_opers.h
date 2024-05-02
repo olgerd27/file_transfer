@@ -8,7 +8,7 @@
  * - filepath - a full path to the file.
  * RC: returns a filetype enum value defined in the RPC fltr.x file.
  */
-enum filetype file_type(const char *filepath)
+enum filetype file_type(const char *filepath);
 
 /*
  * Get the filename in the interactive mode.
