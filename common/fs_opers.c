@@ -192,9 +192,144 @@ int copy_path(char *path_src, char *path_trg)
   return snprintf(path_trg, PATH_MAX, "%s", path_src);
 }
 
-//select_file()
-//{
-//}
+/*
+ * NEW VERSIONS, after their acceptance delete old version: ls_dir(), get_filename_inter()
+ */
+/*
+ * List the directory content into the char array stored in file_err struct.
+ * - dirname: the directory name
+ * - flerr: an allocated and nulled structure defined in the RPC protocol, 
+ *   which is supposed to store all necessary information about the file and 
+ *   the error that occurred while retrieving this information.
+ * RC:  0 on success, >0 on failure.
+ */
+int ls_dir_str(const char *dirname, file_err *flerr)
+{
+  DIR            *hdir;
+  struct dirent  *de; // directory entry
+  struct stat     statbuf;
+  char            strperm[11];
+  struct passwd  *pwd;
+  struct group   *grp;
+  struct tm      *tm;
+  char            datestring[256];
+  char            fullpath[PATH_MAX]; //  PATH_MAX is declared in <limits.h>
+  int             offset_dn; // offset from the beginning in fullpath for the constant string dirname+'/'
+  int             nwrt_fname; // number of characters written to the fullpath in each iteration
+
+  char *p_errmsg = flerr->err.err_inf_u.msg; // pointer to the error message
+  char *p_flcont = flerr->file.cont.t_flcont_val; // pointer to the file content string
+
+  // Open the passed directory
+  if ( (hdir = opendir(dirname)) == NULL ) {
+    flerr->err.num = 85;
+    sprintf(p_errmsg, "Cannot open directory '%s'\n%s\n", dirname, strerror(errno));
+    return flerr->err.num;
+  }
+
+  // Init the full path with the first constant part dirname+'/'
+  offset_dn = snprintf(fullpath, PATH_MAX, "%s/", dirname); // '\0' appends automatically
+  if (offset_dn < 0) {
+    closedir(hdir);
+    flerr->err.num = 86;
+    sprintf(p_errmsg, "Invalid dirname: '%s'\n", dirname);
+    return flerr->err.num;
+  }
+
+  /* Loop through directory entries */
+  while ((de = readdir(hdir)) != NULL) {
+
+    // Construct the full path to the directory entry
+    // A NULL-character appends to fullpath automatically
+    nwrt_fname = snprintf(fullpath + offset_dn, PATH_MAX - offset_dn, "%s", de->d_name);
+    if (nwrt_fname < 0) {
+      sprintf(p_flcont, "Invalid filename: '%s'\n", de->d_name);
+      continue;
+    }
+
+    // Get entry's information
+    if (lstat(fullpath, &statbuf) == -1)
+        continue;
+
+    // Print out type and permissions
+    sprintf(p_flcont, "%s", str_perm(statbuf.st_mode, strperm));
+
+    // Print out owner's name if it is found using getpwuid()
+    // TODO: determine the length of the field as a max length among all the entries
+    // And then the following format can be used: "  %-Ns"
+    if ((pwd = getpwuid(statbuf.st_uid)) != NULL)
+        sprintf(p_flcont, "  %-8.8s", pwd->pw_name);
+    else
+        sprintf(p_flcont, "  %-8d", statbuf.st_uid);
+
+    // Print out group name if it is found using getgrgid()
+    if ((grp = getgrgid(statbuf.st_gid)) != NULL)
+        sprintf(p_flcont, " %-8.8s", grp->gr_name);
+    else
+        sprintf(p_flcont, " %-8d", statbuf.st_gid);
+
+    // Print size of file
+    sprintf(p_flcont, " %9jd", (intmax_t)statbuf.st_size);
+
+    tm = localtime(&statbuf.st_mtime);
+
+    // Get localized date string
+    // TODO: the ls command has 2 different formats for this date&time string:
+    // - if a mod. time is less than 1 year then it's used the format with time and without year,
+    // - if a mod. time is more than 1 year then it's used the format without time but with year.
+    // I suppose a similar approach can be used here. 
+    // Maybe use difftime() function to determine the format.
+    strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
+
+    sprintf(p_flcont, " %s %s\n", datestring, de->d_name);
+  }
+  closedir(hdir);
+  return 0;
+}
+
+/*
+ * Select a file: determine a file type and get the full (absolute) path to the file.
+ * - path: file path that needs to be selected
+ *   - flerr: file & error info to be returned
+ * RC: 0 on success, >0 on failure.
+ */
+int select_file(const char *path, file_err *flerr)
+{
+  // TODO: we must be sure in this point that all the error info is not specified in flerr->err object.
+  // We need to reset it before call of this function or at the beginning of this function.
+
+  flerr->file.type = file_type(path); // determine a file type
+  switch (flerr->file.type) {
+    case FTYPE_DIR:
+    case FTYPE_REG:
+      // Convert the passed path to the full path
+      if (!realpath(path, flerr->file.name)) {
+        flerr->err.num = 80;
+        sprintf(flerr->err.err_inf_u.msg,
+                "Failed to resolve the specified path: '%s'\n"
+                "System error %i: %s", path, errno, strerror(errno));
+        break;
+      }
+      // If it's a directory, get its content and save to file_err object
+      if (flerr->file.type == FTYPE_DIR)
+        ls_dir_str(path, flerr); // no need to check the return code, break will be called anyway
+      break;
+    case FTYPE_OTH:
+      flerr->err.num = 81;
+      sprintf(flerr->err.err_inf_u.msg,
+              "Invalid file: '%s'\n"
+	      "Only the regular file can be chosen", path);
+      break;
+    case FTYPE_NEX:
+    case FTYPE_INV:
+      flerr->err.num = 82;
+      sprintf(flerr->err.err_inf_u.msg,
+              "Invalid file: '%s'\n"
+              "System error %i: %s", path, errno, strerror(errno));
+      break;
+  }
+  return flerr->err.num;
+}
 
 /*
  * Get the filename in the interactive mode.
@@ -202,7 +337,7 @@ int copy_path(char *path_src, char *path_trg)
  * - path_res  -> a result file path+name to put the result, memory should be allocated outside
  * RC: returns path_res on success, and NULL on failure.
  */
-char * get_filename_inter(const char *dir_start, char *path_res)
+char * get_filename_inter_new(const char *dir_start, char *path_res)
 {
   // 1. ls dir
   // 2. get user input
