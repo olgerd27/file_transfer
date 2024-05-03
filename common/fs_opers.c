@@ -59,8 +59,10 @@ enum filetype file_type(const char *filepath)
   enum filetype ftype;
   struct stat statbuf;
 
+  // Check if stat() returns an error due to file non-existence, return FTYPE_NEX; 
+  // otherwise, return an invalid file type - FTYPE_INV.
   if (stat(filepath, &statbuf) == -1)
-    return FTYPE_INV;
+    return errno == ENOENT ? FTYPE_NEX : FTYPE_INV;
 
   // Determine the file type
   switch( get_file_type_unix(statbuf.st_mode) ) {
@@ -190,6 +192,10 @@ int copy_path(char *path_src, char *path_trg)
   return snprintf(path_trg, PATH_MAX, "%s", path_src);
 }
 
+//select_file()
+//{
+//}
+
 /*
  * Get the filename in the interactive mode.
  * - dir_start -> a starting directory for the traversal
@@ -223,13 +229,14 @@ char * get_filename_inter(const char *dir_start, char *path_res)
   offset = strlen(dir_start); // define offset as the start dir length that will be copied into path_curr
   strncpy(path_curr, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to offset for it
   strcpy(path_prev, "/"); // init the previous path with a root dir as a guaranteed valid path
-//  printf("[get_filename_inter] 0, path_curr: '%s'\n", path_curr);
+  printf("[get_filename_inter] 0, path_curr: '%s'\n", path_curr);
 
 //  while (file_type(path_curr) == FTYPE_DIR) {
   while (1) {
 
     // TODO: move this decision-making piece of code to function like:
-    // char* evaluate_path_type(char *path_curr, const char *path_prev, char *path_res, int *offset, enum filetype *ftype),
+    // char* evaluate_path_type(char *path_curr, const char *path_prev, 
+    //                          char *path_res, int *offset, enum filetype *ftype),
     // it returns path_res when file was successfully selected, and 0 otherwise.
     // The code to call the evaluate_path_type() function and operate the while-loop:
     // if (evaluate_path_type(path_curr, path_prev, path_res, &offset, &filetype))
@@ -238,6 +245,8 @@ char * get_filename_inter(const char *dir_start, char *path_res)
     // else if (ftype == FTYPE_OTH || ftype == FTYPE_INV)
     //   continue; // start a new loop iteration
     enum filetype ftype = file_type(path_curr);
+    printf("[get_filename_inter] 1, ftype: '%d'\n", ftype);
+
     switch (ftype) {
       case FTYPE_DIR:
       case FTYPE_REG:
@@ -253,6 +262,7 @@ char * get_filename_inter(const char *dir_start, char *path_res)
         fprintf(stderr, "Invalid file: Only the regular file can be chosen\n");
 	offset = copy_path(path_prev, path_curr); // restore the previous valid path
         continue;
+      case FTYPE_NEX:
       case FTYPE_INV:
         perror("Invalid file");
 	offset = copy_path(path_prev, path_curr); // restore the previous valid path

@@ -13,6 +13,7 @@ enum filetype {
   FTYPE_REG,  /* regular file */
   FTYPE_DIR,  /* directory */
   FTYPE_OTH,  /* any other file type like link, socket, etc. */
+  FTYPE_NEX,  /* specified pathname does not exist */
   FTYPE_INV   /* invalid file type */
   /* Add more file types as needed */
 };
