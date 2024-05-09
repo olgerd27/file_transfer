@@ -22,7 +22,7 @@ void reset_err_inf(err_inf *p_err)
   // initial allocation of the memory for error messages
   if (!p_err->err_inf_u.msg) {
     printf("[reset_err_inf] 2 init memory allocation for error info\n");
-    p_err->err_inf_u.msg = (char*)malloc(SIZE_ERRMSG);
+    p_err->err_inf_u.msg = (char*)malloc(LEN_ERRMSG_MAX);
   }
   printf("[reset_err_inf] 3\n");
 
@@ -31,7 +31,7 @@ void reset_err_inf(err_inf *p_err)
     printf("[reset_err_inf] 4 reset error info\n");
     p_err->num = 0;
     if (p_err->err_inf_u.msg)
-      memset(p_err->err_inf_u.msg, 0, SIZE_ERRMSG);
+      memset(p_err->err_inf_u.msg, 0, LEN_ERRMSG_MAX);
   }
 
   // reset the system error number
@@ -203,7 +203,7 @@ unsigned get_file_size(FILE *hfile)
 }
 
 // Allocate the memory to store the file content.
-// A pointer to the allocated memory set to p_file and return as a result.
+// The allocated memory is set to p_file argument.
 char * alloc_mem_file_cont(FILE *hfile, file_inf *p_file, err_inf *p_err)
 {
   printf("[alloc_mem_file_cont] 1\n");
@@ -288,6 +288,7 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
   // Allocate the memory to store the file content
   if ( alloc_mem_file_cont(hfile, p_fileinf, p_errinf) == NULL ) {
     printf("[download_file] 1.2\n\n");
+    fprintf(stderr, "File Download Failed - error %i\n", p_errinf->num);
     return &ret_flerr;
   }
 

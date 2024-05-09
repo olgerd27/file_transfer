@@ -2,10 +2,10 @@
  * fltr.x: The file transfer protocol
  */
 
-const SIZE_FNAME = 256; /* max length for file name */
-const SIZE_ERRMSG = 512; /* max length for error message */
+const LEN_PATH_MAX = 4096; /* max length for file names, equal to standard PATH_MAX */
+const LEN_ERRMSG_MAX = 512; /* max length for error messages */
 
-typedef string t_flname<SIZE_FNAME>; /* file name type */
+typedef string t_flname<LEN_PATH_MAX>; /* file name type */
 typedef opaque t_flcont<>; /* file content type */
 
 /* File type enumeration */
@@ -30,7 +30,7 @@ union err_inf switch (int num) {
   case 0:
     void; /* no error - no message */
   default:
-    string msg<SIZE_ERRMSG>; /* error occured: return error message */
+    string msg<LEN_ERRMSG_MAX>; /* error occured: return error message */
 };
 
 /* File + error info */

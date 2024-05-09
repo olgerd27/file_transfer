@@ -13,8 +13,8 @@
 extern "C" {
 #endif
 
-#define SIZE_FNAME 256
-#define SIZE_ERRMSG 512
+#define LEN_PATH_MAX 4096
+#define LEN_ERRMSG_MAX 512
 
 typedef char *t_flname;
 

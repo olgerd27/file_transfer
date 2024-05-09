@@ -10,7 +10,7 @@ xdr_t_flname (XDR *xdrs, t_flname *objp)
 {
 	register int32_t *buf;
 
-	 if (!xdr_string (xdrs, objp, SIZE_FNAME))
+	 if (!xdr_string (xdrs, objp, LEN_PATH_MAX))
 		 return FALSE;
 	return TRUE;
 }
@@ -60,7 +60,7 @@ xdr_err_inf (XDR *xdrs, err_inf *objp)
 	case 0:
 		break;
 	default:
-		 if (!xdr_string (xdrs, &objp->err_inf_u.msg, SIZE_ERRMSG))
+		 if (!xdr_string (xdrs, &objp->err_inf_u.msg, LEN_ERRMSG_MAX))
 			 return FALSE;
 		break;
 	}
