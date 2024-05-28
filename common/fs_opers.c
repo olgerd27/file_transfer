@@ -15,7 +15,7 @@
 
 // Global system variable that store the error number
 extern int errno;
-static char filename_src[LEN_PATH_MAX]; // TODO: delete, it's just for testing
+static char filename_src[LEN_PATH_MAX]; // DELETE: it's just for testing
 
 // Return a letter of a file type used in Unix-like OS
 static char get_file_type_unix(mode_t mode)
@@ -185,8 +185,8 @@ static int input_filename(char *filename)
   return 0;
 }
 
-// Copy a path from path_src to path_trg.
-// Return a number of the written characters.
+// Copy the path_src to path_trg with the length of LEN_PATH_MAX.
+// RC: returns the number of the written characters.
 int copy_path(char *path_src, char *path_trg)
 {
   return snprintf(path_trg, LEN_PATH_MAX, "%s", path_src);
@@ -197,38 +197,42 @@ int copy_path(char *path_src, char *path_trg)
  */
 /*
  * NEW version of the memory manipulation functions, initialy defined in prg_serv.c and prg_clnt.c.
- * TODO: move these versions to the new files like common/memops.c, 
- * and us them everywhere where they're required.
+// TODO: move these versions to the new files like common/memops.c, 
+ * and use them everywhere where they're required.
  */
 /*
  * Allocate the memory to store the file content.
- * - p_file: pointer to a file info object to store the allocated memory
+ * Allocate only if it has not already done, else - return a pointer to the existing memory.
+ * - p_flcont: pointer to a file content object to store the allocated memory
+ * - size: the size of the memory to allocate
  * - p_err: pointer to an error info object, where the error info will be written in case of error.
+ * RC: returns a pointer to the allocated memory or NULL in case of error.
+// TODO: check if the error number is ok in this function; this function should be used here and in both client and server code.
  */
 char * alloc_file_cont_NEW(t_flcont *p_flcont, unsigned size)
 {
+  // Check if the file content object is allocated
   if (!p_flcont) {
-    fprintf(stderr, "Error 6: Cannot allocate the file content. p_flcont=%p\n", (void*)p_flcont);
-    exit(6);
+    fprintf(stderr, "Error 6: Failed to allocate memory for the file content. p_flcont=%p\n", (void*)p_flcont);
+    return NULL;
   }
 
-  // Allocate only if it has not already done, else - return a pointer to the existing memory
+  // Memory allocation 
   if (!p_flcont->t_flcont_val) {
     p_flcont->t_flcont_len = size;
     p_flcont->t_flcont_val = (char*)malloc(size);
     if (!p_flcont->t_flcont_val) {
-      fprintf(stderr,
-              "Error 7: Cannot allocation a memory to store the content of the file, cont ptr:%p:\n",
+      fprintf(stderr, "Error 7: Failed to allocate memory for the file content, ptr to file cont val: %p\n", 
               (void*)p_flcont->t_flcont_val);
-      exit(7);
+      return NULL;
     }
     printf("[alloc_file_cont_NEW] file cont allocated\n");
   }
   return p_flcont->t_flcont_val;
 }
 
-// Deallocate the file name memory.
-// TODO: check if the error number is ok in this function
+// Free the file name memory.
+// - p_flname: pointer to a file name object to free the memory
 void free_file_name_NEW(t_flname *p_flname)
 {
   if (p_flname) {
@@ -238,15 +242,11 @@ void free_file_name_NEW(t_flname *p_flname)
   }
 }
 
-// Deallocate the file content memory.
-// TODO: check if the error number is ok in this function
+// Free the file content memory.
+// - p_flcont: pointer to a file content object to free the memory
 void free_file_cont_NEW(t_flcont *p_flcont)
 {
-  if (!p_flcont) {
-    fprintf(stderr, "Error 8: Cannot free the file content. p_flcont=%p\n", (void*)p_flcont);
-    exit(8);
-  }
-  if (p_flcont->t_flcont_val) {
+  if (p_flcont && p_flcont->t_flcont_val) {
     free(p_flcont->t_flcont_val);
     p_flcont->t_flcont_val = NULL;
     p_flcont->t_flcont_len = 0;
@@ -254,28 +254,22 @@ void free_file_cont_NEW(t_flcont *p_flcont)
   }
 }
 
-// Deallocate the file info.
-// TODO: check if the error number is ok in this function
+// Free the file info memory.
+// - p_file: pointer to a file info object to free the memory
 void free_file_inf_NEW(file_inf *p_file)
 {
-  if (!p_file) {
-    fprintf(stderr, "Error 9: Cannot free the file info. p_file=%p\n", (void*)p_file);
-    exit(9);
+  if (p_file) {
+    free_file_name_NEW(&p_file->name); // free the file name memory
+    free_file_cont_NEW(&p_file->cont); // free the file content memory
+    printf("[free_file_inf_NEW] file inf freed\n");
   }
-  free_file_name_NEW(&p_file->name);
-  free_file_cont_NEW(&p_file->cont);
-  printf("[free_file_inf_NEW] file inf freed\n");
 }
 
-// Deallocate the error info memory.
-// TODO: check if the error number is ok in this function
+// Free the error info memory.
+// - p_err: pointer to an error info object to free the memory
 void free_err_inf_NEW(err_inf *p_err)
 {
-  if (!p_err) {
-    fprintf(stderr, "Error 10: Cannot free the error information, p_err=%p\n", (void*)p_err);
-    exit(10);
-  }
-  if (p_err->err_inf_u.msg) {
+  if (p_err && p_err->err_inf_u.msg) {
     free(p_err->err_inf_u.msg);
     p_err->err_inf_u.msg = NULL;
     p_err->num = 0;
@@ -285,85 +279,106 @@ void free_err_inf_NEW(err_inf *p_err)
 
 /*
  * Reset the file info.
+ * - p_file: pointer to a file info object to reset the memory
+ * - size_fcont: the size of the memory to allocate for the file content
+ * RC: 0 on success, >0 on failure.
  * Features:
  * - file name, size is constant (LEN_PATH_MAX):
- * Memory allocation (name==NULL) and setting it to 0 (name!=NULL).
+ * Memory allocation (if name is NULL) or setting it to 0 (if name is NOT NULL).
  * Memory deallocation must be done separately outside of this function.
- * - file content, size is variable and unknown by this function:
- * Memory deallocation only.
- * Memory allocation must be done separately outside of this function, since its size is unknown.
+ * - file content, size is variable:
+ * Memory deallocation and allocation new one with the size_fcont size.
+ * Memory deallocation must be done separately outside of this function.
  */
 // TODO: check if the error numbers are ok in this function
-void reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
+int reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
 {
+  // Check if the file info object is allocated
   if (!p_file) {
-    fprintf(stderr, "Error 11: Cannot reset the file info. p_file=%p\n", (void*)p_file);
-    exit(11);
+    fprintf(stderr, "Error 8: Failed to reset the file info. p_file=%p\n", (void*)p_file);
+    return 8;
   }
 
-  // File name.
-  if (p_file->name) {
-    // Reset the previous file name.
-    // Due to its constant size, the file's name is reset by setting the memory to 0.
-    // Since the file name changes often, a memory reset should occur in each call of this function.
-    memset(p_file->name, 0, LEN_PATH_MAX);
-    printf("[reset_file_inf_NEW] file name set 0\n");
-  }
-  else {
-    // Initial dynamic memory allocation is made for the first call of this function 
-    // or after memory deallocation; need to deallocate it later
+  // Reset the file name
+  if (!p_file->name) {
+    // Initial dynamic memory allocation.
+    // It performs for the first call of this function or after memory freeing.
+    // Deallocation is required later
     p_file->name = (char*)malloc(LEN_PATH_MAX);
     if (!p_file->name) {
-      fprintf(stderr, "Error 12: Cannot allocate a memory to store the file name, name ptr=%p\n", 
+      fprintf(stderr, "Error 9: Failed to allocate a memory for the file name, name ptr=%p\n", 
               (void*)p_file->name);
-      exit(12);
+      return 9;
     }
     printf("[reset_file_inf_NEW] file name allocated\n");
   }
-
-  // File content.
-  // Due to its variable size, file's content is reset by reallocating memory, rather than setting it to 0.
-  free_file_cont_NEW(&p_file->cont);
-  alloc_file_cont_NEW(&p_file->cont, size_fcont);
-  printf("[reset_file_inf_NEW] file inf reset\n");
-}
-
-// Reset the error info (an error state).
-// TODO: check if the error numbers are ok in this function
-void reset_err_inf_NEW(err_inf *p_err)
-{
-  if (!p_err) {
-    fprintf(stderr, "Error 13: Cannot reset error information, p_err=%p\n", (void*)p_err);
-    exit(13);
+  else {
+    // Reset the previous file name.
+    // Due to its constant size, the file name is reset by setting the memory to 0.
+    // Since the file name changes often, a memory reset should occur in each call of this function.
+    memset(p_file->name, 0, strlen(p_file->name));
+    printf("[reset_file_inf_NEW] file name set to 0\n");
   }
 
-  // Initial dynamic memory allocation for error message.
-  // It's made for the first call of this function or after memory deallocation.
-  // Need to deallocate it later.
+  // Reset the file content
+  // Due to its variable size, the file contents are reset by reallocating memory rather than setting it to 0.
+  free_file_cont_NEW(&p_file->cont);
+  if ( !alloc_file_cont_NEW(&p_file->cont, size_fcont) ) 
+    return 10;
+  printf("[reset_file_inf_NEW] file inf reset\n");
+  
+  return 0;
+}
+
+/*
+ * Reset the error info.
+ * - p_err: pointer to an error info object to reset the memory
+ * RC: 0 on success, >0 on failure.
+ * Features:
+ * - error message memory is allocated only if it's not allocated (size is LEN_ERRMSG_MAX)
+ * - error number is set to 0
+ * - error message is set to 0 if the error number is set
+ * - system error number is set to 0
+ */
+// TODO: check if the error numbers are ok in this function
+int reset_err_inf_NEW(err_inf *p_err)
+{
+  // Check if the error info object is allocated
+  if (!p_err) {
+    fprintf(stderr, "Error 13: Failed to reset the error information, p_err=%p\n", (void*)p_err);
+    return 11;
+  }
+
+  // Reset the error message
   if (!p_err->err_inf_u.msg) {
+  // Initial dynamic memory allocation.
+  // It performs for the first call of this function or after memory freeing.
+  // Deallocation is required later
     p_err->err_inf_u.msg = (char*)malloc(LEN_ERRMSG_MAX);
     if (!p_err->err_inf_u.msg) {
-      fprintf(stderr, "Error 14: Cannot allocate a memory to store the error info, msg ptr=%p\n", 
+      fprintf(stderr, "Error 14: Failed to allocate a memory for the error info, msg ptr=%p\n", 
               (void*)p_err->err_inf_u.msg);
-      exit(14);
+      return 12;
     }
     p_err->num = 0;
     printf("[reset_err_inf_NEW] error info allocated\n");
   }
-
-  // Reset the previous error info.
-  // Due to its constant size, the error's message is reset by setting the memory to 0.
-  // Since the error message does not change very often, a memory reset will occur only
-  // if the error number is set.
-  if (p_err->num) {
-    p_err->num = 0;
-    if (p_err->err_inf_u.msg)
-      memset(p_err->err_inf_u.msg, 0, LEN_ERRMSG_MAX);
-    printf("[reset_err_inf_NEW] error info set to 0\n");
+  else {
+    // Reset the previous error info.
+    // Due to its constant size, the error's message is reset by setting the memory to 0.
+    // Since the error message does not change very often, a memory reset will occur only
+    // if the error number is set.
+    if (p_err->num) {
+      p_err->num = 0;
+      memset(p_err->err_inf_u.msg, 0, strlen(p_err->err_inf_u.msg));
+      printf("[reset_err_inf_NEW] error info set to 0\n");
+    }
   }
 
   // Reset the system error number
   if (errno) errno = 0;
+
+  return 0;
 }
 
 /*
@@ -444,8 +459,8 @@ int ls_dir_str(const char *dirname, file_err *p_flerr)
 
     // Get localized date string
     // TODO: the ls command has 2 different formats for this date&time string:
-    // - if a mod. time is less than 1 year then it's used the format with time and without year,
-    // - if a mod. time is more than 1 year then it's used the format without time but with year.
+    // - if a mod.time is less than 1 year then it's used the format with time and without year,
+    // - if a mod.time is more than 1 year then it's used the format without time but with year.
     // I suppose a similar approach can be used here. 
     // Maybe use difftime() function to determine the format.
     strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
@@ -465,10 +480,19 @@ int ls_dir_str(const char *dirname, file_err *p_flerr)
  */
 int select_file(const char *path, file_err *p_flerr)
 {
-  // TODO: At this point, we need to be sure that the p_flerr->err object is clean.
-  // We need to reset this object before call this function or at the beginning of this function.
+  // TODO: determine, maybe it will be better to move here a call of the function to reset the file_inf object?
+  // Currently, it's called outside of this function (in the get_filename_inter() function)
 
-  p_flerr->file.type = file_type(path); // determine a file type
+  // Init the error info
+  if (reset_err_inf_NEW(&p_flerr->err) != 0) {
+    fprintf(stderr, "Failed to reset the error information\n");
+    return 1;
+  }
+
+  // Determine the file type
+  p_flerr->file.type = file_type(path); 
+
+  // Process the file type
   switch (p_flerr->file.type) {
     case FTYPE_DIR:
     case FTYPE_REG:
@@ -506,25 +530,27 @@ int select_file(const char *path, file_err *p_flerr)
  * - dir_start -> a starting directory for the traversal
  * - path_res  -> an allocated char array to store the resulting file path
  * RC: returns path_res on success, and NULL on failure.
+ * 
+ * Procedure:
+ * 1. ls dir
+ * 2. get user input
+ * 3. add user input to the current path
+ * 3. check the input:
+ *    3.1 if it's a dir, go to p.1.
+ *    3.2 if it's not a dir, do the following:
+ *        >> for source file:
+ *        - if it's a regular file - OK and return its full path
+ *        - if it does NOT a regular file - error and message like please choose a regular file
+ *        - if it does NOT exist - error and message like the file ... doesn't exist
+ *        >> for target file:
+ *        - if it does NOT exist - OK and return its full path
+ *        - if it exists (type doesn't matter) - error and message like file exists, please specify another one
  */
 char * get_filename_inter(const char *dir_start, char *path_res)
 {
-  // 1. ls dir
-  // 2. get user input
-  // 3. add user input to the current path
-  // 3. check the input:
-  //    3.1 if it's a dir, go to p.1.
-  //    3.2 if it's not a dir, do the following:
-  //        >> for source file:
-  //        - if it's a regular file - OK and return its full path
-  //        - if it does NOT a regular file - error and message like please choose a regular file
-  //        - if it does NOT exist - error and message like the file ... doesn't exist
-  //        >> for target file:
-  //        - if it does NOT exist - OK and return its full path
-  //        - if it exists (type doesn't matter) - error and message like file exists, please specify another one
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
   char path_prev[LEN_PATH_MAX]; // a copy of the previous path to restore it if necessary
-  char fname_inp[NAME_MAX]; // inputted file name (without a path)
+  char fname_inp[NAME_MAX]; // inputted filename (without a path)
   int len_fname_inp; // length of the inputted filename
   int offset; // offset from the beginning of the current path for the added subdir/file
   int offset_fullpath; // offset from the beginning of fname_inp; set 1 if a full path was inputted
@@ -533,8 +559,9 @@ char * get_filename_inter(const char *dir_start, char *path_res)
 
   // Init the full path and offset
   offset = strlen(dir_start); // define offset as the start dir length that will be copied into path_curr
-  strncpy(path_curr, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to offset for it
+  strncpy(path_curr, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to copy it
   strcpy(path_prev, "/"); // init the previous path with a root dir as a guaranteed valid path
+  // TODO: copy a home directory to the previous path instead of the root dir
   printf("[get_filename_inter] 0, path_curr: '%s'\n", path_curr);
   reset_err_inf_NEW(&flerr.err); // init the erro info
 
@@ -583,12 +610,12 @@ char * get_filename_inter(const char *dir_start, char *path_res)
       // An error occurred while selecting a file 
       fprintf(stderr, "%s\n", flerr.err.err_inf_u.msg); // print the error message
       offset = copy_path(path_prev, path_curr); // restore the previous valid path
-      continue; // TODO: test if it's correct to call continue for all the data types,
+//      continue; // TODO: test if it's correct to call continue for all the data types,
                 // and if yes - delete 2 lines below.
-//      switch (flerr.file.type) {
-//        case FTYPE_DIR: case FTYPE_REG: break; // continue the current loop iteration
-//	case FTYPE_OTH:	case FTYPE_NEX:	case FTYPE_INV: continue; // start a new loop iteration
-//      }
+      switch (flerr.file.type) {
+        case FTYPE_DIR: case FTYPE_REG: break; // continue the current loop iteration
+        case FTYPE_OTH:	case FTYPE_NEX:	case FTYPE_INV: continue; // start a new loop iteration
+      }
     }
     
     /* At this point we're sure that the it's selected a valid directory */
@@ -648,7 +675,9 @@ char * get_filename_inter(const char *dir_start, char *path_res)
   return NULL;
 }
 
-// TODO: delete, it's just for testing
+// DELETE: it's just for testing
+// Compile full:  gcc -I/usr/include/tirpc -o fs_opers fs_opers.c -ltirpc
+// Compile short: gcc -I/usr/include/tirpc fs_opers.c
 int main()
 {
   if (!get_filename_inter(".", filename_src))
