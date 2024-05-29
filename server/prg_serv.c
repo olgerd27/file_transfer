@@ -191,14 +191,14 @@ FILE * open_file_read(const t_flname fname, err_inf *p_err)
   return hfile;
 }
 
-// Get the file size
+// Get the file size in bytes
+// TODO: move this function to some common file in common/ directory and 
+// call it from this file, because it's used in the client code as well.
 unsigned get_file_size(FILE *hfile)
 {
-  printf("[get_file_size] 1\n");
   fseek(hfile, 0, SEEK_END);
   unsigned size = ftell(hfile);
   rewind(hfile);
-  printf("[get_file_size] 2$\n");
   return size;
 }
 

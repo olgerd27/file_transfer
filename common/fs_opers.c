@@ -226,7 +226,7 @@ char * alloc_file_cont_NEW(t_flcont *p_flcont, unsigned size)
               (void*)p_flcont->t_flcont_val);
       return NULL;
     }
-    printf("[alloc_file_cont_NEW] file cont allocated\n");
+    printf("[alloc_file_cont_NEW] file cont allocated, size=%d\n", size);
   }
   return p_flcont->t_flcont_val;
 }
@@ -325,8 +325,8 @@ int reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
   free_file_cont_NEW(&p_file->cont);
   if ( !alloc_file_cont_NEW(&p_file->cont, size_fcont) ) 
     return 10;
-  printf("[reset_file_inf_NEW] file inf reset\n");
-  
+
+  printf("[reset_file_inf_NEW] file info reset DONE\n");
   return 0;
 }
 
@@ -378,6 +378,7 @@ int reset_err_inf_NEW(err_inf *p_err)
   // Reset the system error number
   if (errno) errno = 0;
 
+  printf("[reset_err_inf_NEW] error info reset DONE\n");
   return 0;
 }
 
@@ -480,15 +481,6 @@ int ls_dir_str(const char *dirname, file_err *p_flerr)
  */
 int select_file(const char *path, file_err *p_flerr)
 {
-  // TODO: determine, maybe it will be better to move here a call of the function to reset the file_inf object?
-  // Currently, it's called outside of this function (in the get_filename_inter() function)
-
-  // Init the error info
-  if (reset_err_inf_NEW(&p_flerr->err) != 0) {
-    fprintf(stderr, "Failed to reset the error information\n");
-    return 1;
-  }
-
   // Determine the file type
   p_flerr->file.type = file_type(path); 
 
@@ -497,6 +489,9 @@ int select_file(const char *path, file_err *p_flerr)
     case FTYPE_DIR:
     case FTYPE_REG:
       // Convert the passed path to the full path
+      // TODO: think, maybe create a separate function to convert relative path to the full one, and then
+      // call it for FTYPE_OTH and FTYPE_INV cases? Just to have a clear path in the error messages for these
+      // kinds of file types.
       if (!realpath(path, p_flerr->file.name)) {
         p_flerr->err.num = 80;
         sprintf(p_flerr->err.err_inf_u.msg,
@@ -505,6 +500,8 @@ int select_file(const char *path, file_err *p_flerr)
         break; // leave switch statement
       }
       // If it's a directory, get its content and save it to file_err object
+      // TODO: think, maybe pass a full path to the ls_dir_str() function (just p_flerr)?
+      // Because if error occurs in ls_dir_str() the failed relative path printed to user in error message looks unclear.
       if (p_flerr->file.type == FTYPE_DIR)
         ls_dir_str(path, p_flerr); // if error has occurred it was set to p_flerr, so no need to check RC
       break;
@@ -512,7 +509,7 @@ int select_file(const char *path, file_err *p_flerr)
       p_flerr->err.num = 81;
       sprintf(p_flerr->err.err_inf_u.msg,
               "Error %i: Invalid file: '%s'\n"
-	      "Only regular file can be chosen", p_flerr->err.num, path);
+              "Only regular file can be chosen", p_flerr->err.num, path);
       break;
     case FTYPE_NEX:
     case FTYPE_INV:
@@ -563,7 +560,6 @@ char * get_filename_inter(const char *dir_start, char *path_res)
   strcpy(path_prev, "/"); // init the previous path with a root dir as a guaranteed valid path
   // TODO: copy a home directory to the previous path instead of the root dir
   printf("[get_filename_inter] 0, path_curr: '%s'\n", path_curr);
-  reset_err_inf_NEW(&flerr.err); // init the erro info
 
 //  while (file_type(path_curr) == FTYPE_DIR) {
   while (1) {
@@ -593,9 +589,20 @@ char * get_filename_inter(const char *dir_start, char *path_res)
     //     continue;
     // }
 
-    // Reset flerr before each call of select_file()
+    // Reset the file info before each call of select_file()
+    // TODO: determine, maybe move a call of the function to reset the file info in select_file()?
     // TODO: implement the dynamic memory reallocation for file_inf object 
-    reset_file_inf_NEW(&flerr.file, 10000);
+    if (reset_file_inf_NEW(&flerr.file, 10000) != 0) {
+      fprintf(stderr, "Failed to reset the file information\n");
+      return NULL;
+    }
+
+    // Reset the error info before each call of select_file()
+    // TODO: determine, maybe move a call of the function to reset the error info in select_file()?
+    if (reset_err_inf_NEW(&flerr.err) != 0) {
+      fprintf(stderr, "Failed to reset the error information\n");
+      return NULL;
+    }
 
     // TODO: replace select_file() with a function pointer that can be either 
     // select_file() or pick_entity() RPC function
@@ -612,6 +619,7 @@ char * get_filename_inter(const char *dir_start, char *path_res)
       offset = copy_path(path_prev, path_curr); // restore the previous valid path
 //      continue; // TODO: test if it's correct to call continue for all the data types,
                 // and if yes - delete 2 lines below.
+      printf("[get_filename_inter] 1, filetype=%i\n", (int)flerr.file.type);
       switch (flerr.file.type) {
         case FTYPE_DIR: case FTYPE_REG: break; // continue the current loop iteration
         case FTYPE_OTH:	case FTYPE_NEX:	case FTYPE_INV: continue; // start a new loop iteration
