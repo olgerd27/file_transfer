@@ -81,7 +81,8 @@ enum filetype file_type(const char *filepath)
 }
 
 /*
- * Get user input of filename.
+ * Get user input of filename. 
+ * If nothing was inputted (user just pressed ENTER), an error is returned.
  * - filename -> the allocated string array to put the input
  * RC: 0 on success, >0 on failure.
  */
@@ -92,6 +93,9 @@ static int input_filename(char *filename)
     fprintf(stderr, "Read error occurred. Please make the input again\n");
     return 1;
   }
+
+  // Check if input is empty (user just pressed ENTER)
+  if (*filename == '\n') return 2;
 
   // Remove a trailing newline character remained from fgets() input
   filename[strcspn(filename, "\n")] = '\0';
@@ -216,7 +220,7 @@ int reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
   // Reset the file name
   if (!p_file->name) {
     // Initial dynamic memory allocation.
-    // It performs for the first call to this function or after memory freeing.
+    // It performs for the first call of this function or after memory freeing.
     // Deallocation is required later
     p_file->name = (char*)malloc(LEN_PATH_MAX);
     if (!p_file->name) {
@@ -229,7 +233,7 @@ int reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
   else {
     // Reset the previous file name.
     // Due to its constant size, the file name is reset by setting the memory to 0.
-    // Since the file name changes often, a memory reset should occur in each call to this function.
+    // Since the file name changes often, a memory reset should occur in each call of this function.
     memset(p_file->name, 0, strlen(p_file->name));
     printf("[reset_file_inf_NEW] file name set to 0\n");
   }
@@ -266,7 +270,7 @@ int reset_err_inf_NEW(err_inf *p_err)
   // Reset the error message
   if (!p_err->err_inf_u.msg) {
   // Initial dynamic memory allocation.
-  // It performs for the first call to this function or after memory freeing.
+  // It performs for the first call of this function or after memory freeing.
   // Deallocation is required later
     p_err->err_inf_u.msg = (char*)malloc(LEN_ERRMSG_MAX);
     if (!p_err->err_inf_u.msg) {
@@ -300,7 +304,7 @@ int reset_err_inf_NEW(err_inf *p_err)
  * Convert the passed relative path to the full (absolute) one.
  * - path_rel: a relative path
  * - p_flerr: pointer to the file & error info to put the results.
- * RC: returns absolute path (the same as p_flerr->file.name) on success, and NULL on failure.
+ * RC: returns full (absolute) path (the same as p_flerr->file.name) on success, and NULL on failure.
  */
 char * rel_to_full_path(const char *path_rel, file_err *p_flerr)
 {
@@ -442,7 +446,7 @@ int select_file(const char *path, file_err *p_flerr)
       break;
     case FTYPE_NEX:
     case FTYPE_INV:
-      // NOTE: If the call to rel_to_full_path() fails due to missing file, 
+      // NOTE: If a call of rel_to_full_path() fails due to missing file, 
       // this casees (FTYPE_NEX & FTYPE_INV) will never be reached.
       p_flerr->err.num = 82;
       printf("[select_file] 6\n");
@@ -480,7 +484,6 @@ char * get_filename_inter(const char *dir_start, char *path_res)
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
   char path_prev[LEN_PATH_MAX]; // a copy of the previous path to restore it if necessary
   char fname_inp[NAME_MAX]; // inputted filename (without a path)
-  int len_fname_inp; // length of the inputted filename
   int offset; // offset from the beginning of the current path for the added subdir/file
   int offset_fullpath; // offset from the beginning of fname_inp; set 1 if a full path was inputted
   int nwrt_fname; // number of characters written to the current path in each iteration
@@ -490,47 +493,20 @@ char * get_filename_inter(const char *dir_start, char *path_res)
   offset = strlen(dir_start); // define offset as the start dir length that will be copied into path_curr
   strncpy(path_curr, dir_start, offset + 1); // strncpy doesn't add/copy '\0', so add "+1" to copy it
   strcpy(path_prev, "/"); // init the previous path with a root dir as a guaranteed valid path
-  // TODO: copy a home directory to the previous path instead of the root dir
+  // TODO: copy a home directory to the previous path instead of the root dir, if it's possible
   printf("[get_filename_inter] 0, path_curr: '%s'\n", path_curr);
 
-//  while (file_type(path_curr) == FTYPE_DIR) {
   while (1) {
-
-    // enum filetype ftype = file_type(path_curr);
-    // printf("[get_filename_inter] 1, ftype: '%d'\n", ftype);
-    // switch (ftype) {
-    //   case FTYPE_DIR:
-    //   case FTYPE_REG:
-    //     // Convert the current path to the correct full (absolute) path
-    //     if (!realpath(path_curr, path_res)) {
-    //       perror("Failed to resolve the specified path");
-    //       offset = copy_path(path_prev, path_curr); // restore the previous valid path
-    //       break; // continue the loop
-    //     }
-    //     if (ftype == FTYPE_REG)
-    //       return path_res; // return the selected file
-    //     break; // continue the loop
-    //   case FTYPE_OTH:
-    //     fprintf(stderr, "Invalid file: Only the regular file can be chosen\n");
-    //     offset = copy_path(path_prev, path_curr); // restore the previous valid path
-    //     continue;
-    //   case FTYPE_NEX:
-    //   case FTYPE_INV:
-    //     perror("Invalid file");
-    //     offset = copy_path(path_prev, path_curr); // restore the previous valid path
-    //     continue;
-    // }
-
-    // Reset the file info before each call to select_file()
-    // TODO: determine, maybe move a call to the function to reset the file info in select_file()?
+    // Reset the file info before each call of select_file()
+    // TODO: determine, maybe move a call of this function to select_file()?
     // TODO: implement the dynamic memory reallocation for file_inf object 
     if (reset_file_inf_NEW(&flerr.file, 10000) != 0) {
       fprintf(stderr, "Failed to reset the file information\n");
       return NULL;
     }
 
-    // Reset the error info before each call to select_file()
-    // TODO: determine, maybe move a call to this function to select_file()?
+    // Reset the error info before each call of select_file()
+    // TODO: determine, maybe move a call of this function to select_file()?
     if (reset_err_inf_NEW(&flerr.err) != 0) {
       fprintf(stderr, "Failed to reset the error information\n");
       return NULL;
@@ -561,21 +537,16 @@ char * get_filename_inter(const char *dir_start, char *path_res)
     // Get user input of filename
     if (input_filename(fname_inp) != 0)
       continue;
-//    printf("[get_filename_inter] 1, fname_inp: '%s'\n", fname_inp);
 
-    // Check if inputted fname_inp is empty (user just pressed ENTER)
-    len_fname_inp = strlen(fname_inp);
-    if (len_fname_inp == 0) continue;
-
-    // Before changing the current path, set the previous path to the current valid path
+    // Before changing the current path, save it as the previous valid path
     copy_path(path_curr, path_prev);
 
-    // Settings for absolute (full) and relative path
+    // Settings for a full (absolute) and relative path
     if (*fname_inp == '/') {
-      // If user specified an absolute path, reset path_curr
+      // If user specified a full (absolute) path, reset path_curr
       memset(path_curr, 0, offset);
       offset = 0;
-      offset_fullpath = 1; // set 1 for an abs path to skip the first '/' symbol
+      offset_fullpath = 1; // set 1 for the full path to skip the first '/' symbol
     }
     else offset_fullpath = 0; // no need to skip symbols for relative path
 
@@ -583,7 +554,7 @@ char * get_filename_inter(const char *dir_start, char *path_res)
     nwrt_fname = snprintf(path_curr + offset, LEN_PATH_MAX - offset, "/%s", fname_inp + offset_fullpath);
 
     // Verify the path_curr construction
-    // Check if nothing has written to a full path of the res filename
+    // Check if nothing was written to a full path of the res filename
     if (nwrt_fname < 0) {
       fprintf(stderr, "Invalid filename: '%s'\n", fname_inp);
       return NULL;
@@ -591,7 +562,7 @@ char * get_filename_inter(const char *dir_start, char *path_res)
 
     // Check if the whole inputted filename was added to a full path of the res filename
     // Add '+1' as '/' was also written, and substruct offset_fullpath
-    if (nwrt_fname != len_fname_inp + 1 - offset_fullpath) {
+    if (nwrt_fname != strlen(fname_inp) + 1 - offset_fullpath) {
       fprintf(stderr, "Cannot append the inputted filename to the result filename\n");
       return NULL;
     }
