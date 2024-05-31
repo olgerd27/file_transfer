@@ -81,92 +81,6 @@ enum filetype file_type(const char *filepath)
 }
 
 /*
- * List the directory content.
- * - dirname -> the directory name
- * RC:  0 on success, >0 on failure.
- */
-int ls_dir(const char *dirname)
-{
-  DIR            *hdir;
-  struct dirent  *de; // directory entry
-  struct stat     statbuf;
-  char            strperm[11];
-  struct passwd  *pwd;
-  struct group   *grp;
-  struct tm      *tm;
-  char            datestring[256];
-  char            fullpath[LEN_PATH_MAX];
-  int             offset_dn; // offset from the beginning in fullpath for the constant string dirname+'/'
-  int             nwrt_fname; // number of characters written to the fullpath in each iteration
-
-  // Open the passed directory
-  if ( (hdir = opendir(dirname)) == NULL ) {
-//    fprintf(stderr, "Cannot open directory '%s'\n%s\n", dirname, strerror(errno));
-    perror("Failed to open the specified directory");
-    return 1;
-  }
-
-  // Init the full path with the first constant part dirname+'/'
-  offset_dn = snprintf(fullpath, LEN_PATH_MAX, "%s/", dirname); // '\0' appends automatically
-  if (offset_dn < 0) {
-    fprintf(stderr, "Invalid dirname: '%s'\n", dirname);
-    closedir(hdir);
-    return 2;
-  }
-
-  /* Loop through directory entries */
-  while ((de = readdir(hdir)) != NULL) {
-
-    // Construct the full path to the directory entry
-    // A NULL-character appends to fullpath automatically
-    nwrt_fname = snprintf(fullpath + offset_dn, LEN_PATH_MAX - offset_dn, "%s", de->d_name);
-    if (nwrt_fname < 0) {
-      fprintf(stderr, "Invalid filename: '%s'\n", de->d_name);
-      continue;
-    }
-
-    // Get entry's information
-    if (lstat(fullpath, &statbuf) == -1)
-        continue;
-
-    // Print out type and permissions
-    printf("%s", str_perm(statbuf.st_mode, strperm));
-
-    // Print out owner's name if it is found using getpwuid()
-    // TODO: determine the length of the field as a max length among all the entries
-    // And then the following format can be used: "  %-Ns"
-    if ((pwd = getpwuid(statbuf.st_uid)) != NULL)
-        printf("  %-8.8s", pwd->pw_name);
-    else
-        printf("  %-8d", statbuf.st_uid);
-
-    // Print out group name if it is found using getgrgid()
-    if ((grp = getgrgid(statbuf.st_gid)) != NULL)
-        printf(" %-8.8s", grp->gr_name);
-    else
-        printf(" %-8d", statbuf.st_gid);
-
-    // Print size of file
-    printf(" %9jd", (intmax_t)statbuf.st_size);
-
-    tm = localtime(&statbuf.st_mtime);
-
-    // Get localized date string
-    // TODO: the ls command has 2 different formats for this date&time string:
-    // - if a mod. time is less than 1 year then it's used the format with time and without year,
-    // - if a mod. time is more than 1 year then it's used the format without time but with year.
-    // I suppose a similar approach can be used here. 
-    // Maybe use difftime() function to determine the format.
-    strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
-
-    printf(" %s %s\n", datestring, de->d_name);
-  }
-
-  closedir(hdir);
-  return 0;
-}
-
-/*
  * Get user input of filename.
  * - filename -> the allocated string array to put the input
  * RC: 0 on success, >0 on failure.
@@ -302,7 +216,7 @@ int reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
   // Reset the file name
   if (!p_file->name) {
     // Initial dynamic memory allocation.
-    // It performs for the first call of this function or after memory freeing.
+    // It performs for the first call to this function or after memory freeing.
     // Deallocation is required later
     p_file->name = (char*)malloc(LEN_PATH_MAX);
     if (!p_file->name) {
@@ -315,7 +229,7 @@ int reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
   else {
     // Reset the previous file name.
     // Due to its constant size, the file name is reset by setting the memory to 0.
-    // Since the file name changes often, a memory reset should occur in each call of this function.
+    // Since the file name changes often, a memory reset should occur in each call to this function.
     memset(p_file->name, 0, strlen(p_file->name));
     printf("[reset_file_inf_NEW] file name set to 0\n");
   }
@@ -352,7 +266,7 @@ int reset_err_inf_NEW(err_inf *p_err)
   // Reset the error message
   if (!p_err->err_inf_u.msg) {
   // Initial dynamic memory allocation.
-  // It performs for the first call of this function or after memory freeing.
+  // It performs for the first call to this function or after memory freeing.
   // Deallocation is required later
     p_err->err_inf_u.msg = (char*)malloc(LEN_ERRMSG_MAX);
     if (!p_err->err_inf_u.msg) {
@@ -383,13 +297,33 @@ int reset_err_inf_NEW(err_inf *p_err)
 }
 
 /*
- * List the directory content into the char array stored in file_err struct.
- * - dirname: the directory name
- * - p_flerr: pointer to an allocated and nulled RPC struct to store file & error info;
- *   is used here to set and return of the result through the function argument.
- * RC: 0 on success, >0 on failure.
+ * Convert the passed relative path to the full (absolute) one.
+ * - path_rel: a relative path
+ * - p_flerr: pointer to the file & error info to put the results.
+ * RC: returns absolute path (the same as p_flerr->file.name) on success, and NULL on failure.
  */
-int ls_dir_str(const char *dirname, file_err *p_flerr)
+char * rel_to_full_path(const char *path_rel, file_err *p_flerr)
+{
+  if (!realpath(path_rel, p_flerr->file.name)) {
+    p_flerr->err.num = 80;
+    sprintf(p_flerr->err.err_inf_u.msg,
+            "Error %i: Failed to resolve the specified path:\n'%s'\n%s\n",
+            p_flerr->err.num, path_rel, strerror(errno));
+    return NULL;
+  }
+  return p_flerr->file.name;
+}
+
+/*
+ * List the directory content into the char array stored in file_err struct.
+ * - p_flerr: pointer to an allocated and nulled RPC struct object to store file & error info.
+ * RC: 0 on success, >0 on failure.
+ * As this is a directory listing function, the type of the passed file should be always a directory.
+ * The file name in the passed struct is the name of the directory that this function reads.
+ * The file contents in the passed struct are the directory contents that this function sets and 
+ * then returns to the calling function.
+ */
+int ls_dir_str(file_err *p_flerr)
 {
   DIR           *hdir;
   struct dirent *de; // directory entry
@@ -400,26 +334,29 @@ int ls_dir_str(const char *dirname, file_err *p_flerr)
   struct tm     *tm;
   char           datestring[256];
   char           fullpath[LEN_PATH_MAX];
-  int            offset_dn; // offset from the beginning of fullpath for the constant string: dirname+'/'
+  int offset_dn; // offset from the beginning of fullpath for the constant string: passed dir name + '/'
 
-  char *p_errmsg = p_flerr->err.err_inf_u.msg; // pointer to the error message
+  // Pointers to the file_err struct fields for quick access
+  const char *p_flname = p_flerr->file.name; // constant pointer to the file name
   char *p_flcont = p_flerr->file.cont.t_flcont_val; // pointer to the file content data
+  int  *p_errnum = &p_flerr->err.num; // pointer to the error number
+  char *p_errmsg = p_flerr->err.err_inf_u.msg; // pointer to the error message
 
   // Open the passed directory
-  if ( (hdir = opendir(dirname)) == NULL ) {
-    p_flerr->err.num = 85;
-    sprintf(p_errmsg, "Error %i: Cannot open directory '%s'\n%s\n",
-                      p_flerr->err.num, dirname, strerror(errno));
-    return p_flerr->err.num;
+  if ( (hdir = opendir(p_flname)) == NULL ) {
+    *p_errnum = 85;
+    sprintf(p_errmsg, "Error %i: Cannot open directory:\n'%s'\n%s\n",
+                      *p_errnum, p_flname, strerror(errno));
+    return *p_errnum;
   }
 
-  // Init the full path with the first constant part dirname+'/'
-  offset_dn = snprintf(fullpath, LEN_PATH_MAX, "%s/", dirname); // '\0' appends automatically
+  // Init the full path with the first constant part the passed dir name + '/'
+  offset_dn = snprintf(fullpath, LEN_PATH_MAX, "%s/", p_flname); // '\0' appends automatically
   if (offset_dn < 0) {
     closedir(hdir);
-    p_flerr->err.num = 86;
-    sprintf(p_errmsg, "Error %i: Invalid dirname: '%s'\n", p_flerr->err.num, dirname);
-    return p_flerr->err.num;
+    *p_errnum = 86;
+    sprintf(p_errmsg, "Error %i: Invalid dir name:\n'%s'\n", *p_errnum, p_flname);
+    return *p_errnum;
   }
 
   /* Loop through directory entries */
@@ -483,40 +420,35 @@ int select_file(const char *path, file_err *p_flerr)
 {
   // Determine the file type
   p_flerr->file.type = file_type(path); 
+  
+  // Convert the passed path to the full (absolute) path
+  if ( !rel_to_full_path(path, p_flerr) )
+    return p_flerr->err.num;
 
   // Process the file type
   switch (p_flerr->file.type) {
     case FTYPE_DIR:
     case FTYPE_REG:
-      // Convert the passed path to the full path
-      // TODO: think, maybe create a separate function to convert relative path to the full one, and then
-      // call it for FTYPE_OTH and FTYPE_INV cases? Just to have a clear path in the error messages for these
-      // kinds of file types.
-      if (!realpath(path, p_flerr->file.name)) {
-        p_flerr->err.num = 80;
-        sprintf(p_flerr->err.err_inf_u.msg,
-                "Error %i: Failed to resolve the specified path: '%s'\n%s",
-                p_flerr->err.num, path, strerror(errno));
-        break; // leave switch statement
-      }
       // If it's a directory, get its content and save it to file_err object
-      // TODO: think, maybe pass a full path to the ls_dir_str() function (just p_flerr)?
-      // Because if error occurs in ls_dir_str() the failed relative path printed to user in error message looks unclear.
       if (p_flerr->file.type == FTYPE_DIR)
-        ls_dir_str(path, p_flerr); // if error has occurred it was set to p_flerr, so no need to check RC
+        ls_dir_str(p_flerr); // if error has occurred it was set to p_flerr, no need to check the RC
       break;
     case FTYPE_OTH:
       p_flerr->err.num = 81;
       sprintf(p_flerr->err.err_inf_u.msg,
-              "Error %i: Invalid file: '%s'\n"
-              "Only regular file can be chosen", p_flerr->err.num, path);
+              "Error %i: Unsupported file type:\n'%s'\n"
+              "Only regular file can be chosen\n",
+              p_flerr->err.num, p_flerr->file.name);
       break;
     case FTYPE_NEX:
     case FTYPE_INV:
+      // NOTE: If the call to rel_to_full_path() fails due to missing file, 
+      // this casees (FTYPE_NEX & FTYPE_INV) will never be reached.
       p_flerr->err.num = 82;
+      printf("[select_file] 6\n");
       sprintf(p_flerr->err.err_inf_u.msg,
-              "Error %i: Invalid file: '%s'\n%s",
-              p_flerr->err.num, path, strerror(errno));
+              "Error %i: Invalid file:\n'%s'\n%s\n",
+              p_flerr->err.num, p_flerr->file.name, strerror(errno));
       break;
   }
   return p_flerr->err.num;
@@ -589,16 +521,16 @@ char * get_filename_inter(const char *dir_start, char *path_res)
     //     continue;
     // }
 
-    // Reset the file info before each call of select_file()
-    // TODO: determine, maybe move a call of the function to reset the file info in select_file()?
+    // Reset the file info before each call to select_file()
+    // TODO: determine, maybe move a call to the function to reset the file info in select_file()?
     // TODO: implement the dynamic memory reallocation for file_inf object 
     if (reset_file_inf_NEW(&flerr.file, 10000) != 0) {
       fprintf(stderr, "Failed to reset the file information\n");
       return NULL;
     }
 
-    // Reset the error info before each call of select_file()
-    // TODO: determine, maybe move a call of the function to reset the error info in select_file()?
+    // Reset the error info before each call to select_file()
+    // TODO: determine, maybe move a call to this function to select_file()?
     if (reset_err_inf_NEW(&flerr.err) != 0) {
       fprintf(stderr, "Failed to reset the error information\n");
       return NULL;
@@ -617,25 +549,14 @@ char * get_filename_inter(const char *dir_start, char *path_res)
       // An error occurred while selecting a file 
       fprintf(stderr, "%s\n", flerr.err.err_inf_u.msg); // print the error message
       offset = copy_path(path_prev, path_curr); // restore the previous valid path
-//      continue; // TODO: test if it's correct to call continue for all the data types,
-                // and if yes - delete 2 lines below.
       printf("[get_filename_inter] 1, filetype=%i\n", (int)flerr.file.type);
-      switch (flerr.file.type) {
-        case FTYPE_DIR: case FTYPE_REG: break; // continue the current loop iteration
-        case FTYPE_OTH:	case FTYPE_NEX:	case FTYPE_INV: continue; // start a new loop iteration
-      }
+      continue; // start loop from the beginning to select the previous valid path
     }
     
-    /* At this point we're sure that the it's selected a valid directory */
+    /* At this point we're sure that it's selected a valid directory */
 
     // Print the full path and content of the current directory
     printf("\n%s:\n%s\n", flerr.file.name, flerr.file.cont.t_flcont_val);
-
-    // Print the directory content
-    // if (ls_dir(path_curr) != 0) {
-    //   offset = copy_path(path_prev, path_curr); // restore the previous valid path
-    //   continue;
-    // }
 
     // Get user input of filename
     if (input_filename(fname_inp) != 0)
@@ -649,14 +570,14 @@ char * get_filename_inter(const char *dir_start, char *path_res)
     // Before changing the current path, set the previous path to the current valid path
     copy_path(path_curr, path_prev);
 
-    // Settings for full and relative path
+    // Settings for absolute (full) and relative path
     if (*fname_inp == '/') {
-      // If user specified a full path, reset path_curr
+      // If user specified an absolute path, reset path_curr
       memset(path_curr, 0, offset);
       offset = 0;
-      offset_fullpath = 1; // set 1 for a full path to skip the first '/' symbol
+      offset_fullpath = 1; // set 1 for an abs path to skip the first '/' symbol
     }
-    else offset_fullpath = 0; // no need to skip symbols for relative pathes
+    else offset_fullpath = 0; // no need to skip symbols for relative path
 
     // Construct the full path of the choosed file
     nwrt_fname = snprintf(path_curr + offset, LEN_PATH_MAX - offset, "/%s", fname_inp + offset_fullpath);
