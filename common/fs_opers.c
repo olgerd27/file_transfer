@@ -144,6 +144,7 @@ char * alloc_file_cont_NEW(t_flcont *p_flcont, unsigned size)
               (void*)p_flcont->t_flcont_val);
       return NULL;
     }
+    p_flcont->t_flcont_val[0] = '\0'; // required to ensure strlen() works correctly on this memory
     printf("[alloc_file_cont_NEW] file cont allocated, size=%d\n", size);
   }
   return p_flcont->t_flcont_val;
@@ -244,7 +245,7 @@ int reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
   if ( !alloc_file_cont_NEW(&p_file->cont, size_fcont) ) 
     return 10;
 
-  printf("[reset_file_inf_NEW] file info reset DONE\n");
+  printf("[reset_file_inf_NEW] DONE\n");
   return 0;
 }
 
@@ -296,7 +297,7 @@ int reset_err_inf_NEW(err_inf *p_err)
   // Reset the system error number
   if (errno) errno = 0;
 
-  printf("[reset_err_inf_NEW] error info reset DONE\n");
+  printf("[reset_err_inf_NEW] DONE\n");
   return 0;
 }
 
@@ -319,95 +320,120 @@ char * rel_to_full_path(const char *path_rel, file_err *p_flerr)
 }
 
 /*
- * List the directory content into the char array stored in file_err struct.
- * - p_flerr: pointer to an allocated and nulled RPC struct object to store file & error info.
+ * Get file information.
+ *
+ * This function gathers and formats information about a specified file or directory.
+ * It populates the file content data (in string format) in the provided `file_inf` structure
+ * with details about the file's permissions, owner, group, size, modification time, and name.
+ *
+ * The function performs the following steps:
+ * 1. Constructs the full path to the specified file.
+ * 2. Retrieves the file status information using `lstat()`.
+ * 3. Formats and appends the file's type and permissions, owner, group, size,
+ *    modification time, and name to the `t_flcont_val` buffer in the `file_inf` structure.
+ *
+ * The `t_flcont_val` buffer is updated to contain the formatted file information.
+ *
+ * Parameters:
+ *   p_dir_base - Pointer to a `file_inf` structure that contains information about
+ *                the directory or file. This structure will be updated with the
+ *                gathered file information.
+ *   filename   - The name of the file for which information is to be gathered.
+ *
  * RC: 0 on success, >0 on failure.
- * As this is a directory listing function, the type of the passed file should be always a directory.
- * The file name in the passed struct is the name of the directory that this function reads.
- * The file contents in the passed struct are the directory contents that this function sets and 
- * then returns to the calling function.
  */
-int ls_dir_str(file_err *p_flerr)
+int get_file_info(file_inf *p_dir_base, const char *filename)
 {
-  DIR           *hdir;
-  struct dirent *de; // directory entry
   struct stat    statbuf;
   char           strperm[11];
   struct passwd *pwd;
   struct group  *grp;
   struct tm     *tm;
-  char           datestring[256];
   char           fullpath[LEN_PATH_MAX];
-  int offset_dn; // offset from the beginning of fullpath for the constant string: passed dir name + '/'
+  char           datestring[32];
 
-  // Pointers to the file_err struct fields for quick access
-  const char *p_flname = p_flerr->file.name; // constant pointer to the file name
-  char *p_flcont = p_flerr->file.cont.t_flcont_val; // pointer to the file content data
-  int  *p_errnum = &p_flerr->err.num; // pointer to the error number
-  char *p_errmsg = p_flerr->err.err_inf_u.msg; // pointer to the error message
+  // TODO: maybe reallocate the file content here?
+
+  // Pointer to the buffer location of the File (dir) Content Value where a new data should be written
+  char *p_fcv = p_dir_base->cont.t_flcont_val + strlen(p_dir_base->cont.t_flcont_val);
+
+  // Construct the full path to the needed file
+  // A NULL-character appends to fullpath automatically by snprintf()
+  if ( snprintf(fullpath, LEN_PATH_MAX, "%s/%s", p_dir_base->name, filename) < 0 ) {
+    sprintf(p_fcv, "get_file_info(): Invalid path to filename: '%s/%s'\n",
+            p_dir_base->name, filename);
+    return 1;
+  }
+
+  // Get the file status (info)
+  if (lstat(fullpath, &statbuf) == -1) {
+    sprintf(p_fcv, "get_file_info(): Cannot get the file status for: '%s/%s'\n",
+            p_dir_base->name, filename);
+    return 2;
+  }
+
+  // Print out type and permissions
+  p_fcv += sprintf(p_fcv, "%s", str_perm(statbuf.st_mode, strperm));
+
+  // Print out owner's name if it is found using getpwuid()
+  // TODO: determine the length of the field as a max length among all the entries
+  // And then the following format can be used: "  %-Ns"
+  if ((pwd = getpwuid(statbuf.st_uid)) != NULL)
+    p_fcv += sprintf(p_fcv, "  %-8.8s", pwd->pw_name);
+  else
+    p_fcv += sprintf(p_fcv, "  %-8d", statbuf.st_uid);
+
+  // Print out group name if it is found using getgrgid()
+  if ((grp = getgrgid(statbuf.st_gid)) != NULL)
+    p_fcv += sprintf(p_fcv, " %-8.8s", grp->gr_name);
+  else
+    p_fcv += sprintf(p_fcv, " %-8d", statbuf.st_gid);
+
+  // Print size of file
+  p_fcv += sprintf(p_fcv, " %9jd", (intmax_t)statbuf.st_size);
+
+  tm = localtime(&statbuf.st_mtime);
+
+  // Get localized date string
+  // NOTE: the 'ls' command has 2 different formats for this date&time string:
+  // - if a mod.time is less than 1 year then it's used the format with time and without year,
+  // - if a mod.time is more than 1 year then it's used the format without time but with year.
+  // difftime() function may be used to determine the right format similar to 'ls'.
+  // Potentially a similar approach can be used in this program, but I have decided that
+  // printing month, day, time and year is more informative and sufficient for now.
+  strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
+  p_fcv += sprintf(p_fcv, " %s %s\n", datestring, filename);
+  
+  return 0;
+}
+
+/*
+ * List the directory content into the char array stored in the file_err struct.
+ * - p_flerr: pointer to an allocated and nulled RPC struct object to store file & error info.
+ * RC: 0 on success, >0 on failure.
+ * The function should always receive a directory as the file type.
+ * The file name in the passed struct specifies the directory to be read.
+ * The file contents in the passed struct are populated with the directory contents, 
+ * which are then returned to the calling function.
+ */
+int ls_dir_str(file_err *p_flerr)
+{
+  DIR *hdir; // directory handler
+  struct dirent *de; // directory entry
 
   // Open the passed directory
-  if ( (hdir = opendir(p_flname)) == NULL ) {
-    *p_errnum = 85;
-    sprintf(p_errmsg, "Error %i: Cannot open directory:\n'%s'\n%s\n",
-                      *p_errnum, p_flname, strerror(errno));
-    return *p_errnum;
+  if ( (hdir = opendir(p_flerr->file.name)) == NULL ) {
+    p_flerr->err.num = 85;
+    sprintf(p_flerr->err.err_inf_u.msg, "Error %i: Cannot open directory:\n'%s'\n%s\n",
+            p_flerr->err.num, p_flerr->file.name, strerror(errno));
+    return p_flerr->err.num;
   }
 
-  // Init the full path with the first constant part the passed dir name + '/'
-  offset_dn = snprintf(fullpath, LEN_PATH_MAX, "%s/", p_flname); // '\0' appends automatically
-  if (offset_dn < 0) {
-    closedir(hdir);
-    *p_errnum = 86;
-    sprintf(p_errmsg, "Error %i: Invalid dir name:\n'%s'\n", *p_errnum, p_flname);
-    return *p_errnum;
-  }
-
-  /* Loop through directory entries */
+  /* Loop through directory entries to get entry info */
   while ((de = readdir(hdir)) != NULL) {
-
-    // Construct the full path to the directory entry
-    // A NULL-character appends to fullpath automatically
-    if ( snprintf(fullpath + offset_dn, LEN_PATH_MAX - offset_dn, "%s", de->d_name) < 0 ) {
-      p_flcont += sprintf(p_flcont, "Invalid filename: '%s'\n", de->d_name);
-      continue;
-    }
-
-    // Get entry's information
-    if (lstat(fullpath, &statbuf) == -1)
-        continue;
-
-    // Print out type and permissions
-    p_flcont += sprintf(p_flcont, "%s", str_perm(statbuf.st_mode, strperm));
-
-    // Print out owner's name if it is found using getpwuid()
-    // TODO: determine the length of the field as a max length among all the entries
-    // And then the following format can be used: "  %-Ns"
-    if ((pwd = getpwuid(statbuf.st_uid)) != NULL)
-        p_flcont += sprintf(p_flcont, "  %-8.8s", pwd->pw_name);
-    else
-        p_flcont += sprintf(p_flcont, "  %-8d", statbuf.st_uid);
-
-    // Print out group name if it is found using getgrgid()
-    if ((grp = getgrgid(statbuf.st_gid)) != NULL)
-        p_flcont += sprintf(p_flcont, " %-8.8s", grp->gr_name);
-    else
-        p_flcont += sprintf(p_flcont, " %-8d", statbuf.st_gid);
-
-    // Print size of file
-    p_flcont += sprintf(p_flcont, " %9jd", (intmax_t)statbuf.st_size);
-
-    tm = localtime(&statbuf.st_mtime);
-
-    // Get localized date string
-    // TODO: the ls command has 2 different formats for this date&time string:
-    // - if a mod.time is less than 1 year then it's used the format with time and without year,
-    // - if a mod.time is more than 1 year then it's used the format without time but with year.
-    // I suppose a similar approach can be used here. 
-    // Maybe use difftime() function to determine the format.
-    strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
-
-    p_flcont += sprintf(p_flcont, " %s %s\n", datestring, de->d_name);
+    // NOTE: if any actions will be added to the while loop after call of get_file_info(), 
+    // it's recommended to handle the return code of get_file_info().
+    (void)get_file_info(&p_flerr->file, de->d_name);
   }
   closedir(hdir);
   return 0;
@@ -432,11 +458,11 @@ int select_file(const char *path, file_err *p_flerr)
   // Process the file type
   switch (p_flerr->file.type) {
     case FTYPE_DIR:
-    case FTYPE_REG:
-      // If it's a directory, get its content and save it to file_err object
+      // Get the directory content and save it to file_err object
       if (p_flerr->file.type == FTYPE_DIR)
         ls_dir_str(p_flerr); // if error has occurred it was set to p_flerr, no need to check the RC
-      break;
+    case FTYPE_REG:
+      break; // just exit from switch for both dir and file
     case FTYPE_OTH:
       p_flerr->err.num = 81;
       sprintf(p_flerr->err.err_inf_u.msg,
@@ -446,8 +472,8 @@ int select_file(const char *path, file_err *p_flerr)
       break;
     case FTYPE_NEX:
     case FTYPE_INV:
-      // NOTE: If a call of rel_to_full_path() fails due to missing file, 
-      // this casees (FTYPE_NEX & FTYPE_INV) will never be reached.
+      // NOTE: If a call of rel_to_full_path() failed due to missing file, 
+      // these 2 cases (FTYPE_NEX & FTYPE_INV) will never be reached.
       p_flerr->err.num = 82;
       printf("[select_file] 6\n");
       sprintf(p_flerr->err.err_inf_u.msg,
