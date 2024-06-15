@@ -115,9 +115,8 @@ int copy_path(char *path_src, char *path_trg)
  */
 /*
  * NEW version of the memory manipulation functions, initialy defined in prg_serv.c and prg_clnt.c.
-// TODO: move these versions to the new files like common/memops.c, 
- * and use them everywhere where they're required.
  */
+// TODO: move these versions to the new files like common/memops.c, and use them everywhere where they're required.
 /*
  * Allocate the memory to store the file content.
  * Allocate only if it has not already done, else - return a pointer to the existing memory.
@@ -125,8 +124,8 @@ int copy_path(char *path_src, char *path_trg)
  * - size: the size of the memory to allocate
  * - p_err: pointer to an error info object, where the error info will be written in case of error.
  * RC: returns a pointer to the allocated memory or NULL in case of error.
-// TODO: check if the error number is ok in this function; this function should be used here and in both client and server code.
  */
+// TODO: check if the error number is ok in this function; this function should be used here and in both client and server code.
 char * alloc_file_cont_NEW(t_flcont *p_flcont, unsigned size)
 {
   // Check if the file content object is allocated
@@ -319,6 +318,36 @@ char * rel_to_full_path(const char *path_rel, file_err *p_flerr)
   return p_flerr->file.name;
 }
 
+// TODO: document this function
+/*
+ * TODO: document this function
+ * RC: 0 on success, >0 on failure.
+ */
+int get_file_stat(const char *dirname, const char *filename, struct stat *p_statbuf, char **errmsg)
+{
+  char fullpath[LEN_PATH_MAX];
+
+  // Construct the full path to the needed file
+  // A NULL-character appends to fullpath automatically by snprintf()
+  if ( snprintf(fullpath, LEN_PATH_MAX, "%s/%s", dirname, filename) < 0 ) {
+    *errmsg = malloc(LEN_PATH_MAX + 100); // allocate an approximate memory size to store the entire error message
+    if (*errmsg) sprintf(*errmsg, "get_file_stat(): Invalid path to filename:\n'%s/%s'\n", 
+                         dirname, filename);
+    return 1;
+  }
+
+  // Get the file status (info)
+  if (lstat(fullpath, p_statbuf) == -1) {
+    *errmsg = malloc(LEN_PATH_MAX + 100); // allocate an approximate memory size to store the entire error message
+    if (*errmsg) sprintf(*errmsg, "get_file_stat(): Cannot get the file status for:\n'%s/%s'\n%s\n",
+                         dirname, filename, strerror(errno));
+    return 2;
+  }
+
+  return 0;
+}
+
+// TODO: update this documentation as the function has changed
 /*
  * Get file information.
  *
@@ -342,57 +371,35 @@ char * rel_to_full_path(const char *path_rel, file_err *p_flerr)
  *
  * RC: 0 on success, >0 on failure.
  */
-int get_file_info(file_inf *p_dir_base, const char *filename)
+void get_file_info(struct stat *p_statbuf, const char *filename, char *p_buff)
 {
-  struct stat    statbuf;
   char           strperm[11];
   struct passwd *pwd;
   struct group  *grp;
   struct tm     *tm;
-  char           fullpath[LEN_PATH_MAX];
   char           datestring[32];
 
   // TODO: maybe reallocate the file content here?
 
-  // Pointer to the buffer location of the File (dir) Content Value where a new data should be written
-  char *p_fcv = p_dir_base->cont.t_flcont_val + strlen(p_dir_base->cont.t_flcont_val);
-
-  // Construct the full path to the needed file
-  // A NULL-character appends to fullpath automatically by snprintf()
-  if ( snprintf(fullpath, LEN_PATH_MAX, "%s/%s", p_dir_base->name, filename) < 0 ) {
-    sprintf(p_fcv, "get_file_info(): Invalid path to filename: '%s/%s'\n",
-            p_dir_base->name, filename);
-    return 1;
-  }
-
-  // Get the file status (info)
-  if (lstat(fullpath, &statbuf) == -1) {
-    sprintf(p_fcv, "get_file_info(): Cannot get the file status for: '%s/%s'\n",
-            p_dir_base->name, filename);
-    return 2;
-  }
-
   // Print out type and permissions
-  p_fcv += sprintf(p_fcv, "%s", str_perm(statbuf.st_mode, strperm));
+  p_buff += sprintf(p_buff, "%s", str_perm(p_statbuf->st_mode, strperm));
 
   // Print out owner's name if it is found using getpwuid()
   // TODO: determine the length of the field as a max length among all the entries
   // And then the following format can be used: "  %-Ns"
-  if ((pwd = getpwuid(statbuf.st_uid)) != NULL)
-    p_fcv += sprintf(p_fcv, "  %-8.8s", pwd->pw_name);
+  if ((pwd = getpwuid(p_statbuf->st_uid)) != NULL)
+    p_buff += sprintf(p_buff, "  %-8.8s", pwd->pw_name);
   else
-    p_fcv += sprintf(p_fcv, "  %-8d", statbuf.st_uid);
+    p_buff += sprintf(p_buff, "  %-8d", p_statbuf->st_uid);
 
   // Print out group name if it is found using getgrgid()
-  if ((grp = getgrgid(statbuf.st_gid)) != NULL)
-    p_fcv += sprintf(p_fcv, " %-8.8s", grp->gr_name);
+  if ((grp = getgrgid(p_statbuf->st_gid)) != NULL)
+    p_buff += sprintf(p_buff, " %-8.8s", grp->gr_name);
   else
-    p_fcv += sprintf(p_fcv, " %-8d", statbuf.st_gid);
+    p_buff += sprintf(p_buff, " %-8d", p_statbuf->st_gid);
 
   // Print size of file
-  p_fcv += sprintf(p_fcv, " %9jd", (intmax_t)statbuf.st_size);
-
-  tm = localtime(&statbuf.st_mtime);
+  p_buff += sprintf(p_buff, " %9jd", (intmax_t)p_statbuf->st_size);
 
   // Get localized date string
   // NOTE: the 'ls' command has 2 different formats for this date&time string:
@@ -401,10 +408,9 @@ int get_file_info(file_inf *p_dir_base, const char *filename)
   // difftime() function may be used to determine the right format similar to 'ls'.
   // Potentially a similar approach can be used in this program, but I have decided that
   // printing month, day, time and year is more informative and sufficient for now.
+  tm = localtime(&p_statbuf->st_mtime);
   strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
-  p_fcv += sprintf(p_fcv, " %s %s\n", datestring, filename);
-  
-  return 0;
+  p_buff += sprintf(p_buff, " %s %s\n", datestring, filename);
 }
 
 /*
@@ -418,8 +424,10 @@ int get_file_info(file_inf *p_dir_base, const char *filename)
  */
 int ls_dir_str(file_err *p_flerr)
 {
-  DIR *hdir; // directory handler
+  DIR           *hdir; // directory handler
   struct dirent *de; // directory entry
+  struct stat    statbuf;
+  char          *errmsg = NULL;
 
   // Open the passed directory
   if ( (hdir = opendir(p_flerr->file.name)) == NULL ) {
@@ -429,11 +437,33 @@ int ls_dir_str(file_err *p_flerr)
     return p_flerr->err.num;
   }
 
-  /* Loop through directory entries to get entry info */
+  // // Preliminary loop through directory entries to get settings values 
+  // // for subsequent printing of the directory content
+  // while ((de = readdir(hdir)) != NULL) {
+  //   // Get the file status (info)
+  //   if ( get_file_stat(p_flerr->file.name, de->d_name, &statbuf, &errmsg) > 0 ) {
+  //     printf("%s", errmsg); // print the error message
+  //     free(errmsg); // free allocated memory
+  //   }
+  //   // TODO: continue...
+  // }
+
+  // Reset position of directory stream to the beginning of a directory
+  // rewinddir(hdir);
+
+  // Loop through directory entries to get entry info
+  char *p_curr; // pointer to the current position in the dir content buffer
   while ((de = readdir(hdir)) != NULL) {
-    // NOTE: if any actions will be added to the while loop after call of get_file_info(), 
-    // it's recommended to handle the return code of get_file_info().
-    (void)get_file_info(&p_flerr->file, de->d_name);
+    // Calc the current position in buffer where to place the next (in this iteration) portion of data
+    p_curr = p_flerr->file.cont.t_flcont_val + strlen(p_flerr->file.cont.t_flcont_val);
+    
+    // Get the file status (info)
+    if ( get_file_stat(p_flerr->file.name, de->d_name, &statbuf, &errmsg) != 0 ) {
+      strcpy(p_curr, errmsg); // copy the error message to buffer
+      free(errmsg); // free allocated memory
+    }
+    else
+      get_file_info(&statbuf, de->d_name, p_curr); // get entry info and add it to buffer
   }
   closedir(hdir);
   return 0;
