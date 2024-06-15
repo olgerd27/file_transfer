@@ -17,7 +17,26 @@
 extern int errno;
 static char filename_src[LEN_PATH_MAX]; // DELETE: it's just for testing
 
-// Return a letter of a file type used in Unix-like OS
+/*
+ * Return a letter representing the file type used in Unix-like OS.
+ *
+ * This function takes a `mode_t` value, which represents the file mode,
+ * and returns a character corresponding to the file type.
+ *
+ * Parameters:
+ *  mode - The mode of the file.
+ *
+ * Return value:
+ *  A character representing the file type:
+ *         'd' for directory,
+ *         'b' for block device,
+ *         'c' for character device,
+ *         'p' for FIFO (named pipe),
+ *         'l' for symbolic link,
+ *         '-' for regular file,
+ *         's' for socket,
+ *         '?' for unknown type.
+ */
 static char get_file_type_unix(mode_t mode)
 {
   if (S_ISDIR(mode)) return 'd';
@@ -30,8 +49,21 @@ static char get_file_type_unix(mode_t mode)
   return '?';
 }
 
-// Convert permissions from the digit to the symbol form.
-// The function adds a file type at the 1st place, like same as 'ls -l' command does.
+/*
+ * Convert file permissions from numeric to symbolic form.
+ *
+ * This function converts the file mode (permissions) from its numeric
+ * representation to the symbolic representation used by the `ls -l` command.
+ * It includes the file type character at the first position.
+ *
+ * Parameters:
+ *  mode    - The mode of the file.
+ *  strmode - A pointer to a character array where the symbolic representation 
+ *            will be stored. The array must be at least 11 characters long.
+ * 
+ * Return value:
+ *  A pointer to the `strmode` character array.
+ */
 static char * str_perm(mode_t mode, char *strmode)
 {
   strmode[0] = get_file_type_unix(mode);
@@ -49,9 +81,21 @@ static char * str_perm(mode_t mode, char *strmode)
 }
 
 /*
- * Return the filetype (defined in fltr.h) for the specified file.
- * - filepath - a full path to the file.
- * RC: returns a filetype enum value defined in the RPC fltr.x file.
+ * Return the file type for the specified file.
+ *
+ * This function determines the type of a file given its path.
+ * It returns a file type enumeration value defined in `fltr.h`.
+ *
+ * Parameters:
+ *  filepath - A full path to the file.
+ * 
+ * Return value:
+ * A filetype enum value:
+ *         - FTYPE_DIR for directory,
+ *         - FTYPE_REG for regular file,
+ *         - FTYPE_OTH for other file types,
+ *         - FTYPE_NEX if the file does not exist,
+ *         - FTYPE_INV for an invalid file type or other errors.
  */
 enum filetype file_type(const char *filepath)
 {
@@ -81,10 +125,22 @@ enum filetype file_type(const char *filepath)
 }
 
 /*
- * Get user input of filename. 
- * If nothing was inputted (user just pressed ENTER), an error is returned.
- * - filename -> the allocated string array to put the input
- * RC: 0 on success, >0 on failure.
+ * Get user input for a filename.
+ *
+ * This function prompts the user to enter a filename. If the user inputs nothing
+ * (just presses ENTER), an error is returned. It uses `fgets` to read the input
+ * and ensures the resulting string is properly null-terminated by removing any
+ * trailing newline character.
+ *
+ * Parameters:
+ *  filename - A pointer to an allocated string array where the input will be stored.
+ *             The array should be at least `NAME_MAX` characters long.
+ * 
+ * Return value:
+ *  An integer indicating the result of the operation:
+ *    0 on success,
+ *    1 if a read error occurs,
+ *    2 if the input is empty (user just pressed ENTER).
  */
 static int input_filename(char *filename)
 {
@@ -103,29 +159,51 @@ static int input_filename(char *filename)
   return 0;
 }
 
-// Copy the path_src to path_trg with the length of LEN_PATH_MAX.
-// RC: returns the number of the written characters.
+/*
+ * Copy a source path to a target path with a maximum length.
+ *
+ * This function copies the string `path_src` to `path_trg` ensuring that
+ * the number of characters copied does not exceed `LEN_PATH_MAX`.
+ * It uses `snprintf` to perform the copy, which guarantees that the resulting
+ * string is null-terminated and that it does not write beyond the specified
+ * maximum length.
+ *
+ * Parameters:
+ *  path_src - The source path to be copied.
+ *  path_trg - The target buffer where the source path will be copied.
+ *             The buffer should be at least `LEN_PATH_MAX` characters long.
+ * 
+ * Return value:
+ *  The number of characters written to `path_trg`, not including the null-terminator.
+ */
 int copy_path(char *path_src, char *path_trg)
 {
   return snprintf(path_trg, LEN_PATH_MAX, "%s", path_src);
 }
 
 /*
- * NEW VERSIONS, after their acceptance delete old version: ls_dir()
+ * NEW VERSIONS, after their acceptance delete old versions to manipulate the memory
  */
 /*
  * NEW version of the memory manipulation functions, initialy defined in prg_serv.c and prg_clnt.c.
  */
 // TODO: move these versions to the new files like common/memops.c, and use them everywhere where they're required.
-/*
- * Allocate the memory to store the file content.
- * Allocate only if it has not already done, else - return a pointer to the existing memory.
- * - p_flcont: pointer to a file content object to store the allocated memory
- * - size: the size of the memory to allocate
- * - p_err: pointer to an error info object, where the error info will be written in case of error.
- * RC: returns a pointer to the allocated memory or NULL in case of error.
- */
 // TODO: check if the error number is ok in this function; this function should be used here and in both client and server code.
+/*
+ * Allocate memory to store the file content.
+ *
+ * This function allocates memory to store file content if it hasn't already been
+ * allocated. If memory has already been allocated, it returns a pointer to the
+ * existing memory.
+ *
+ * Parameters:
+ * p_flcont - A pointer to a file content object where the allocated memory will be stored.
+ * size     - The size of the memory to allocate.
+ * p_err    - A pointer to an error info object where error info will be written in case of an error.
+ * 
+ * Return value:
+ *  A pointer to the allocated memory, or NULL in case of an error.
+ */
 char * alloc_file_cont_NEW(t_flcont *p_flcont, unsigned size)
 {
   // Check if the file content object is allocated
@@ -149,8 +227,13 @@ char * alloc_file_cont_NEW(t_flcont *p_flcont, unsigned size)
   return p_flcont->t_flcont_val;
 }
 
-// Free the file name memory.
-// - p_flname: pointer to a file name object to free the memory
+/*
+ * Free the file name memory.
+ * This function frees the memory allocated for a file name object.
+ *
+ * Parameters:
+ *  p_flname - A pointer to a file name object whose memory is to be freed.
+ */
 void free_file_name_NEW(t_flname *p_flname)
 {
   if (p_flname) {
@@ -160,8 +243,13 @@ void free_file_name_NEW(t_flname *p_flname)
   }
 }
 
-// Free the file content memory.
-// - p_flcont: pointer to a file content object to free the memory
+/*
+ * Free the file content memory.
+ * This function frees the memory allocated for a file content object.
+ *
+ * Parameters:
+ *  p_flcont - A pointer to a file content object whose memory is to be freed.
+ */
 void free_file_cont_NEW(t_flcont *p_flcont)
 {
   if (p_flcont && p_flcont->t_flcont_val) {
@@ -172,8 +260,13 @@ void free_file_cont_NEW(t_flcont *p_flcont)
   }
 }
 
-// Free the file info memory.
-// - p_file: pointer to a file info object to free the memory
+/*
+ * Free the file info memory.
+ * This function frees the memory allocated for a file info object.
+ *
+ * Parameters:
+ *  p_file - A pointer to a file info object whose memory is to be freed.
+ */
 void free_file_inf_NEW(file_inf *p_file)
 {
   if (p_file) {
@@ -183,8 +276,13 @@ void free_file_inf_NEW(file_inf *p_file)
   }
 }
 
-// Free the error info memory.
-// - p_err: pointer to an error info object to free the memory
+/*
+ * Free the error info memory.
+ * This function frees the memory allocated for an error info object.
+ *
+ * Parameters:
+ *  p_err - A pointer to an error info object whose memory is to be freed.
+ */
 void free_err_inf_NEW(err_inf *p_err)
 {
   if (p_err && p_err->err_inf_u.msg) {
@@ -195,20 +293,29 @@ void free_err_inf_NEW(err_inf *p_err)
   }
 }
 
+// TODO: check if the error numbers are ok in this function
 /*
  * Reset the file info.
- * - p_file: pointer to a file info object to reset the memory
- * - size_fcont: the size of the memory to allocate for the file content
- * RC: 0 on success, >0 on failure.
- * Features:
+ *
+ * This function resets a file info object by reallocating memory for its name
+ * and content. The file name's memory is allocated only if it is currently
+ * unallocated. The file content's memory is always reallocated to the specified size.
+ *
+ * Parameters:
+ *  p_file      - A pointer to a file info object to reset.
+ *  size_fcont  - The size of the memory to allocate for the file content.
+ * 
+ * Return value:
+ *  0 on success, >0 on failure.
+ * 
+ * Notes:
  * - file name, size is constant (LEN_PATH_MAX):
- * Memory allocation (if name is NULL) or setting it to 0 (if name is NOT NULL).
- * Memory deallocation must be done separately outside of this function.
+ *   Memory allocation, if name is NULL, or setting it to 0, if name is NOT NULL.
+ *   Memory deallocation must be done separately outside of this function.
  * - file content, size is variable:
- * Memory deallocation and allocation new one with the size_fcont size.
- * Memory deallocation must be done separately outside of this function.
+ *   Memory deallocation and allocation of new one with the size_fcont size.
+ *   Memory deallocation must be done separately outside of this function.
  */
-// TODO: check if the error numbers are ok in this function
 int reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
 {
   // Check if the file info object is allocated
@@ -248,17 +355,26 @@ int reset_file_inf_NEW(file_inf *p_file, unsigned size_fcont)
   return 0;
 }
 
+// TODO: check if the error numbers are ok in this function
 /*
  * Reset the error info.
- * - p_err: pointer to an error info object to reset the memory
- * RC: 0 on success, >0 on failure.
- * Features:
+ *
+ * This function resets an error info object by allocating memory for the error
+ * message if it is not already allocated and setting the error number and system
+ * error number to 0. The error message is reset if the error number is set.
+ *
+ * Parameters:
+ *  p_err - A pointer to an error info object to reset.
+ * 
+ * Return value:
+ *  0 on success, >0 on failure.
+ * 
+ * Notes:
  * - error message memory is allocated only if it's not allocated (size is LEN_ERRMSG_MAX)
  * - error number is set to 0
  * - error message is set to 0 if the error number is set
  * - system error number is set to 0
  */
-// TODO: check if the error numbers are ok in this function
 int reset_err_inf_NEW(err_inf *p_err)
 {
   // Check if the error info object is allocated
@@ -302,9 +418,16 @@ int reset_err_inf_NEW(err_inf *p_err)
 
 /*
  * Convert the passed relative path to the full (absolute) one.
- * - path_rel: a relative path
- * - p_flerr: pointer to the file & error info to put the results.
- * RC: returns full (absolute) path (the same as p_flerr->file.name) on success, and NULL on failure.
+ *
+ * This function converts a relative path to an absolute path. If the conversion
+ * fails, it sets an error number and message in the provided error info structure.
+ *
+ * Parameters:
+ *  path_rel - A relative path to be converted.
+ *  p_flerr  - A pointer to a file & error info structure where the results will be stored.
+ * 
+ * Return value:
+ *  The full (absolute) path on success (the same as p_flerr->file.name), and NULL on failure.
  */
 char * rel_to_full_path(const char *path_rel, file_err *p_flerr)
 {
@@ -318,10 +441,21 @@ char * rel_to_full_path(const char *path_rel, file_err *p_flerr)
   return p_flerr->file.name;
 }
 
-// TODO: document this function
 /*
- * TODO: document this function
- * RC: 0 on success, >0 on failure.
+ * Get the file status (info).
+ *
+ * This function constructs the full path to a specified file and retrieves its
+ * status information. If the full path is invalid or if the status retrieval fails,
+ * an error message is set.
+ *
+ * Parameters:
+ *  dirname   - The directory name where the file is located.
+ *  filename  - The name of the file whose status is to be retrieved.
+ *  p_statbuf - A pointer to a stat structure where the file status information will be stored.
+ *  errmsg    - A pointer to a string where an error message will be stored in case of failure.
+ *
+ * Return value:
+ *  0 on success, >0 on failure.
  */
 int get_file_stat(const char *dirname, const char *filename, struct stat *p_statbuf, char **errmsg)
 {
@@ -347,29 +481,36 @@ int get_file_stat(const char *dirname, const char *filename, struct stat *p_stat
   return 0;
 }
 
-// TODO: update this documentation as the function has changed
 /*
  * Get file information.
  *
  * This function gathers and formats information about a specified file or directory.
- * It populates the file content data (in string format) in the provided `file_inf` structure
- * with details about the file's permissions, owner, group, size, modification time, and name.
+ * It populates the provided buffer with details about the file's permissions, owner,
+ * group, size, modification time, and name.
  *
  * The function performs the following steps:
- * 1. Constructs the full path to the specified file.
- * 2. Retrieves the file status information using `lstat()`.
- * 3. Formats and appends the file's type and permissions, owner, group, size,
- *    modification time, and name to the `t_flcont_val` buffer in the `file_inf` structure.
- *
- * The `t_flcont_val` buffer is updated to contain the formatted file information.
+ * 1. Retrieves the file status information from the passed 'stat' struct.
+ * 2. Formats and appends to the provided buffer the file's type and permissions,
+ *    owner, group, size, modification time, and name.
  *
  * Parameters:
- *   p_dir_base - Pointer to a `file_inf` structure that contains information about
- *                the directory or file. This structure will be updated with the
- *                gathered file information.
- *   filename   - The name of the file for which information is to be gathered.
+ *   p_statbuf - Pointer to a `struct stat` that contains the file status information.
+ *   filename  - The name of the file for which information is to be gathered.
+ *   p_buff    - Pointer to the buffer where the formatted file information will be stored.
  *
- * RC: 0 on success, >0 on failure.
+ * Return value:
+ *   This function does not return a value. The formatted file information is stored in the
+ *   buffer pointed to by `p_buff`.
+ *
+ * Notes:
+ * - The `p_buff` buffer is expected to be pre-allocated and large enough to hold the formatted
+ *   file information.
+ * - The `str_perm` function is assumed to convert the file mode to a string representing the
+ *   file's type and permissions.
+ * - This function prints the owner and group names if they can be retrieved using `getpwuid()`
+ *   and `getgrgid()` respectively; otherwise, it prints the numeric UID and GID.
+ * - The modification time is printed in the format "%b %d %R %Y", which includes the month, day,
+ *   time, and year.
  */
 void get_file_info(struct stat *p_statbuf, const char *filename, char *p_buff)
 {
