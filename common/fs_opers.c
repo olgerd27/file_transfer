@@ -481,6 +481,75 @@ int get_file_stat(const char *dirname, const char *filename, struct stat *p_stat
   return 0;
 }
 
+// Directory listing settings
+struct lsdir_setts
+{
+  int numb_files;   // number of files
+  int lenmax_usr;   // max length of the user (owner) name
+  int lenmax_grp;   // max length of the group name
+  int lenmax_size;  // max length of the file size
+};
+
+/*
+ * Calculate the number of digits in a number.
+ *
+ * This function calculates the number of digits in a given long integer
+ * by repeatedly dividing the number by 10 until it becomes zero.
+ *
+ * Parameters:
+ *  val - The number whose digits are to be counted.
+ * 
+ * Return value:
+ *  The number of digits in the input number.
+ */
+int numb_digits(long val)
+{
+  int numb = 1;
+  while ((val /= 10) > 0) ++numb;
+  return numb;
+}
+
+/*
+ * Update directory listing settings based on file statistics.
+ *
+ * This function updates various settings related to directory listing,
+ * such as the number of files, the maximum length of user (owner) names,
+ * group names, and file sizes. It uses the file statistics provided by
+ * the `struct stat` and updates the settings in the `struct lsdir_setts`.
+ *
+ * Parameters:
+ *  p_statbuf - Pointer to a `struct stat` containing file statistics.
+ *  p_lsd_set - Pointer to a `struct lsdir_setts` to be updated.
+ */
+void update_lsdir_setts(struct stat *p_statbuf, struct lsdir_setts *p_lsd_set)
+{
+  struct passwd *pwd;
+  struct group *grp;
+  int len = 0;
+
+  // Update the number of files
+  p_lsd_set->numb_files++;
+
+  // Update the max length of the user (owner) name  
+  if ((pwd = getpwuid(p_statbuf->st_uid)) != NULL) {
+    len = strlen(pwd->pw_name);
+    if (len > p_lsd_set->lenmax_usr)
+      p_lsd_set->lenmax_usr = len;
+  }
+
+  // Update the max length of the group name  
+  if ((grp = getgrgid(p_statbuf->st_gid)) != NULL) {
+    len = strlen(grp->gr_name);
+    if (len > p_lsd_set->lenmax_grp)
+      p_lsd_set->lenmax_grp = len;
+  }
+
+  // Update the max file size
+  len = numb_digits(p_statbuf->st_size);
+  if (len > p_lsd_set->lenmax_size)
+    p_lsd_set->lenmax_size = len;
+}
+
 /*
  * Get file information.
  *
@@ -494,9 +563,10 @@ int get_file_stat(const char *dirname, const char *filename, struct stat *p_stat
  *    owner, group, size, modification time, and name.
  *
  * Parameters:
- *   p_statbuf - Pointer to a `struct stat` that contains the file status information.
- *   filename  - The name of the file for which information is to be gathered.
- *   p_buff    - Pointer to the buffer where the formatted file information will be stored.
+ *   p_statbuf  - Pointer to a `struct stat` that contains the file status information.
+ *   filename   - The name of the file for which information is to be gathered.
+ *   p_lsd_set  - Pointer to a `struct lsdir_setts` that contains the directory listing settings.
+ *   p_buff     - Pointer to the buffer where the formatted file information will be stored.
  *
  * Return value:
  *   This function does not return a value. The formatted file information is stored in the
@@ -512,7 +582,8 @@ int get_file_stat(const char *dirname, const char *filename, struct stat *p_stat
  * - The modification time is printed in the format "%b %d %R %Y", which includes the month, day,
  *   time, and year.
  */
-void get_file_info(struct stat *p_statbuf, const char *filename, char *p_buff)
+void get_file_info(struct stat *p_statbuf, const char *filename, 
+                   struct lsdir_setts *p_lsd_set, char *p_buff)
 {
   char           strperm[11];
   struct passwd *pwd;
@@ -522,27 +593,25 @@ void get_file_info(struct stat *p_statbuf, const char *filename, char *p_buff)
 
   // TODO: maybe reallocate the file content here?
 
-  // Print out type and permissions
+  // Print the file type and permissions
   p_buff += sprintf(p_buff, "%s", str_perm(p_statbuf->st_mode, strperm));
 
-  // Print out owner's name if it is found using getpwuid()
-  // TODO: determine the length of the field as a max length among all the entries
-  // And then the following format can be used: "  %-Ns"
+  // Print the file owner's name if it's found using getpwuid()
   if ((pwd = getpwuid(p_statbuf->st_uid)) != NULL)
-    p_buff += sprintf(p_buff, "  %-8.8s", pwd->pw_name);
+    p_buff += sprintf(p_buff, "  %-*s", p_lsd_set->lenmax_usr, pwd->pw_name);
   else
-    p_buff += sprintf(p_buff, "  %-8d", p_statbuf->st_uid);
+    p_buff += sprintf(p_buff, "  %-*d", p_lsd_set->lenmax_usr, p_statbuf->st_uid);
 
-  // Print out group name if it is found using getgrgid()
+  // Print the file group name if it's found using getgrgid()
   if ((grp = getgrgid(p_statbuf->st_gid)) != NULL)
-    p_buff += sprintf(p_buff, " %-8.8s", grp->gr_name);
+    p_buff += sprintf(p_buff, " %-*s", p_lsd_set->lenmax_grp, grp->gr_name);
   else
-    p_buff += sprintf(p_buff, " %-8d", p_statbuf->st_gid);
+    p_buff += sprintf(p_buff, " %-*d", p_lsd_set->lenmax_grp, p_statbuf->st_gid);
 
-  // Print size of file
-  p_buff += sprintf(p_buff, " %9jd", (intmax_t)p_statbuf->st_size);
+  // Print the file size
+  p_buff += sprintf(p_buff, " %*jd", p_lsd_set->lenmax_size, (intmax_t)p_statbuf->st_size);
 
-  // Get localized date string
+  // Get localized date string and print it
   // NOTE: the 'ls' command has 2 different formats for this date&time string:
   // - if a mod.time is less than 1 year then it's used the format with time and without year,
   // - if a mod.time is more than 1 year then it's used the format without time but with year.
@@ -565,10 +634,11 @@ void get_file_info(struct stat *p_statbuf, const char *filename, char *p_buff)
  */
 int ls_dir_str(file_err *p_flerr)
 {
-  DIR           *hdir; // directory handler
-  struct dirent *de; // directory entry
-  struct stat    statbuf;
-  char          *errmsg = NULL;
+  DIR                 *hdir; // directory handler
+  struct dirent       *de; // directory entry
+  struct stat         statbuf; // struct contains the file status information
+  struct lsdir_setts  lsdir_set = {0, 0, 0, 0}; // the directory listing settings
+  char                *errmsg = NULL;
 
   // Open the passed directory
   if ( (hdir = opendir(p_flerr->file.name)) == NULL ) {
@@ -578,33 +648,34 @@ int ls_dir_str(file_err *p_flerr)
     return p_flerr->err.num;
   }
 
-  // // Preliminary loop through directory entries to get settings values 
-  // // for subsequent printing of the directory content
-  // while ((de = readdir(hdir)) != NULL) {
-  //   // Get the file status (info)
-  //   if ( get_file_stat(p_flerr->file.name, de->d_name, &statbuf, &errmsg) > 0 ) {
-  //     printf("%s", errmsg); // print the error message
-  //     free(errmsg); // free allocated memory
-  //   }
-  //   // TODO: continue...
-  // }
+  // Preliminary loop through directory entries to get settings values 
+  // for subsequent flexible printing of the directory content
+  while ((de = readdir(hdir)) != NULL) {
+    // Get the file status (info)
+    if ( get_file_stat(p_flerr->file.name, de->d_name, &statbuf, &errmsg) == 0 )
+      update_lsdir_setts(&statbuf, &lsdir_set);
+    else {
+      // printf("%s", errmsg); // print the error message - decided to not do it, maybe for debug only
+      free(errmsg); // free allocated memory
+    }
+  }
 
-  // Reset position of directory stream to the beginning of a directory
-  // rewinddir(hdir);
+  // Reset the position of directory stream to the beginning
+  rewinddir(hdir);
 
-  // Loop through directory entries to get entry info
+  // Loop through directory entries to get entry info with flexible fields width
   char *p_curr; // pointer to the current position in the dir content buffer
   while ((de = readdir(hdir)) != NULL) {
     // Calc the current position in buffer where to place the next (in this iteration) portion of data
     p_curr = p_flerr->file.cont.t_flcont_val + strlen(p_flerr->file.cont.t_flcont_val);
     
     // Get the file status (info)
-    if ( get_file_stat(p_flerr->file.name, de->d_name, &statbuf, &errmsg) != 0 ) {
-      strcpy(p_curr, errmsg); // copy the error message to buffer
+    if ( get_file_stat(p_flerr->file.name, de->d_name, &statbuf, &errmsg) == 0 )
+      get_file_info(&statbuf, de->d_name, &lsdir_set, p_curr); // get entry info and add it to the buffer
+    else {
+      strcpy(p_curr, errmsg); // copy the error message to the buffer
       free(errmsg); // free allocated memory
     }
-    else
-      get_file_info(&statbuf, de->d_name, p_curr); // get entry info and add it to buffer
   }
   closedir(hdir);
   return 0;
