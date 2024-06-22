@@ -10,6 +10,7 @@ typedef opaque t_flcont<>; /* file content type */
 
 /* File type enumeration */
 enum filetype {
+  FTYPE_DFL,  /* default file type */
   FTYPE_REG,  /* regular file */
   FTYPE_DIR,  /* directory */
   FTYPE_OTH,  /* any other file type like link, socket, etc. */
