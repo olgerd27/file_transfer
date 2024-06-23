@@ -241,14 +241,21 @@ void free_err_inf_NEW(err_inf *p_err)
 }
 
 // TODO: check if the error numbers are ok in this function
-// TODO: update the documentation
 /*
  * Reset the file name & type.
  *
- * The file name's memory is allocated only if it is currently unallocated.
- * The file name's memory size is constant (LEN_PATH_MAX).
+ * The file name's memory size is constant (LEN_PATH_MAX) and it's allocated just once
+ * if it is currently unallocated.
  * If name is NULL -> memory allocation occurs, if name is NOT NULL -> set memory to 0.
  * Memory deallocation must be done separately outside of this function.
+ *
+ * Any errors encountered in this function are printed to stderr on the same side where they occur,
+ * as these details should not be of interest to the other side. The caller of this function
+ * can generate a more general error message and communicate it to the other side
+ * through the error info object.
+ *
+ * Note: This function does not populate the error info object to convey errors
+ * to the other side.
  *
  * Parameters:
  *  p_file      - A pointer to a file info object to reset.
@@ -271,10 +278,6 @@ int reset_file_name_type_NEW(file_inf *p_file)
     // Deallocation is required later
     p_file->name = (char*)malloc(LEN_PATH_MAX);
     if (!p_file->name) {
-      // NOTE: print this error in stderr only on the side of the caller of this function.
-      // Because these are the details that another side should not be interested in.
-      // A caller of this function can produce a more general error message and send it
-      // to another side through the error info object, which is not accessible here.
       fprintf(stderr, "Error 9: Failed to allocate a memory for the file name, name ptr=%p\n", 
               (void*)p_file->name);
       return 9;
@@ -324,10 +327,13 @@ int reset_file_cont_NEW(t_flcont *p_flcont, size_t size_fcont)
 /*
  * Reset the file info.
  *
+ * This function resets the file information, including the file name, type, and content.
+ * It allocates new memory for the file content based on the specified size.
+ *
  * Parameters:
  *  p_file      - A pointer to a file info object to reset.
  *  size_fcont  - The size of the memory to allocate for the file content.
- * 
+ *
  * Return value:
  *  0 on success, >0 on failure.
  */
@@ -512,12 +518,14 @@ int numb_digits(long val)
  * Update directory listing settings based on file statistics.
  *
  * This function updates various settings related to directory listing,
- * such as the number of files, the maximum length of user (owner) names,
- * group names, and file sizes. It uses the file statistics provided by
- * the `struct stat` and updates the settings in the `struct lsdir_setts`.
- *
+ * such as the number of files, the maximum length of: user (owner) names,
+ * group names, file sizes, and also the total filenames length.
+ * It uses the file statistics provided by the `struct stat` and name of the file,
+ * and updates the settings in the `struct lsdir_setts`.
+ * 
  * Parameters:
  *  p_statbuf - Pointer to a `struct stat` containing file statistics.
+ *  filename  - The name of the file for which information is to be gathered.
  *  p_lsd_set - Pointer to a `struct lsdir_setts` to be updated.
  */
 void update_lsdir_setts(struct stat *p_statbuf, const char *filename, struct lsdir_setts *p_lsd_set)
@@ -552,9 +560,21 @@ void update_lsdir_setts(struct stat *p_statbuf, const char *filename, struct lsd
   p_lsd_set->lensum_names += strlen(filename);
 }
 
-// TODO: document this function
 /*
+ * Calculate the total size needed to list the directory content.
+ *
+ * This function computes the amount of memory required to store the directory content
+ * based on the specified settings. The calculation includes space for file permissions,
+ * owner, group, size, date, new line characters, and all filenames.
+ *
+ * NOTE. This function should be updated each time the way of listing the directory is updated
+ *       in the get_file_info() function.
+ *
+ * Parameters:
+ *  p_lsd_set - A pointer to the lsdir_setts structure containing settings for listing the directory.
  * 
+ * Return value:
+ *  The total size needed to store the directory content.
  */
 size_t calc_dir_cont_size(const struct lsdir_setts *p_lsd_set)
 {
@@ -592,6 +612,8 @@ size_t calc_dir_cont_size(const struct lsdir_setts *p_lsd_set)
  *   buffer pointed to by `p_buff`.
  *
  * Notes:
+ * - The calc_dir_cont_size() function should be updated each time the way of listing 
+ *   the directory is updated in this function.
  * - The `p_buff` buffer is expected to be pre-allocated and large enough to hold the formatted
  *   file information.
  * - The `str_perm` function is assumed to convert the file mode to a string representing the
@@ -609,8 +631,6 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
   struct group  *grp;
   struct tm     *tm;
   char           datestring[32];
-
-  // TODO: maybe reallocate the file content here?
 
   // Print the file type and permissions
   p_buff += sprintf(p_buff, "%s", str_perm(p_statbuf->st_mode, strperm));
@@ -635,21 +655,36 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
   // - if a mod.time is less than 1 year then it's used the format with time and without year,
   // - if a mod.time is more than 1 year then it's used the format without time but with year.
   // difftime() function may be used to determine the right format similar to 'ls'.
-  // Potentially a similar approach can be used in this program, but I have decided that
-  // printing month, day, time and year is more informative and sufficient for now.
+  // Potentially a similar approach can be used in this program, but I have decided 
+  // that printing month, day, time and year is more informative and sufficient.
   tm = localtime(&p_statbuf->st_mtime);
   strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
   p_buff += sprintf(p_buff, " %s %s\n", datestring, filename);
 }
 
 /*
- * List the directory content into the char array stored in the file_err struct.
- * - p_flerr: pointer to an allocated and nulled RPC struct object to store file & error info.
- * RC: 0 on success, >0 on failure.
- * The function should always receive a directory as the file type.
- * The file name in the passed struct specifies the directory to be read.
- * The file contents in the passed struct are populated with the directory contents, 
- * which are then returned to the calling function.
+ * List the directory content into the file content (char array) stored in the file_err struct.
+ *
+ * This function reads the contents of a specified directory and stores the directory entries
+ * in the file content field of the passed file_err structure. The function assumes that the
+ * file name in the passed struct specifies the directory to be read and that the file type 
+ * is a directory.
+ *
+ * Errors encountered during these operations are stored in the error info field of 
+ * the file_err structure.
+ *
+ * The function performs the following steps:
+ * 1. Opens the specified directory.
+ * 2. Iterates through the directory entries to gather settings for flexible listing.
+ * 3. Resets the file content buffer based on the calculated size of the directory content.
+ * 4. Iterates through the directory entries again to populate the file content buffer 
+ *    with the directory listing.
+ *
+ * Parameters:
+ *  p_flerr - Pointer to an allocated and nulled RPC struct object to store file & error info.
+ *
+ * Return value:
+ *  0 on success, >0 on failure.
  */
 int ls_dir_str(file_err *p_flerr)
 {
@@ -674,20 +709,14 @@ int ls_dir_str(file_err *p_flerr)
     if ( get_file_stat(p_flerr->file.name, de->d_name, &statbuf, &errmsg) == 0 )
       update_lsdir_setts(&statbuf, de->d_name, &lsdir_set);
     else {
-      // NOTE: Print the error message - decided not to do this, as such error messages will be retrieved
+      // NOTE: Decided not to print the error message here, as such error messages will be retrieved
       // again and placed in the p_flerr->err object during the next loop through the directories.
       // printf("%s", errmsg);
       free(errmsg); // free allocated memory for returned error message
     }
   }
 
-  printf("Dir listing settings:\n");
-  printf("  - total filenames length: %ld\n", lsdir_set.lensum_names);
-  printf("  - Nch of the dir listing: %ld\n", calc_dir_cont_size(&lsdir_set));
-
   // Reset the file content before filling it with directory listing data
-  // NOTE: decided to implement the exact calculation of required memory size for file content
-  // instead of the dynamic memory reallocation
   if (reset_file_cont_NEW(&p_flerr->file.cont, calc_dir_cont_size(&lsdir_set)) != 0) {
     // TODO: check an error number
     p_flerr->err.num = 86;
@@ -717,8 +746,8 @@ int ls_dir_str(file_err *p_flerr)
   return 0;
 }
 
-// A special value if an error occurred while resetting the error info (used as workaround)
-enum { ERR_NUM_SPECIAL = -1 };
+// A special error number if an error occurred while resetting the error info (used as workaround)
+enum { ERRNUM_RST_ERR = -1 };
 
 /*
  * Select a file: determine its type and get its full (absolute) path.
@@ -742,7 +771,7 @@ int select_file(const char *path, file_err *p_flerr)
   if (reset_err_inf_NEW(&p_flerr->err) != 0) {
     // NOTE: just a workaround - return a special value if an error occurred 
     // while resetting the error info; but maybe another solution should be used here
-    p_flerr->err.num = ERR_NUM_SPECIAL;
+    p_flerr->err.num = ERRNUM_RST_ERR;
     return p_flerr->err.num;
   }
 
@@ -852,13 +881,18 @@ int copy_path(const char *path_src, char *path_trg)
 
 /*
  * Constructs a full path by appending a new path segment to the path delimeter '/'.
+ *
  * This function appends the provided new path segment (path_new) to the path delimeter '/',
  * storing the resulting full path in path_full.
- * - path_new: a pointer to a character array containing the new path segment.
- * - lenmax: the maximum length of the resulting path (`path_full`), including the null terminator.
- * - path_full: a pointer to a character array where the resulting full path will be stored.
- * Returns the number of characters written to path_full on success (excluding the null terminator).
- * RC: >0 on success, <=0 on failure.
+ * 
+ * Parameters:
+ *  path_new  - a pointer to a character array containing the new path segment.
+ *  lenmax    - the maximum length of the resulting path (`path_full`), including the null terminator.
+ *  path_full - a pointer to a character array where the resulting full path will be stored.
+ * 
+ * Return value:
+ *  The number of characters written to path_full on success (excluding the null terminator).
+ *  >0 on success, <=0 on failure.
  */
 int construct_full_path(char *path_new, size_t lenmax, char *path_full)
 {
@@ -929,10 +963,9 @@ char * get_filename_inter(const char *dir_start, char *path_res)
     else {
       // An error occurred while selecting a file 
       fprintf(stderr, "%s\n", 
-              flerr.err.num != ERR_NUM_SPECIAL ? 
+              flerr.err.num != ERRNUM_RST_ERR ? 
               flerr.err.err_inf_u.msg : /* normal error occurred */
-              "Failed to reset the error information" /* error occurred while resetting the error info (workaround) */
-              ); // print the error message
+              "Failed to reset the error information"); /* error occurred while resetting the error info (workaround) */
       offset = copy_path(path_prev, path_curr); // restore the previous valid path
       continue; // start loop from the beginning to select the previous valid path
     }
