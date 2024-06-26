@@ -16,6 +16,7 @@
 // Global system variable that store the error number
 extern int errno;
 static char filename_src[LEN_PATH_MAX]; // DELETE: it's just for testing
+static char filename_trg[LEN_PATH_MAX]; // DELETE: it's just for testing
 
 /*
  * Return a letter representing the file type used in Unix-like OS.
@@ -103,7 +104,7 @@ enum filetype file_type(const char *filepath)
   enum filetype ftype;
   struct stat statbuf;
 
-  // Check if stat() returns an error due to file non-existence, return FTYPE_NEX; 
+  // Check if stat() returns an error due to file non-existance, return FTYPE_NEX; 
   // otherwise, return an invalid file type - FTYPE_INV.
   if (stat(filepath, &statbuf) == -1)
     return errno == ENOENT ? FTYPE_NEX : FTYPE_INV;
@@ -186,7 +187,7 @@ void free_file_name_NEW(t_flname *p_flname)
   if (p_flname) {
     free(p_flname);
     p_flname = NULL;
-    printf("[free_file_name_NEW] file name freed\n");
+    printf("[free_file_name_NEW] DONE\n");
   }
 }
 
@@ -203,7 +204,7 @@ void free_file_cont_NEW(t_flcont *p_flcont)
     free(p_flcont->t_flcont_val);
     p_flcont->t_flcont_val = NULL;
     p_flcont->t_flcont_len = 0;
-    printf("[free_file_cont_NEW] file cont freed\n");
+    printf("[free_file_cont_NEW] DONE\n");
   }
 }
 
@@ -219,7 +220,7 @@ void free_file_inf_NEW(file_inf *p_file)
   if (p_file) {
     free_file_name_NEW(&p_file->name); // free the file name memory
     free_file_cont_NEW(&p_file->cont); // free the file content memory
-    printf("[free_file_inf_NEW] file inf freed\n");
+    printf("[free_file_inf_NEW] DONE\n");
   }
 }
 
@@ -236,7 +237,7 @@ void free_err_inf_NEW(err_inf *p_err)
     free(p_err->err_inf_u.msg);
     p_err->err_inf_u.msg = NULL;
     p_err->num = 0;
-    printf("[free_err_inf_NEW] err inf freed\n");
+    printf("[free_err_inf_NEW] DONE\n");
   }
 }
 
@@ -749,6 +750,7 @@ int ls_dir_str(file_err *p_flerr)
 // A special error number if an error occurred while resetting the error info (used as workaround)
 enum { ERRNUM_RST_ERR = -1 };
 
+// TODO: update the documentation
 /*
  * Select a file: determine its type and get its full (absolute) path.
  *
@@ -765,11 +767,11 @@ enum { ERRNUM_RST_ERR = -1 };
  * Return value:
  *  RC: 0 on success, >0 on failure.
  */
-int select_file(const char *path, file_err *p_flerr)
+int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype)
 {
   // Reset the error info before file selection
   if (reset_err_inf_NEW(&p_flerr->err) != 0) {
-    // NOTE: just a workaround - return a special value if an error occurred 
+    // NOTE: just a workaround - return a special value if an error has occurred 
     // while resetting the error info; but maybe another solution should be used here
     p_flerr->err.num = ERRNUM_RST_ERR;
     return p_flerr->err.num;
@@ -777,41 +779,76 @@ int select_file(const char *path, file_err *p_flerr)
 
   // Reset the file name & type 
   if (reset_file_name_type_NEW(&p_flerr->file) != 0) {
-    p_flerr->err.num = 87;
+    p_flerr->err.num = 81;
     sprintf(p_flerr->err.err_inf_u.msg,
             "Error %i: Failed to reset the file name & type\n", p_flerr->err.num);
     return p_flerr->err.num;
   }
 
   // Determine the file type
-  p_flerr->file.type = file_type(path); 
-  
-  // Convert the passed path to the full (absolute) path
-  if ( !rel_to_full_path(path, p_flerr) )
-    return p_flerr->err.num;
+  p_flerr->file.type = file_type(path);
+  printf("[select_file] 1, filetype: %d\n", (int)p_flerr->file.type);
 
-  // Process the file type
-  switch (p_flerr->file.type) {
-    case FTYPE_DIR:
-      // Get the directory content and save it to file_err object
-      if (p_flerr->file.type == FTYPE_DIR)
-        ls_dir_str(p_flerr); // if error has occurred it was set to p_flerr, no need to check the RC
-    case FTYPE_REG:
-      break; // just exit from switch for both dir and file
-    case FTYPE_OTH:
-      p_flerr->err.num = 81;
-      sprintf(p_flerr->err.err_inf_u.msg,
-              "Error %i: Unsupported type of the file:\n'%s'\n"
-              "Only regular file can be chosen\n",
-              p_flerr->err.num, p_flerr->file.name);
-      break;
-    case FTYPE_NEX:
-    case FTYPE_INV:
-      // NOTE: If a call of rel_to_full_path() failed due to missing file, 
-      // these 2 cases (FTYPE_NEX & FTYPE_INV) will never be reached.
+  // Process the case of non-existent file required for the target file.
+  // Should be processing before conversion path to the absolute one.
+  if (p_flerr->file.type == FTYPE_NEX) {
+    // Copy the selected file name to the file info object
+    strncpy(p_flerr->file.name, path, strlen(path) + 1);
+
+    // Check the correctness of the current file selection based on the selection file type
+    if (sel_ftype == sel_ftype_target)
+      ; // OK: the non-existent file type was selected as expected for a 'target' selection file type
+    else if (sel_ftype == sel_ftype_source) {
+      // Fail: the source file selection (a regular file) was expected, but the target file selection
+      // (a non-existent file) was actually attempted -> produce the error
       p_flerr->err.num = 82;
       sprintf(p_flerr->err.err_inf_u.msg,
-              "Error %i: Invalid file:\n'%s'\n%s\n",
+              "Error %i: The wrong file type was selected (non-existen):\n'%s'\n"
+              "Regular file type is required for the source file\n",
+              p_flerr->err.num, p_flerr->file.name);
+    }
+    return p_flerr->err.num;
+  }
+
+  // Convert the passed path to the full (absolute) path - needed to any type of existent file
+  if (!rel_to_full_path(path, p_flerr))
+    return p_flerr->err.num;
+
+  // Process the cases of existent file
+  switch (p_flerr->file.type) {
+    case FTYPE_DIR: /* directory */
+      // Get the directory content and save it to file_err object
+      // If error has occurred it sets to p_flerr, no need to check the RC
+      ls_dir_str(p_flerr);
+      break;
+
+    case FTYPE_REG: /* regular file */
+      // Check the correctness of the current file selection based on the selection file type
+      if (sel_ftype == sel_ftype_source)
+        ; // OK: the regular file type was selected as expected for a 'source' selection file type
+      else if (sel_ftype == sel_ftype_target) {
+        // Fail: the target file selection (a non-existent file) was expected, but the source file selection
+        // (a regular file) was actually attempted -> produce the error
+        p_flerr->err.num = 83;
+        sprintf(p_flerr->err.err_inf_u.msg,
+                "Error %i: The wrong file type was selected (regular):\n'%s'\n"
+                "Non-existent file type is required for the target file\n",
+                p_flerr->err.num, p_flerr->file.name);
+      }
+      break;
+
+    case FTYPE_OTH: /* any other file type like link, socket, etc. */
+      p_flerr->err.num = 84;
+      sprintf(p_flerr->err.err_inf_u.msg,
+              "Error %i: Unsupported file type was selected (other):\n'%s'\n",
+              p_flerr->err.num, p_flerr->file.name);
+      break;
+
+    case FTYPE_INV: /* invalid file */
+      // NOTE: If the rel_to_full_path() call above fails, this case will never be reached.
+      p_flerr->err.num = 85;
+      sprintf(p_flerr->err.err_inf_u.msg,
+              "Error %i: Invalid file was selected:\n'%s'\n%s\n",
               p_flerr->err.num, p_flerr->file.name, strerror(errno));
       break;
   }
@@ -821,6 +858,7 @@ int select_file(const char *path, file_err *p_flerr)
 /*
  * The following functions are always client-side.
  */
+// TODO: move the following functions to the separate files client/interact.h and client/interact.c
 
 /*
  * Get user input for a filename.
@@ -842,7 +880,7 @@ int select_file(const char *path, file_err *p_flerr)
  */
 static int input_filename(char *filename)
 {
-  printf("\n>>> ");
+  printf(">>> ");
   if (fgets(filename, NAME_MAX, stdin) == NULL) {
     fprintf(stderr, "Read error occurred. Please make the input again\n");
     return 1;
@@ -914,28 +952,46 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
   return nwrt;
 }
 
+// TODO: update the documentation
 /*
- * Get the filename in the interactive mode.
- * - dir_start: a starting directory for the traversal
- * - path_res: an allocated char array to store the resulting file path
- * RC: returns path_res on success, and NULL on failure.
+ * Get the filename interactively by traversing directories.
  *
- * Procedure:
- * 1. ls dir
+ * This function allows a user to interactively select a file by navigating through directories.
+ * The user is prompted to enter directory names or file names to traverse the file system starting
+ * from a given directory.
+ *
+ * Parameters:
+ *  dir_start - a starting directory for the traversal.
+ *  path_res  - an allocated char array to store the resulting file path.
+ *
+ * Return value:
+ *  Returns path_res on success, and NULL on failure.
+ *
+ * The function performs the following steps:
+ * 1. Initializes the traversal starting at dir_start.
+ * 2. Repeatedly prompts the user to select files or directories, updating the current path.
+ * 3. If a regular file is selected, it copies the full path to path_res and returns it.
+ * 4. Handles errors in file selection and reverts to the previous valid path if necessary.
+ *
+ * General procedure:
+ * 1. list of the passed dir (initially "." or "/")
  * 2. get user input
  * 3. add user input to the current path
  * 3. check the input:
  *    3.1 if it's a dir, go to p.1.
  *    3.2 if it's not a dir, do the following:
  *        >> for source file:
- *        - if it's a regular file - OK and return its full path
- *        - if it does NOT a regular file - error and message like please choose a regular file
- *        - if it does NOT exist - error and message like the file ... doesn't exist
+ *           - if it's a regular file - OK and return its full path
+ *           - if it's NOT a regular file - error and message like:
+ *             Please select a regular file.
+ *           - if it's NOT exist - error and message like:
+ *             File ... doesn't exist. Please select an existing source file.
  *        >> for target file:
- *        - if it does NOT exist - OK and return its full path
- *        - if it exists (type doesn't matter) - error and message like file exists, please specify another one
+ *           - if it's NOT exist - OK and return its full path
+ *           - if it exists (type doesn't matter) - error and message like:
+ *             File ... exists. Please specify non-existing target file.
  */
-char * get_filename_inter(const char *dir_start, char *path_res)
+char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftype sel_ftype)
 {
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
   char path_prev[LEN_PATH_MAX]; // a copy of the previous path to restore it if necessary
@@ -948,17 +1004,25 @@ char * get_filename_inter(const char *dir_start, char *path_res)
   // Init the full path and offset
   offset = copy_path(dir_start, path_curr); // init the current path with the passed start dir for traversal
   strcpy(path_prev, "/"); // init the previous path with a root dir as a guaranteed valid path
-  // TODO: copy a home directory to the previous path instead of the root dir, if it's possible
 
   while (1) {
-    // TODO: replace select_file() with a function pointer that can be either 
+    // TODO: replace select_file() with a function pointer that can be either
     // select_file() or pick_entity() RPC function
-    if (select_file(path_curr, &flerr) == 0) {
-      // There was a successful file selection (regular or directory)
-      if (flerr.file.type == FTYPE_REG) {
+    if (select_file(path_curr, &flerr, sel_ftype) == 0) {
+      // TODO: try to return the absolute path for destination (non-existent) file, as it's required
+      // for the Upload operation.
+      // For now if the target (non-existent) file shoud be choosen, the resulting returned path 
+      // (flerr.file.name) is always relative, e.g.: '././dfs'
+      // Maybe it worth to copy the flerr.file.type to path_curr for the directory file type...? Think about it.
+
+      printf("[get_filename_inter] 1, path_curr: '%s',  flerr.file.name: '%s'\n", path_curr, flerr.file.name);
+      // Successful file selection (regular or non-existent file type)
+      if (flerr.file.type == FTYPE_REG || flerr.file.type == FTYPE_NEX) {
         copy_path(flerr.file.name, path_res);
         return path_res;
       }
+      // else if (flerr.file.type == FTYPE_DIR)
+      //   copy_path(flerr.file.name, path_curr);
     }
     else {
       // An error occurred while selecting a file 
@@ -974,8 +1038,12 @@ char * get_filename_inter(const char *dir_start, char *path_res)
 
     // Print the full path and content of the current directory
     printf("\n%s:\n%s\n", flerr.file.name, flerr.file.cont.t_flcont_val);
-    printf("Number of chars in listing + \\0: %ld\n", strlen(flerr.file.cont.t_flcont_val) + 1);
 
+    // Print the prompt for user input
+    printf("Select the %s file on %s:\n" 
+           , (sel_ftype == sel_ftype_source ? "Source" : "Target")
+           , "localhost"); // TODO: specify the actual hostname here
+    
     // Get user input of filename
     if (input_filename(fname_inp) != 0)
       continue;
@@ -996,14 +1064,12 @@ char * get_filename_inter(const char *dir_start, char *path_res)
       pfname_inp = fname_inp; // points at the beginning of the inputted filename
     }
 
-    // Construct the full path of the choosed file
+    // Construct the full path of the selected file
     nwrt_fname = construct_full_path(pfname_inp, LEN_PATH_MAX - offset, path_curr + offset);
     if (nwrt_fname <= 0) return NULL;
     
     // Increment the offset by the number of chars written to path_curr (after completed checks)
     offset += nwrt_fname;
-
-    //  printf("[get_filename_inter] 2, path_curr: '%s'\n", path_curr);
   }
 
   // TODO: maybe need to free the file name & content memory - free_file_inf_NEW(), at least
@@ -1013,13 +1079,18 @@ char * get_filename_inter(const char *dir_start, char *path_res)
 }
 
 // DELETE: it's just for testing
-// Compile full:  gcc -I/usr/include/tirpc -o fs_opers fs_opers.c -ltirpc
-// Compile short: gcc -I/usr/include/tirpc fs_opers.c
+// Compilation: gcc -I/usr/include/tirpc fs_opers.c
 int main()
 {
-  if (!get_filename_inter(".", filename_src))
+  // Select the source file
+  if (!get_filename_inter(".", filename_src, sel_ftype_source))
     return 1;
-  printf("!!! File has been choosed:\n'%s'\n", filename_src);
+  printf("!!! Source file has been selected:\n'%s'\n", filename_src);
+
+  // Select the target file
+  if (!get_filename_inter(".", filename_trg, sel_ftype_target))
+    return 2;
+  printf("!!! Target file has been selected:\n'%s'\n", filename_trg);
+  
   return 0;
 }
-
