@@ -13,6 +13,11 @@
 
 #include "fs_opers.h"
 
+#define DBG_MAIN 1  // debug this file adding main()
+#define DBG_FT 0    // debug the file type info
+#define DBG_MEM 0   // debug the memory manipulation
+#define DBG_PATH 0  // debug the path's manipulation
+
 // Global system variable that store the error number
 extern int errno;
 static char filename_src[LEN_PATH_MAX]; // DELETE: it's just for testing
@@ -98,16 +103,19 @@ static char * str_perm(mode_t mode, char *strmode)
  *         - FTYPE_NEX if the file does not exist,
  *         - FTYPE_INV for an invalid file type or other errors.
  */
-enum filetype file_type(const char *filepath)
+enum filetype get_file_type(const char *filepath)
 {
-//  printf("[file_type] 0, filepath: '%s'\n", filepath);
+  if (DBG_FT) printf("[get_file_type] 0, filepath: '%s'\n", filepath);
   enum filetype ftype;
   struct stat statbuf;
 
   // Check if stat() returns an error due to file non-existance, return FTYPE_NEX; 
   // otherwise, return an invalid file type - FTYPE_INV.
-  if (stat(filepath, &statbuf) == -1)
+  if (stat(filepath, &statbuf) == -1) {
+    if (DBG_FT) printf("[get_file_type] 1, stat() error - File %s\n", 
+                       errno == ENOENT ? "not exist" : "invalid");
     return errno == ENOENT ? FTYPE_NEX : FTYPE_INV;
+  }
 
   // Determine the file type
   switch( get_file_type_unix(statbuf.st_mode) ) {
@@ -121,7 +129,7 @@ enum filetype file_type(const char *filepath)
       ftype = FTYPE_OTH;
       break;
   }
-//  printf("[file_type] $, filetype: %d\n", (int)ftype);
+  if (DBG_FT) printf("[get_file_type] $, filetype: %d\n", (int)ftype);
   return ftype;
 }
 
@@ -170,7 +178,7 @@ char * alloc_file_cont_NEW(t_flcont *p_flcont, size_t size)
       return NULL;
     }
     p_flcont->t_flcont_val[0] = '\0'; // required to ensure strlen() works correctly on this memory
-    printf("[alloc_file_cont_NEW] file cont allocated, size=%d\n", size);
+    if (DBG_MEM) printf("[alloc_file_cont_NEW] file cont allocated, size=%d\n", size);
   }
   return p_flcont->t_flcont_val;
 }
@@ -187,7 +195,7 @@ void free_file_name_NEW(t_flname *p_flname)
   if (p_flname) {
     free(p_flname);
     p_flname = NULL;
-    printf("[free_file_name_NEW] DONE\n");
+    if (DBG_MEM) printf("[free_file_name_NEW] DONE\n");
   }
 }
 
@@ -204,7 +212,7 @@ void free_file_cont_NEW(t_flcont *p_flcont)
     free(p_flcont->t_flcont_val);
     p_flcont->t_flcont_val = NULL;
     p_flcont->t_flcont_len = 0;
-    printf("[free_file_cont_NEW] DONE\n");
+    if (DBG_MEM) printf("[free_file_cont_NEW] DONE\n");
   }
 }
 
@@ -220,7 +228,7 @@ void free_file_inf_NEW(file_inf *p_file)
   if (p_file) {
     free_file_name_NEW(&p_file->name); // free the file name memory
     free_file_cont_NEW(&p_file->cont); // free the file content memory
-    printf("[free_file_inf_NEW] DONE\n");
+    if (DBG_MEM) printf("[free_file_inf_NEW] DONE\n");
   }
 }
 
@@ -237,7 +245,7 @@ void free_err_inf_NEW(err_inf *p_err)
     free(p_err->err_inf_u.msg);
     p_err->err_inf_u.msg = NULL;
     p_err->num = 0;
-    printf("[free_err_inf_NEW] DONE\n");
+    if (DBG_MEM) printf("[free_err_inf_NEW] DONE\n");
   }
 }
 
@@ -284,20 +292,20 @@ int reset_file_name_type_NEW(file_inf *p_file)
       return 9;
     }
     p_file->name[0] = '\0'; // required to ensure strlen() works correctly on this memory
-    printf("[reset_file_name_type_NEW] file name allocated\n");
+    if (DBG_MEM) printf("[reset_file_name_type_NEW] file name allocated\n");
   }
   else {
     // Reset the previous file name.
     // Due to its constant size, the file name is reset by setting the memory to 0.
     // Since the file name changes often, a memory reset should occur in each call of this function.
     memset(p_file->name, 0, strlen(p_file->name));
-    printf("[reset_file_name_type_NEW] file name set to 0\n");
+    if (DBG_MEM) printf("[reset_file_name_type_NEW] file name set to 0\n");
   }
 
   // Reset the file type
   p_file->type = FTYPE_DFL;
 
-  printf("[reset_file_name_type_NEW] DONE\n");
+  if (DBG_MEM) printf("[reset_file_name_type_NEW] DONE\n");
   return 0;
 }
 
@@ -321,7 +329,7 @@ int reset_file_cont_NEW(t_flcont *p_flcont, size_t size_fcont)
   free_file_cont_NEW(p_flcont);
   if (!alloc_file_cont_NEW(p_flcont, size_fcont))
     return 10;
-  printf("[reset_file_cont_NEW] DONE\n");
+  if (DBG_MEM) printf("[reset_file_cont_NEW] DONE\n");
   return 0;
 }
 
@@ -355,7 +363,7 @@ int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont)
   if ( (rc = reset_file_cont_NEW(&p_file->cont, size_fcont)) != 0 )
     return rc;
   
-  printf("[reset_file_inf_NEW] DONE\n");
+  if (DBG_MEM) printf("[reset_file_inf_NEW] DONE\n");
   return 0;
 }
 
@@ -400,7 +408,7 @@ int reset_err_inf_NEW(err_inf *p_err)
     }
     p_err->err_inf_u.msg[0] = '\0'; // required to ensure strlen() works correctly on this memory
     p_err->num = 0;
-    printf("[reset_err_inf_NEW] error info allocated\n");
+    if (DBG_MEM) printf("[reset_err_inf_NEW] error info allocated\n");
   }
   else {
     // Reset the previous error info.
@@ -410,14 +418,14 @@ int reset_err_inf_NEW(err_inf *p_err)
     if (p_err->num) {
       p_err->num = 0;
       memset(p_err->err_inf_u.msg, 0, strlen(p_err->err_inf_u.msg));
-      printf("[reset_err_inf_NEW] error info set to 0\n");
+      if (DBG_MEM) printf("[reset_err_inf_NEW] error info set to 0\n");
     }
   }
 
   // Reset the system error number
   if (errno) errno = 0;
 
-  printf("[reset_err_inf_NEW] DONE\n");
+  if (DBG_MEM) printf("[reset_err_inf_NEW] DONE\n");
   return 0;
 }
 
@@ -425,25 +433,51 @@ int reset_err_inf_NEW(err_inf *p_err)
  * Convert the passed relative path to the full (absolute) one.
  *
  * This function converts a relative path to an absolute path. If the conversion
- * fails, it sets an error number and message in the provided error info structure.
+ * fails, it allocates memory for an error message and sets it in the provided errmsg pointer.
  *
  * Parameters:
- *  path_rel - A relative path to be converted.
- *  p_flerr  - A pointer to a file & error info structure where the results will be stored.
- * 
+ *  path_rel  - A relative path to be converted.
+ *  path_full - A buffer to store the resulting absolute path.
+ *  errmsg    - A pointer to a char pointer where the error message will be stored
+ *              if the conversion fails.
+ *
  * Return value:
- *  The full (absolute) path on success (the same as p_flerr->file.name), and NULL on failure.
+ *  The full (absolute) path on success (same as path_full), or NULL on failure with 
+ *  the error messages in errmsg which should be freed by a caller of this function.
  */
-char * rel_to_full_path(const char *path_rel, file_err *p_flerr)
+char *rel_to_full_path(const char *path_rel, char *path_full, char **errmsg)
 {
-  if (!realpath(path_rel, p_flerr->file.name)) {
-    p_flerr->err.num = 80;
-    sprintf(p_flerr->err.err_inf_u.msg,
-            "Error %i: Failed to resolve the specified path:\n'%s'\n%s\n",
-            p_flerr->err.num, path_rel, strerror(errno));
+  if (!realpath(path_rel, path_full)) {
+    // allocate an approximate memory size to store the entire error message
+    *errmsg = malloc(LEN_ERRMSG_MAX + LEN_PATH_MAX);
+    if (*errmsg)
+      sprintf(*errmsg, "Failed to resolve the specified path:\n'%s'\n%s",
+              path_rel, strerror(errno));
     return NULL;
   }
-  return p_flerr->file.name;
+  return path_full;
+}
+
+/*
+ * Copy a source path to a target path with a maximum length.
+ *
+ * This function copies the string `path_src` to `path_trg` ensuring that
+ * the number of characters copied does not exceed `LEN_PATH_MAX`.
+ * It uses `snprintf` to perform the copy, which guarantees that the resulting
+ * string is null-terminated and that it does not write beyond the specified
+ * maximum length.
+ *
+ * Parameters:
+ *  path_src - The source path to be copied.
+ *  path_trg - The target buffer where the source path will be copied.
+ *             The buffer should be at least `LEN_PATH_MAX` characters long.
+ *
+ * Return value:
+ *  The number of characters written to `path_trg`, not including the null-terminator.
+ */
+int copy_path(const char *path_src, char *path_trg)
+{
+  return snprintf(path_trg, LEN_PATH_MAX, "%s", path_src);
 }
 
 /*
@@ -469,17 +503,21 @@ int get_file_stat(const char *dirname, const char *filename, struct stat *p_stat
   // Construct the full path to the needed file
   // A NULL-character appends to fullpath automatically by snprintf()
   if ( snprintf(fullpath, LEN_PATH_MAX, "%s/%s", dirname, filename) < 0 ) {
-    *errmsg = malloc(LEN_PATH_MAX + 100); // allocate an approximate memory size to store the entire error message
-    if (*errmsg) sprintf(*errmsg, "get_file_stat(): Invalid path to filename:\n'%s/%s'\n", 
-                         dirname, filename);
+    // allocate an approximate memory size to store the entire error message
+    *errmsg = malloc(LEN_ERRMSG_MAX + LEN_PATH_MAX);
+    if (*errmsg)
+      sprintf(*errmsg, "get_file_stat(): Invalid path to filename:\n'%s/%s'\n", 
+              dirname, filename);
     return 1;
   }
 
   // Get the file status (info)
   if (lstat(fullpath, p_statbuf) == -1) {
-    *errmsg = malloc(LEN_PATH_MAX + 100); // allocate an approximate memory size to store the entire error message
-    if (*errmsg) sprintf(*errmsg, "get_file_stat(): Cannot get the file status for:\n'%s/%s'\n%s\n",
-                         dirname, filename, strerror(errno));
+    // allocate an approximate memory size to store the entire error message
+    *errmsg = malloc(LEN_ERRMSG_MAX + LEN_PATH_MAX);
+    if (*errmsg)
+      sprintf(*errmsg, "get_file_stat(): Cannot get the file status for:\n'%s/%s'\n%s\n",
+              dirname, filename, strerror(errno));
     return 2;
   }
 
@@ -750,7 +788,6 @@ int ls_dir_str(file_err *p_flerr)
 // A special error number if an error occurred while resetting the error info (used as workaround)
 enum { ERRNUM_RST_ERR = -1 };
 
-// TODO: update the documentation
 /*
  * Select a file: determine its type and get its full (absolute) path.
  *
@@ -758,12 +795,14 @@ enum { ERRNUM_RST_ERR = -1 };
  * relative path to an absolute path. It resets the error info before performing
  * these operations. The results, including any errors, are stored in the provided
  * file_err structure.
- * 
+ *
  * Parameters:
  *  path      - a path of the file that needs to be selected.
  *  p_flerr   - a pointer to the file_err RPC struct to store file & error info.
  *              This struct is used to set and return the result through the function argument.
- * 
+ *  sel_ftype - an enum value of type select_ftype indicating whether the file to be selected
+ *              is a source or target file.
+ *
  * Return value:
  *  RC: 0 on success, >0 on failure.
  */
@@ -786,14 +825,15 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
   }
 
   // Determine the file type
-  p_flerr->file.type = file_type(path);
-  printf("[select_file] 1, filetype: %d\n", (int)p_flerr->file.type);
+  p_flerr->file.type = get_file_type(path);
 
   // Process the case of non-existent file required for the target file.
   // Should be processing before conversion path to the absolute one.
   if (p_flerr->file.type == FTYPE_NEX) {
-    // Copy the selected file name to the file info object
-    strncpy(p_flerr->file.name, path, strlen(path) + 1);
+    // Copy the selected file name into the file info object
+    // TODO: delete a line with strncpy() after final acception of the line with copy_path()
+    // strncpy(p_flerr->file.name, path, strlen(path) + 1);
+    copy_path(path, p_flerr->file.name);
 
     // Check the correctness of the current file selection based on the selection file type
     if (sel_ftype == sel_ftype_target)
@@ -803,16 +843,21 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
       // (a non-existent file) was actually attempted -> produce the error
       p_flerr->err.num = 82;
       sprintf(p_flerr->err.err_inf_u.msg,
-              "Error %i: The wrong file type was selected (non-existen):\n'%s'\n"
-              "Regular file type is required for the source file\n",
+              "Error %i: The selected file does not exist:\n'%s'\n"
+              "Only the regular file can be selected as the source file.\n",
               p_flerr->err.num, p_flerr->file.name);
     }
     return p_flerr->err.num;
   }
 
-  // Convert the passed path to the full (absolute) path - needed to any type of existent file
-  if (!rel_to_full_path(path, p_flerr))
+  // Convert the passed path into the full (absolute) path - needed to any type of existent file
+  char *errmsg = NULL;
+  if (!rel_to_full_path(path, p_flerr->file.name, &errmsg)) {
+    p_flerr->err.num = 80;
+    sprintf(p_flerr->err.err_inf_u.msg, "Error %i: %s\n", p_flerr->err.num, errmsg);
+    free(errmsg); // free allocated memory
     return p_flerr->err.num;
+  }
 
   // Process the cases of existent file
   switch (p_flerr->file.type) {
@@ -831,8 +876,8 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
         // (a regular file) was actually attempted -> produce the error
         p_flerr->err.num = 83;
         sprintf(p_flerr->err.err_inf_u.msg,
-                "Error %i: The wrong file type was selected (regular):\n'%s'\n"
-                "Non-existent file type is required for the target file\n",
+                "Error %i: The wrong file type was selected - regular file:\n'%s'\n"
+                "Only the non-existent file can be selected as the target file.\n",
                 p_flerr->err.num, p_flerr->file.name);
       }
       break;
@@ -896,28 +941,6 @@ static int input_filename(char *filename)
 }
 
 /*
- * Copy a source path to a target path with a maximum length.
- *
- * This function copies the string `path_src` to `path_trg` ensuring that
- * the number of characters copied does not exceed `LEN_PATH_MAX`.
- * It uses `snprintf` to perform the copy, which guarantees that the resulting
- * string is null-terminated and that it does not write beyond the specified
- * maximum length.
- *
- * Parameters:
- *  path_src - The source path to be copied.
- *  path_trg - The target buffer where the source path will be copied.
- *             The buffer should be at least `LEN_PATH_MAX` characters long.
- *
- * Return value:
- *  The number of characters written to `path_trg`, not including the null-terminator.
- */
-int copy_path(const char *path_src, char *path_trg)
-{
-  return snprintf(path_trg, LEN_PATH_MAX, "%s", path_src);
-}
-
-/*
  * Constructs a full path by appending a new path segment to the path delimeter '/'.
  *
  * This function appends the provided new path segment (path_new) to the path delimeter '/',
@@ -952,7 +975,6 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
   return nwrt;
 }
 
-// TODO: update the documentation
 /*
  * Get the filename interactively by traversing directories.
  *
@@ -963,12 +985,14 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
  * Parameters:
  *  dir_start - a starting directory for the traversal.
  *  path_res  - an allocated char array to store the resulting file path.
+ *  sel_ftype - an enum value of type select_ftype indicating whether the file to be selected
+ *              is a source or target file.
  *
  * Return value:
  *  Returns path_res on success, and NULL on failure.
  *
  * The function performs the following steps:
- * 1. Initializes the traversal starting at dir_start.
+ * 1. Initializes the traversal starting at dir_start or, in case of error, on '/'.
  * 2. Repeatedly prompts the user to select files or directories, updating the current path.
  * 3. If a regular file is selected, it copies the full path to path_res and returns it.
  * 4. Handles errors in file selection and reverts to the previous valid path if necessary.
@@ -1001,42 +1025,61 @@ char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftyp
   int nwrt_fname; // number of characters written to the current path in each iteration
   file_err flerr; // a local struct object to store&pass the information about a file&error
 
-  // Init the full path and offset
-  offset = copy_path(dir_start, path_curr); // init the current path with the passed start dir for traversal
-  strcpy(path_prev, "/"); // init the previous path with a root dir as a guaranteed valid path
+  // Initialization
+  // Init the previous path with a root dir as a guaranteed valid path
+  copy_path("/", path_prev);
 
+  // Init the current path (path_curr) in a way of copying dir_start
+  // offset = copy_path(dir_start, path_curr); // init the current path with the passed start dir for traversal
+
+  // Init the current path (path_curr) in a way of converting the dir_start to the full (absolute) path
+  char *errmsg = NULL;
+  if (!rel_to_full_path(dir_start, path_curr, &errmsg)) {
+    fprintf(stderr, "%s\nChange the current directory to the default one: '%s'\n", 
+            errmsg, path_prev);
+    free(errmsg); // free allocated memory
+    // The 2nd attempt: set the default previous path for the current path
+    if (!rel_to_full_path(path_prev, path_curr, &errmsg)) {
+      fprintf(stderr, "Fatal error: %s\n", errmsg);
+      free(errmsg); // free allocated memory
+      return NULL;
+    }
+  }
+
+  // Init the offset as a length of the current path
+  offset = strlen(path_curr);
+  
+  if (DBG_PATH) 
+    printf("[get_filename_inter] 1, path_curr: '%s'\n\toffset: %d\n", path_curr, offset);
+
+  // Main loop
   while (1) {
     // TODO: replace select_file() with a function pointer that can be either
     // select_file() or pick_entity() RPC function
     if (select_file(path_curr, &flerr, sel_ftype) == 0) {
-      // TODO: try to return the absolute path for destination (non-existent) file, as it's required
-      // for the Upload operation.
-      // For now if the target (non-existent) file shoud be choosen, the resulting returned path 
-      // (flerr.file.name) is always relative, e.g.: '././dfs'
-      // Maybe it worth to copy the flerr.file.type to path_curr for the directory file type...? Think about it.
-
-      printf("[get_filename_inter] 1, path_curr: '%s',  flerr.file.name: '%s'\n", path_curr, flerr.file.name);
       // Successful file selection (regular or non-existent file type)
       if (flerr.file.type == FTYPE_REG || flerr.file.type == FTYPE_NEX) {
         copy_path(flerr.file.name, path_res);
         return path_res;
       }
-      // else if (flerr.file.type == FTYPE_DIR)
-      //   copy_path(flerr.file.name, path_curr);
     }
     else {
       // An error occurred while selecting a file 
-      fprintf(stderr, "%s\n", 
-              flerr.err.num != ERRNUM_RST_ERR ? 
-              flerr.err.err_inf_u.msg : /* normal error occurred */
-              "Failed to reset the error information"); /* error occurred while resetting the error info (workaround) */
+      fprintf(stderr, "%s", 
+              flerr.err.num != ERRNUM_RST_ERR 
+              ? flerr.err.err_inf_u.msg /* normal error occurred */
+              : "Failed to reset the error information"); /* error occurred while resetting the error info (workaround) */
       offset = copy_path(path_prev, path_curr); // restore the previous valid path
       continue; // start loop from the beginning to select the previous valid path
     }
     
     /* At this point we're sure that it's selected a valid directory */
 
-    // Print the full path and content of the current directory
+    // Update the current path with the absolute path from flerr.file.name to make 
+    // a clearer path without "." or ".."
+    offset = copy_path(flerr.file.name, path_curr);
+
+    // Print the full (absolute) path and content of the current directory
     printf("\n%s:\n%s\n", flerr.file.name, flerr.file.cont.t_flcont_val);
 
     // Print the prompt for user input
@@ -1064,12 +1107,20 @@ char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftyp
       pfname_inp = fname_inp; // points at the beginning of the inputted filename
     }
 
+    if (DBG_PATH)
+      printf("[get_filename_inter] 3, path_curr + offset(%i): '%s'\n\tfname_inp: '%s', pfname_inp: '%s'\n",
+             offset, path_curr + offset - 2, fname_inp, pfname_inp);
+
     // Construct the full path of the selected file
     nwrt_fname = construct_full_path(pfname_inp, LEN_PATH_MAX - offset, path_curr + offset);
     if (nwrt_fname <= 0) return NULL;
     
     // Increment the offset by the number of chars written to path_curr (after completed checks)
     offset += nwrt_fname;
+
+    if (DBG_PATH)
+      printf("[get_filename_inter] 4, path_curr: '%s'\n\tnwrt_fname: %d,  offset: %d\n", 
+             path_curr, nwrt_fname, offset);
   }
 
   // TODO: maybe need to free the file name & content memory - free_file_inf_NEW(), at least
@@ -1078,6 +1129,7 @@ char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftyp
   return NULL;
 }
 
+#if DBG_MAIN == 1
 // DELETE: it's just for testing
 // Compilation: gcc -I/usr/include/tirpc fs_opers.c
 int main()
@@ -1094,3 +1146,4 @@ int main()
   
   return 0;
 }
+#endif
