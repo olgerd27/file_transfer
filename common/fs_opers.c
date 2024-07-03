@@ -13,7 +13,7 @@
 
 #include "fs_opers.h"
 
-#define DBG_MAIN 1  // debug this file adding main()
+#define DBG_MAIN 0  // debug this file adding main()
 #define DBG_FT 0    // debug the file type info
 #define DBG_MEM 0   // debug the memory manipulation
 #define DBG_PATH 0  // debug the path's manipulation

@@ -1,17 +1,18 @@
-# Build on a client side
+# Build the client
 
 # Initial sources
-SRC_CLN:=prg_clnt.c
-SRC_RPC:=../rpcgen/fltr.x
+SRC_MAIN:=prg_clnt.c
+SRC:=$(SRC_MAIN) ../common/fs_opers.c
+# SRC:=$(SRC_MAIN) interact.c
 
 # Client RPC sources
-SRC_RPC_CLN:=$(subst .x,_clnt.c,$(SRC_RPC))
+SRC_RPC_CLN:=../rpcgen/fltr_clnt.c
 
 # XDR RPC files
-OBJ_RPC_XDR:=$(subst .x,_xdr.o,$(SRC_RPC))
+OBJ_RPC_XDR:=../rpcgen/fltr_xdr.o
 
 # Executables
-EXE_CLN:=$(subst .c,,$(SRC_CLN))
+EXE_CLN:=$(subst .c,,$(SRC_MAIN))
 
 INCL:=-I/usr/include/tirpc
 LIBS:=-lnsl -ltirpc
@@ -24,9 +25,16 @@ all: TITLE $(EXE_CLN)
 TITLE:
 	@echo "$(DLM) Client build $(DLM)"
 
-$(EXE_CLN): $(SRC_CLN) $(SRC_RPC_CLN) $(OBJ_RPC_XDR)
-	gcc $^ $(INCL) -o $@ $(LIBS) 
+$(EXE_CLN): $(SRC) $(SRC_RPC_CLN) $(OBJ_RPC_XDR)
+	gcc $^ $(INCL) -o $@ $(LIBS)
 
 clean:
 	@echo "$(DLM) Client clean $(DLM)"
 	@rm -fv $(EXE_CLN)
+
+debug:
+	@echo "SRC_MAIN: $(SRC_MAIN)"
+	@echo "SRC: $(SRC)"
+	@echo "SRC_RPC_CLN: $(SRC_RPC_CLN)"
+	@echo "OBJ_RPC_XDR: $(OBJ_RPC_XDR)"
+	@echo "EXE_CLN: $(EXE_CLN)"
