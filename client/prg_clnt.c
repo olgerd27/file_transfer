@@ -327,13 +327,46 @@ void file_download(CLIENT *client)
   free_file_cont(&srv_flerr->file.cont);
 }
 
+char get_stdin_char()
+{
+  char ch, ans = getchar(); // get one (first) character
+  // Clear the newline character left in the buffer only if the input is not just a newline character
+  if (ans != '\n')
+    while ((ch = getchar()) != '\n' && ch != EOF);
+  return ans;
+}
+
+/*
+ * The confirmation prompt.
+ */
+int confirm_operation(enum Action *act)
+{
+  // Print the prompt message
+  printf("%s Request:\n"
+         "    Source: %s:%s\n"
+         "    Target: %s:%s\n"
+         "Confirm this operation? (y/n) ",
+    (*act & act_upload ? "Upload" : "Download"),
+    (*act & act_upload ? "localhost" : rmt_host), filename_src,
+    (*act & act_upload ? rmt_host : "localhost"), filename_trg
+  );
+
+  // Get user input
+  char ans = get_stdin_char();
+  while (ans != 'y' && ans != 'n') {
+    printf("Incorrect input, please repeat (y/n): ");
+    ans = get_stdin_char();
+  }
+  return (ans == 'y' ? 0 : 1);
+}
+
 void interact(CLIENT *clnt, enum Action *act)
 {
   // Get and set the source & target file names
   if (*act & act_upload) {
     // strcpy(filename_src, "../test/transfer_files/file_orig.txt");
     if (!get_filename_inter(".", filename_src, sel_ftype_source)) return;
-    strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_3.txt");
+    strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_4.txt");
   }
   else if (*act & act_download) {
     strcpy(filename_src, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_orig.txt");
@@ -341,29 +374,11 @@ void interact(CLIENT *clnt, enum Action *act)
     if (!get_filename_inter(".", filename_trg, sel_ftype_target)) return;
   }
 
-  // TODO: maybe add here (or somewhere else) the confirmation dialog like:
-  // Upload   localhost:filename_src
-  // to       hostname:filename_trg?
-  // (y/n): y
-  // 
-  // Download hostname:filename_src
-  // to       localhost:filename_trg?
-  // (y/n): y
-  //
-  // And after confirming the action, make the substraction of the act_interact from *act;
-  // else -> doesn't do that and interact() will be called again by the caller function do_RPC_action().
-  printf("%s Request:\n"
-         "    Source: %s:%s\n"
-         "    Target: %s:%s\n"
-         "Confirm this operation? (y/n)\n",
-    (*act & act_upload ? "Upload" : "Download"),
-    (*act & act_upload ? "localhost" : rmt_host), filename_src,
-    (*act & act_upload ? rmt_host : "localhost"), filename_trg
-  );
-  
-  // Substruct the act_interact action.
-  // Do this only after completing all interactive actions.
-  *act &= ~act_interact;
+  // Confirm the RPC action after completing all interactive actions.
+  // If confirmed, substruct the act_interact action from *act; if not -> doesn't do a substruction 
+  // and interact() will be called again by the caller function do_RPC_action().
+  if (confirm_operation(act) == 0)
+    *act &= ~act_interact;
 }
 
 // Perform a RPC action
