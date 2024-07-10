@@ -11,6 +11,9 @@ SRC_RPC_CLN:=../rpcgen/fltr_clnt.c
 # XDR RPC files
 OBJ_RPC_XDR:=../rpcgen/fltr_xdr.o
 
+# Header files this program depends on
+HDR:=../common/fs_opers.h
+
 # Executables
 EXE_CLN:=$(subst .c,,$(SRC_MAIN))
 
@@ -25,7 +28,7 @@ all: TITLE $(EXE_CLN)
 TITLE:
 	@echo "$(DLM) Client build $(DLM)"
 
-$(EXE_CLN): $(SRC) $(SRC_RPC_CLN) $(OBJ_RPC_XDR)
+$(EXE_CLN): $(SRC) $(SRC_RPC_CLN) $(OBJ_RPC_XDR) $(HDR)
 	gcc $^ $(INCL) -o $@ $(LIBS)
 
 clean:

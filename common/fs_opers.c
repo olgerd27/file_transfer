@@ -15,13 +15,16 @@
 
 #define DBG_MAIN 0  // debug this file adding main()
 #define DBG_FT 0    // debug the file type info
-#define DBG_MEM 0   // debug the memory manipulation
+#define DBG_MEM 1   // debug the memory manipulation
 #define DBG_PATH 0  // debug the path's manipulation
 
 // Global system variable that store the error number
 extern int errno;
+
+#if DBG_MAIN == 1
 static char filename_src[LEN_PATH_MAX]; // DELETE: it's just for testing
 static char filename_trg[LEN_PATH_MAX]; // DELETE: it's just for testing
+#endif
 
 /*
  * Return a letter representing the file type used in Unix-like OS.
@@ -149,16 +152,16 @@ enum filetype get_file_type(const char *filepath)
  * existing memory.
  *
  * Parameters:
- * p_flcont - A pointer to a file content object where the allocated memory will be stored.
+ * p_flcont - A pointer to a file content instance where the allocated memory will be stored.
  * size     - The size of the memory to allocate.
- * p_err    - A pointer to an error info object where error info will be written in case of an error.
+ * p_err    - A pointer to an error info instance where error info will be written in case of an error.
  * 
  * Return value:
  *  A pointer to the allocated memory, or NULL in case of an error.
  */
-char * alloc_file_cont_NEW(t_flcont *p_flcont, size_t size)
+char * alloc_file_cont(t_flcont *p_flcont, size_t size)
 {
-  // Check if the file content object is allocated
+  // Check if the memory for the file content instance is allocated
   if (!p_flcont) {
     fprintf(stderr, "Error 6: Failed to allocate memory for the file content. p_flcont=%p\n", (void*)p_flcont);
     return NULL;
@@ -166,86 +169,89 @@ char * alloc_file_cont_NEW(t_flcont *p_flcont, size_t size)
 
   // Memory allocation 
   if (!p_flcont->t_flcont_val) {
-    p_flcont->t_flcont_len = size;
     p_flcont->t_flcont_val = (char*)malloc(size);
     if (!p_flcont->t_flcont_val) {
+      p_flcont->t_flcont_len = 0;
       // NOTE: print this error in stderr only on the side of the caller of this function.
       // Because these are the details that another side should not be interested in.
       // A caller of this function can produce a more general error message and send it 
-      // to another side through the error info object, which is not accessible here.
-      fprintf(stderr, "Error 7: Failed to allocate memory for the file content, ptr to file cont val: %p\n", 
-              (void*)p_flcont->t_flcont_val);
+      // to another side through the error info instance, which is not accessible here.
+      fprintf(stderr, "Error 7: Failed to allocate memory for the file content, required size: %ld\n", size);
+      if (DBG_MEM) 
+        printf("[alloc_file_cont] file cont allocation error, size=%d\n", p_flcont->t_flcont_len);
       return NULL;
     }
     p_flcont->t_flcont_val[0] = '\0'; // required to ensure strlen() works correctly on this memory
-    if (DBG_MEM) printf("[alloc_file_cont_NEW] file cont allocated, size=%d\n", size);
+    p_flcont->t_flcont_len = size;
+    if (DBG_MEM)
+      printf("[alloc_file_cont] file cont allocated, size=%d\n", p_flcont->t_flcont_len);
   }
   return p_flcont->t_flcont_val;
 }
 
 /*
  * Free the file name memory.
- * This function frees the memory allocated for a file name object.
+ * This function frees the memory allocated for a file name string.
  *
  * Parameters:
- *  p_flname - A pointer to a file name object whose memory is to be freed.
+ *  p_flname - A pointer to a file name string whose memory is to be freed.
  */
-void free_file_name_NEW(t_flname *p_flname)
+void free_file_name(t_flname *p_flname)
 {
   if (p_flname) {
-    free(p_flname);
-    p_flname = NULL;
-    if (DBG_MEM) printf("[free_file_name_NEW] DONE\n");
+    free(*p_flname);
+    *p_flname = NULL;
+    if (DBG_MEM) printf("[free_file_name] DONE\n");
   }
 }
 
 /*
  * Free the file content memory.
- * This function frees the memory allocated for a file content object.
+ * This function frees the memory allocated for a file content instance.
  *
  * Parameters:
- *  p_flcont - A pointer to a file content object whose memory is to be freed.
+ *  p_flcont - A pointer to a file content instance whose memory is to be freed.
  */
-void free_file_cont_NEW(t_flcont *p_flcont)
+void free_file_cont(t_flcont *p_flcont)
 {
   if (p_flcont && p_flcont->t_flcont_val) {
     free(p_flcont->t_flcont_val);
     p_flcont->t_flcont_val = NULL;
     p_flcont->t_flcont_len = 0;
-    if (DBG_MEM) printf("[free_file_cont_NEW] DONE\n");
+    if (DBG_MEM) printf("[free_file_cont] DONE\n");
   }
 }
 
 /*
  * Free the file info memory.
- * This function frees the memory allocated for a file info object.
+ * This function frees the memory allocated for a file info instance.
  *
  * Parameters:
- *  p_file - A pointer to a file info object whose memory is to be freed.
+ *  p_file - A pointer to a file info instance whose memory is to be freed.
  */
-void free_file_inf_NEW(file_inf *p_file)
+void free_file_inf(file_inf *p_file)
 {
   if (p_file) {
-    free_file_name_NEW(&p_file->name); // free the file name memory
-    free_file_cont_NEW(&p_file->cont); // free the file content memory
-    if (DBG_MEM) printf("[free_file_inf_NEW] DONE\n");
+    free_file_name(&p_file->name); // free the file name memory
+    free_file_cont(&p_file->cont); // free the file content memory
+    if (DBG_MEM) printf("[free_file_inf] DONE\n");
   }
 }
 
 /*
  * Free the error info memory.
- * This function frees the memory allocated for an error info object.
+ * This function frees the memory allocated for an error info instance.
  *
  * Parameters:
- *  p_err - A pointer to an error info object whose memory is to be freed.
+ *  p_err - A pointer to an error info instance whose memory is to be freed.
  */
-void free_err_inf_NEW(err_inf *p_err)
+void free_err_inf(err_inf *p_err)
 {
   if (p_err && p_err->err_inf_u.msg) {
     free(p_err->err_inf_u.msg);
     p_err->err_inf_u.msg = NULL;
     p_err->num = 0;
-    if (DBG_MEM) printf("[free_err_inf_NEW] DONE\n");
+    if (DBG_MEM) printf("[free_err_inf] DONE\n");
   }
 }
 
@@ -261,20 +267,20 @@ void free_err_inf_NEW(err_inf *p_err)
  * Any errors encountered in this function are printed to stderr on the same side where they occur,
  * as these details should not be of interest to the other side. The caller of this function
  * can generate a more general error message and communicate it to the other side
- * through the error info object.
+ * through the error info instance.
  *
- * Note: This function does not populate the error info object to convey errors
+ * Note: This function does not populate the error info struct instance to convey errors
  * to the other side.
  *
  * Parameters:
- *  p_file      - A pointer to a file info object to reset.
+ *  p_file      - A pointer to a file info struct instance to reset.
  *
  * Return value:
  *  0 on success, >0 on failure.
  */
-int reset_file_name_type_NEW(file_inf *p_file)
+int reset_file_name_type(file_inf *p_file)
 {
-  // Check if the file info object is allocated
+  // Check if the memory for the file info struct instance is allocated
   if (!p_file) {
     fprintf(stderr, "Error 8: Failed to reset the file name & type. p_file=%p\n", (void*)p_file);
     return 8;
@@ -292,44 +298,44 @@ int reset_file_name_type_NEW(file_inf *p_file)
       return 9;
     }
     p_file->name[0] = '\0'; // required to ensure strlen() works correctly on this memory
-    if (DBG_MEM) printf("[reset_file_name_type_NEW] file name allocated\n");
+    if (DBG_MEM) printf("[reset_file_name_type] file name allocated\n");
   }
   else {
     // Reset the previous file name.
     // Due to its constant size, the file name is reset by setting the memory to 0.
     // Since the file name changes often, a memory reset should occur in each call of this function.
     memset(p_file->name, 0, strlen(p_file->name));
-    if (DBG_MEM) printf("[reset_file_name_type_NEW] file name set to 0\n");
+    if (DBG_MEM) printf("[reset_file_name_type] file name set to 0\n");
   }
 
   // Reset the file type
   p_file->type = FTYPE_DFL;
 
-  if (DBG_MEM) printf("[reset_file_name_type_NEW] DONE\n");
+  if (DBG_MEM) printf("[reset_file_name_type] DONE\n");
   return 0;
 }
 
 /*
  * Reset the file content.
-
+ *
  * Memory deallocation and allocation of new one with the size_fcont size.
  * Due to its variable size, the file contents are reset by reallocating memory
  * rather than setting it to 0.
  * Memory deallocation must be done separately outside of this function.
  *
  * Parameters:
- *  p_flcont    - A pointer to a file content object to reset.
+ *  p_flcont    - A pointer to a file content instance to reset.
  *  size_fcont  - The size of the memory to allocate for the file content.
  *
  * Return value:
  *  0 on success, >0 on failure.
  */
-int reset_file_cont_NEW(t_flcont *p_flcont, size_t size_fcont)
+int reset_file_cont(t_flcont *p_flcont, size_t size_fcont)
 {
-  free_file_cont_NEW(p_flcont);
-  if (!alloc_file_cont_NEW(p_flcont, size_fcont))
+  free_file_cont(p_flcont);
+  if (!alloc_file_cont(p_flcont, size_fcont))
     return 10;
-  if (DBG_MEM) printf("[reset_file_cont_NEW] DONE\n");
+  if (DBG_MEM) printf("[reset_file_cont] DONE\n");
   return 0;
 }
 
@@ -340,7 +346,7 @@ int reset_file_cont_NEW(t_flcont *p_flcont, size_t size_fcont)
  * It allocates new memory for the file content based on the specified size.
  *
  * Parameters:
- *  p_file      - A pointer to a file info object to reset.
+ *  p_file      - A pointer to a file info instance to reset.
  *  size_fcont  - The size of the memory to allocate for the file content.
  *
  * Return value:
@@ -348,7 +354,7 @@ int reset_file_cont_NEW(t_flcont *p_flcont, size_t size_fcont)
  */
 int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont)
 {
-  // check if the file info object is allocated
+  // check if the memory for the file info instance is allocated
   if (!p_file) {
     fprintf(stderr, "Error 8: Failed to reset the file info. p_file=%p\n", (void*)p_file);
     return 8;
@@ -356,11 +362,11 @@ int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont)
 
   // reset the file name & type
   int rc;
-  if ( (rc = reset_file_name_type_NEW(p_file)) != 0 )
+  if ( (rc = reset_file_name_type(p_file)) != 0 )
     return rc;
   
   // reset the file content
-  if ( (rc = reset_file_cont_NEW(&p_file->cont, size_fcont)) != 0 )
+  if ( (rc = reset_file_cont(&p_file->cont, size_fcont)) != 0 )
     return rc;
   
   if (DBG_MEM) printf("[reset_file_inf_NEW] DONE\n");
@@ -371,12 +377,12 @@ int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont)
 /*
  * Reset the error info.
  *
- * This function resets an error info object by allocating memory for the error
+ * This function resets an error info instance by allocating memory for the error
  * message if it is not already allocated and setting the error number and system
  * error number to 0. The error message is reset if the error number is set.
  *
  * Parameters:
- *  p_err - A pointer to an error info object to reset.
+ *  p_err - A pointer to an error info instance to reset.
  * 
  * Return value:
  *  0 on success, >0 on failure.
@@ -387,9 +393,9 @@ int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont)
  * - error message is set to 0 if the error number is set
  * - system error number is set to 0
  */
-int reset_err_inf_NEW(err_inf *p_err)
+int reset_err_inf(err_inf *p_err)
 {
-  // Check if the error info object is allocated
+  // Check if the memory for the error info instance is allocated
   if (!p_err) {
     fprintf(stderr, "Error 13: Failed to reset the error information, p_err=%p\n", (void*)p_err);
     return 11;
@@ -408,7 +414,7 @@ int reset_err_inf_NEW(err_inf *p_err)
     }
     p_err->err_inf_u.msg[0] = '\0'; // required to ensure strlen() works correctly on this memory
     p_err->num = 0;
-    if (DBG_MEM) printf("[reset_err_inf_NEW] error info allocated\n");
+    if (DBG_MEM) printf("[reset_err_inf] error info allocated\n");
   }
   else {
     // Reset the previous error info.
@@ -418,14 +424,14 @@ int reset_err_inf_NEW(err_inf *p_err)
     if (p_err->num) {
       p_err->num = 0;
       memset(p_err->err_inf_u.msg, 0, strlen(p_err->err_inf_u.msg));
-      if (DBG_MEM) printf("[reset_err_inf_NEW] error info set to 0\n");
+      if (DBG_MEM) printf("[reset_err_inf] error info set to 0\n");
     }
   }
 
   // Reset the system error number
   if (errno) errno = 0;
 
-  if (DBG_MEM) printf("[reset_err_inf_NEW] DONE\n");
+  if (DBG_MEM) printf("[reset_err_inf] DONE\n");
   return 0;
 }
 
@@ -702,7 +708,7 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
 }
 
 /*
- * List the directory content into the file content (char array) stored in the file_err struct.
+ * List the directory content into the file content (char array) stored in the file_err instance.
  *
  * This function reads the contents of a specified directory and stores the directory entries
  * in the file content field of the passed file_err structure. The function assumes that the
@@ -720,7 +726,7 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
  *    with the directory listing.
  *
  * Parameters:
- *  p_flerr - Pointer to an allocated and nulled RPC struct object to store file & error info.
+ *  p_flerr - Pointer to an allocated and nulled RPC struct instance to store file & error info.
  *
  * Return value:
  *  0 on success, >0 on failure.
@@ -749,14 +755,14 @@ int ls_dir_str(file_err *p_flerr)
       update_lsdir_setts(&statbuf, de->d_name, &lsdir_set);
     else {
       // NOTE: Decided not to print the error message here, as such error messages will be retrieved
-      // again and placed in the p_flerr->err object during the next loop through the directories.
+      // again and placed in the p_flerr->err instance during the next loop through the directories.
       // printf("%s", errmsg);
       free(errmsg); // free allocated memory for returned error message
     }
   }
 
   // Reset the file content before filling it with directory listing data
-  if (reset_file_cont_NEW(&p_flerr->file.cont, calc_dir_cont_size(&lsdir_set)) != 0) {
+  if (reset_file_cont(&p_flerr->file.cont, calc_dir_cont_size(&lsdir_set)) != 0) {
     // TODO: check an error number
     p_flerr->err.num = 86;
     sprintf(p_flerr->err.err_inf_u.msg,
@@ -798,7 +804,7 @@ enum { ERRNUM_RST_ERR = -1 };
  *
  * Parameters:
  *  path      - a path of the file that needs to be selected.
- *  p_flerr   - a pointer to the file_err RPC struct to store file & error info.
+ *  p_flerr   - a pointer to the file_err RPC struct instance to store file & error info.
  *              This struct is used to set and return the result through the function argument.
  *  sel_ftype - an enum value of type select_ftype indicating whether the file to be selected
  *              is a source or target file.
@@ -809,7 +815,7 @@ enum { ERRNUM_RST_ERR = -1 };
 int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype)
 {
   // Reset the error info before file selection
-  if (reset_err_inf_NEW(&p_flerr->err) != 0) {
+  if (reset_err_inf(&p_flerr->err) != 0) {
     // NOTE: just a workaround - return a special value if an error has occurred 
     // while resetting the error info; but maybe another solution should be used here
     p_flerr->err.num = ERRNUM_RST_ERR;
@@ -817,7 +823,7 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
   }
 
   // Reset the file name & type 
-  if (reset_file_name_type_NEW(&p_flerr->file) != 0) {
+  if (reset_file_name_type(&p_flerr->file) != 0) {
     p_flerr->err.num = 81;
     sprintf(p_flerr->err.err_inf_u.msg,
             "Error %i: Failed to reset the file name & type\n", p_flerr->err.num);
@@ -830,7 +836,7 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
   // Process the case of non-existent file required for the target file.
   // Should be processing before conversion path to the absolute one.
   if (p_flerr->file.type == FTYPE_NEX) {
-    // Copy the selected file name into the file info object
+    // Copy the selected file name into the file info instance
     // TODO: delete a line with strncpy() after final acception of the line with copy_path()
     // strncpy(p_flerr->file.name, path, strlen(path) + 1);
     copy_path(path, p_flerr->file.name);
@@ -862,7 +868,7 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
   // Process the cases of existent file
   switch (p_flerr->file.type) {
     case FTYPE_DIR: /* directory */
-      // Get the directory content and save it to file_err object
+      // Get the directory content and save it to file_err instance
       // If error has occurred it sets to p_flerr, no need to check the RC
       ls_dir_str(p_flerr);
       break;
@@ -1023,7 +1029,7 @@ char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftyp
   char *pfname_inp; // pointer to the inputted filename; used to differentiate between relative and absolute paths
   int offset; // offset from the beginning of the current path for the added subdir/file
   int nwrt_fname; // number of characters written to the current path in each iteration
-  file_err flerr; // a local struct object to store&pass the information about a file&error
+  file_err flerr; // a local struct instance to store & pass the information about a file & error
 
   // Initialization
   // Init the previous path with a root dir as a guaranteed valid path
@@ -1123,7 +1129,7 @@ char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftyp
              path_curr, nwrt_fname, offset);
   }
 
-  // TODO: maybe need to free the file name & content memory - free_file_inf_NEW(), at least
+  // TODO: maybe need to free the file name & content memory - free_file_inf(), at least
   // if file selection performs on client.
   // TODO: think what to do if file selection performs on server.
   return NULL;
