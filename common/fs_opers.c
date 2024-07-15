@@ -791,9 +791,6 @@ int ls_dir_str(file_err *p_flerr)
   return 0;
 }
 
-// A special error number if an error occurred while resetting the error info (used as workaround)
-enum { ERRNUM_RST_ERR = -1 };
-
 /*
  * Select a file: determine its type and get its full (absolute) path.
  *
@@ -818,7 +815,7 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
   if (reset_err_inf(&p_flerr->err) != 0) {
     // NOTE: just a workaround - return a special value if an error has occurred 
     // while resetting the error info; but maybe another solution should be used here
-    p_flerr->err.num = ERRNUM_RST_ERR;
+    p_flerr->err.num = ERRNUM_ERRINF_ERR;
     return p_flerr->err.num;
   }
 
@@ -1072,7 +1069,7 @@ char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftyp
     else {
       // An error occurred while selecting a file 
       fprintf(stderr, "%s", 
-              flerr.err.num != ERRNUM_RST_ERR 
+              flerr.err.num != ERRNUM_ERRINF_ERR 
               ? flerr.err.err_inf_u.msg /* normal error occurred */
               : "Failed to reset the error information"); /* error occurred while resetting the error info (workaround) */
       offset = copy_path(path_prev, path_curr); // restore the previous valid path

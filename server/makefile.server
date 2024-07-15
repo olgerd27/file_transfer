@@ -1,17 +1,21 @@
-# Build on a server side
+# Build the server
 
 # Initial sources
-SRC_SRV:=prg_serv.c
-SRC_RPC:=../rpcgen/fltr.x
+SRC_MAIN:=prg_serv.c
+SRC:=$(SRC_MAIN) ../common/fs_opers.c
+# SRC:=$(SRC_MAIN) interact.c
 
 # Server RPC sources
-SRC_RPC_SRV:=$(subst .x,_svc.c,$(SRC_RPC))
+SRC_RPC_SRV:=../rpcgen/fltr_svc.c
 
 # XDR RPC files
-OBJ_RPC_XDR:=$(subst .x,_xdr.o,$(SRC_RPC))
+OBJ_RPC_XDR:=../rpcgen/fltr_xdr.o
+
+# Header files the program depends on
+HDR:=../common/fs_opers.h
 
 # Executables
-EXE_SRV:=$(subst .c,,$(SRC_SRV))
+EXE:=$(subst .c,,$(SRC_MAIN))
 
 INCL:=-I/usr/include/tirpc
 LIBS:=-lnsl -ltirpc
@@ -19,14 +23,21 @@ LIBS:=-lnsl -ltirpc
 DLM:="---------------"
 
 ### Execution
-all: TITLE $(EXE_SRV)
+all: TITLE $(EXE)
 
 TITLE:
 	@echo "$(DLM) Server build $(DLM)"
 
-$(EXE_SRV): $(SRC_SRV) $(SRC_RPC_SRV) $(OBJ_RPC_XDR)
+$(EXE): $(SRC) $(SRC_RPC_SRV) $(OBJ_RPC_XDR) $(HDR)
 	gcc $^ $(INCL) -o $@ $(LIBS) 
 
 clean:
 	@echo "$(DLM) Server clean $(DLM)"
-	@rm -fv $(EXE_SRV)
+	@rm -fv $(EXE)
+
+debug:
+	@echo "SRC_MAIN: $(SRC_MAIN)"
+	@echo "SRC: $(SRC)"
+	@echo "SRC_RPC_SRV: $(SRC_RPC_SRV)"
+	@echo "OBJ_RPC_XDR: $(OBJ_RPC_XDR)"
+	@echo "EXE: $(EXE)"

@@ -11,11 +11,11 @@ SRC_RPC_CLN:=../rpcgen/fltr_clnt.c
 # XDR RPC files
 OBJ_RPC_XDR:=../rpcgen/fltr_xdr.o
 
-# Header files this program depends on
+# Header files the program depends on
 HDR:=../common/fs_opers.h
 
 # Executables
-EXE_CLN:=$(subst .c,,$(SRC_MAIN))
+EXE:=$(subst .c,,$(SRC_MAIN))
 
 INCL:=-I/usr/include/tirpc
 LIBS:=-lnsl -ltirpc
@@ -23,21 +23,21 @@ LIBS:=-lnsl -ltirpc
 DLM:="---------------"
 
 ### Execution
-all: TITLE $(EXE_CLN)
+all: TITLE $(EXE)
 
 TITLE:
 	@echo "$(DLM) Client build $(DLM)"
 
-$(EXE_CLN): $(SRC) $(SRC_RPC_CLN) $(OBJ_RPC_XDR) $(HDR)
+$(EXE): $(SRC) $(SRC_RPC_CLN) $(OBJ_RPC_XDR) $(HDR)
 	gcc $^ $(INCL) -o $@ $(LIBS)
 
 clean:
 	@echo "$(DLM) Client clean $(DLM)"
-	@rm -fv $(EXE_CLN)
+	@rm -fv $(EXE)
 
 debug:
 	@echo "SRC_MAIN: $(SRC_MAIN)"
 	@echo "SRC: $(SRC)"
 	@echo "SRC_RPC_CLN: $(SRC_RPC_CLN)"
 	@echo "OBJ_RPC_XDR: $(OBJ_RPC_XDR)"
-	@echo "EXE_CLN: $(EXE_CLN)"
+	@echo "EXE: $(EXE)"

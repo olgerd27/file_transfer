@@ -31,6 +31,12 @@ enum select_ftype {
   sel_ftype_target  // the 'target' selection file type (non existent file should be selected)
 };
 
+// A special error number if an error occurred while resetting the error info.
+// Used as workaround when the error info intstance cannot be created but
+// you need to return smth pointed out on this issue.
+enum { ERRNUM_ERRINF_ERR = -1 };
+
+
 /*
  * Get the filename interactively by traversing directories.
  *

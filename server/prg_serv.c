@@ -6,38 +6,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include "../rpcgen/fltr.h" /* Created by rpcgen */
+#include "../common/fs_opers.h" /* functions for working with the FS */
 
 // Global system variable that store the error number
 extern int errno;
-
-// Reset the error info (an error state)
-void reset_err_inf(err_inf *p_err)
-{
-  printf("[reset_err_inf] 1\n");
-  if (!p_err) {
-    fprintf(stderr, "Error: Cannot reset error information, p_err=%p\n", (void*)p_err);
-    return;
-  }
-
-  // initial allocation of the memory for error messages
-  if (!p_err->err_inf_u.msg) {
-    printf("[reset_err_inf] 2 init memory allocation for error info\n");
-    p_err->err_inf_u.msg = (char*)malloc(LEN_ERRMSG_MAX);
-  }
-  printf("[reset_err_inf] 3\n");
-
-  // reset the error information that is remained from the previous case when error has occurred
-  if (p_err->num) {
-    printf("[reset_err_inf] 4 reset error info\n");
-    p_err->num = 0;
-    if (p_err->err_inf_u.msg)
-      memset(p_err->err_inf_u.msg, 0, LEN_ERRMSG_MAX);
-  }
-
-  // reset the system error number
-  if (errno) errno = 0;
-  printf("[reset_err_inf] 5$\n");
-}
 
 /* 
  * The Upload file Section
@@ -48,11 +20,11 @@ FILE * open_file_write_x(const t_flname fname, err_inf *p_err)
   printf("[open_file_write] 1\n");
   FILE *hfile = fopen(fname, "wbx");
   if (hfile == NULL) {
-    printf("[open_file_write] 1.1 error fopen()\n");
     p_err->num = 50;
-    sprintf(p_err->err_inf_u.msg, 
+    sprintf(p_err->err_inf_u.msg,
             "The file '%s' already exists or could not be opened in the write mode.\n"
-            "System server error %i: %s\n", fname, errno, strerror(errno));
+            "System server error %i: %s\n",
+            fname, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
     fprintf(stderr, "File Upload Failed - error %i\n", p_err->num);
   }
@@ -69,11 +41,11 @@ int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 
   // Check a number of written items 
   if (nch < p_file->cont.t_flcont_len) {
-    printf("[write_file] 1.1 error partial writing to a file\n");
     p_err->num = 51;
-    sprintf(p_err->err_inf_u.msg, 
+    sprintf(p_err->err_inf_u.msg,
             "Partial writing to the file: '%s'.\n"
-            "System server error %i: %s", p_file->name, errno, strerror(errno));
+            "System server error %i: %s",
+            p_file->name, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
     fprintf(stderr, "File Upload Failed - error %i\n", p_err->num);
     fclose(hfile);
@@ -83,11 +55,11 @@ int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 
   // Check if an error has occurred during the writing operation
   if (ferror(hfile)) {
-    printf("[write_file] 2.1 error ferror()\n");
     p_err->num = 52;
-    sprintf(p_err->err_inf_u.msg, 
+    sprintf(p_err->err_inf_u.msg,
             "Failed to read from the file: '%s'\n"
-            "System server error %i: %s", p_file->name, errno, strerror(errno));
+            "System server error %i: %s",
+            p_file->name, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
     fprintf(stderr, "File Upload Failed - error %i\n", p_err->num);
     fclose(hfile);
@@ -97,19 +69,21 @@ int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
   return 0;
 }
 
+// TODO: move this function before any functions that call fclose() and 
+// call it instead of fclose()
 // Close file stream.
-// This function doesn't print an error message to stderr and doesn't reset the file buffer if necessary.
-// Customers must do this by themselves.
+// This function doesn't print an error message to stderr and doesn't reset the 
+// file buffer if necessary. Customers must do this by themselves.
 int close_file(FILE *hfile, const t_flname fname, err_inf *p_err)
 {
   printf("[close file] 1\n");
   int rc = fclose(hfile);
   if (rc != 0) {
-    printf("[close file] 1.1 error fclose()\n");
     p_err->num = 64;
     sprintf(p_err->err_inf_u.msg,
             "Failed to close the file: '%s'\n"
-            "System server error %i: %s", fname, errno, strerror(errno));
+            "System server error %i: %s",
+            fname, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
   }
   printf("[close file] 2$\n");
@@ -152,38 +126,17 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 /*
  * The Download file Section
  */
-// Reset (deallocate) the file info: set file name to NULL and free the memory for the 
-// downloaded file content that was allocated during the previous call of the download function
-void reset_file_inf(file_inf *p_file)
-{
-  printf("[reset_file_inf] 1\n");
-  if (!p_file) {
-    fprintf(stderr, "Error: Cannot reset the file info. p_file=%p\n", (void*)p_file);
-    return;
-  }
-
-  // reset the file information
-  if (p_file->cont.t_flcont_val) {
-    printf("[reset_file_inf] 1.1\n");
-    free(p_file->cont.t_flcont_val);
-    p_file->cont.t_flcont_val = NULL;
-    p_file->cont.t_flcont_len = 0;
-    p_file->name = NULL;
-  }
-  printf("[reset_file_inf] 2$\n");
-}
-
 // Open the file
 FILE * open_file_read(const t_flname fname, err_inf *p_err)
 {
   printf("[open_file_read] 1\n");
   FILE *hfile = fopen(fname, "rb");
   if (hfile == NULL) {
-    printf("[open_file_read] 1.1\n");
     p_err->num = 60;
     sprintf(p_err->err_inf_u.msg,
             "Cannot open the file '%s' in the read mode.\n"
-            "System server error %i: %s", fname, errno, strerror(errno));
+            "System server error %i: %s",
+            fname, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err.err_inf_u.msg
     fprintf(stderr, "File Download Failed - error %i\n", p_err->num);
   }
@@ -194,34 +147,12 @@ FILE * open_file_read(const t_flname fname, err_inf *p_err)
 // Get the file size in bytes
 // TODO: move this function to some common file in common/ directory and 
 // call it from this file, because it's used in the client code as well.
-unsigned get_file_size(FILE *hfile)
+size_t get_file_size(FILE *hfile)
 {
   fseek(hfile, 0, SEEK_END);
   unsigned size = ftell(hfile);
   rewind(hfile);
   return size;
-}
-
-// Allocate the memory to store the file content.
-// The allocated memory is set to p_file argument.
-char * alloc_mem_file_cont(FILE *hfile, file_inf *p_file, err_inf *p_err)
-{
-  printf("[alloc_mem_file_cont] 1\n");
-  // Get the file size
-  p_file->cont.t_flcont_len = get_file_size(hfile);
-
-  p_file->cont.t_flcont_val = (char*)malloc(p_file->cont.t_flcont_len);
-  if (p_file->cont.t_flcont_val == NULL) {
-    printf("[alloc_mem_file_cont] 1.1\n");
-    p_err->num = 61;
-    sprintf(p_err->err_inf_u.msg,
-            "Memory allocation error to store the content of file '%s'\n", p_file->name);
-    // TODO: implement logging and put there the full error info taken from p_err.err_inf_u.msg
-    fprintf(stderr, "File Download Failed - error %i\n", p_err->num);
-    fclose(hfile);
-  }
-  printf("[alloc_mem_file_cont] 2$\n");
-  return p_file->cont.t_flcont_val;
 }
 
 // Read the file content into the buffer.
@@ -230,33 +161,34 @@ int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 {
   printf("[read_file] 1\n");
   size_t nch = fread(p_file->cont.t_flcont_val, 1, p_file->cont.t_flcont_len, hfile);
+  
+  printf("[read_file] 2 reading finished\n");
 
   // Check a number of items read
   if (nch < p_file->cont.t_flcont_len) {
-    printf("[read_file] 1.1\n");
     p_err->num = 62;
     sprintf(p_err->err_inf_u.msg,
-	    "Partial reading of the file: '%s'\n"
-            "System server error %i: %s", p_file->name, errno, strerror(errno));
+            "Partial reading of the file: '%s'\n"
+            "System server error %i: %s",
+            p_file->name, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
     fprintf(stderr, "File Download Failed - error %i\n", p_err->num);
     fclose(hfile);
-    reset_file_inf(p_file); // deallocate the file content
+    free_file_inf(p_file); // deallocate the file content
     return 1;
   }
-  printf("[read_file] 2\n");
 
   // Check if an error has occurred during the reading operation
   if (ferror(hfile)) {
-    printf("[read_file] 2.1\n");
     p_err->num = 63;
     sprintf(p_err->err_inf_u.msg,
             "Failed to read from the file: '%s'\n"
-            "System server error %i: %s", p_file->name, errno, strerror(errno));
+            "System server error %i: %s",
+            p_file->name, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
     fprintf(stderr, "File Download Failed - error %i\n", p_err->num);
     fclose(hfile);
-    reset_file_inf(p_file); // deallocate the file content
+    free_file_inf(p_file); // deallocate the file content
     return 2;
   }
   printf("[read_file] 3$\n");
@@ -264,6 +196,18 @@ int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 }
 
 // The main function to Download a file
+// TODO: delete reduntent debug messages or substitute some of them with info messages
+// TODO: make the same approach for all the error messages printed by this functions and
+// the functions called by this function. I suppose the following approach:
+// the error messages with the short info should be provided to the client through error info object,
+// and the error messages with the extended info should be printed in stderr on the server side.
+// TODO: maybe create the function to print the error message in stderr like:
+// void print_err(const char *oper_type, const struct err_inf *p_errinf)
+// {
+//    fprintf(stderr, "File %s Failed - error %i\n%s", oper_type, p_errinf->num, p_errinf->err_inf_u.msg)
+// }
+// Call:
+// print_err("Download", p_errinf);
 file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
 {
   printf("[download_file] 1\n");
@@ -271,42 +215,60 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
   static file_inf *p_fileinf = &ret_flerr.file; // a pointer to a file info
   static err_inf *p_errinf = &ret_flerr.err; // a pointer to an error info
 
-  // Reset the data remained from the previous call of 'download' function
-  reset_file_inf(p_fileinf); // reset a file info
-  reset_err_inf(p_errinf); // reset an error info
+  // Reset an error info remained from the previous call of 'download' function
+  if ( reset_err_inf(p_errinf) != 0 ) {
+    // NOTE: just a workaround - return a special value if an error has occurred
+    // while resetting the error info
+    // TODO: client should process the case if ERRNUM_ERRINF_ERR has returned by server
+    p_errinf->num = ERRNUM_ERRINF_ERR;
+    fprintf(stderr, "File Download Failed - error %i\nFailed to reset the error info\n", 
+            p_errinf->num);
+    return &ret_flerr;
+  }
+
+  // Reset the file name & type info remained from the previous call of 'download' function
+  if ( reset_file_name_type(p_fileinf) != 0 ) {
+    p_errinf->num = 64;
+    sprintf(p_errinf->err_inf_u.msg, "Failed to reset the file name & type\n");
+    fprintf(stderr, "File Download Failed - error %i\n%s", 
+            p_errinf->num, p_errinf->err_inf_u.msg);
+    return &ret_flerr;
+  }
 
   // Assign the file name
   p_fileinf->name = *flname;
 
   // Open the file
+  // TODO: think, maybe create one file openning function to process both reading and writing
   FILE *hfile = open_file_read(p_fileinf->name, p_errinf);
   if ( hfile == NULL ) {
-    printf("[download_file] 1.1\n\n");
+    printf("[download_file] 1.1 error\n\n");
     return &ret_flerr;
   }
 
-  // Allocate the memory to store the file content
-  if ( alloc_mem_file_cont(hfile, p_fileinf, p_errinf) == NULL ) {
-    printf("[download_file] 1.2\n\n");
-    fprintf(stderr, "File Download Failed - error %i\n", p_errinf->num);
+  // Allocate the memory to store the file content  
+  if ( alloc_file_cont(&p_fileinf->cont, get_file_size(hfile)) == NULL ) {
+    p_errinf->num = 61;
+    sprintf(p_errinf->err_inf_u.msg,
+            "Failed to allocate memory for the content of file:\n'%s'\n", p_fileinf->name);
+    fprintf(stderr, "File Download Failed - error %i\n%s", 
+            p_errinf->num, p_errinf->err_inf_u.msg);
     return &ret_flerr;
   }
 
   // Read the file content into the buffer
   if ( read_file(hfile, p_fileinf, p_errinf) != 0 ) {
-    printf("[download_file] 1.3\n\n");
+    printf("[download_file] 1.3 error\n\n");
     return &ret_flerr;
   }
 
   // Close the file stream
   if ( close_file(hfile, p_fileinf->name, p_errinf) != 0 ) {
-    printf("[download_file] 1.4\n\n");
     fprintf(stderr, "File Download Failed - error %i\n", p_errinf->num);
-    reset_file_inf(p_fileinf); // deallocate the file content
+    free_file_inf(p_fileinf); // deallocate the file content
     return &ret_flerr;
   }
 
   printf("[download_file] 2$\n\n");
   return &ret_flerr;
 }
-
