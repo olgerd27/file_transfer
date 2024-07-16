@@ -5,11 +5,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include "../rpcgen/fltr.h" /* Created by rpcgen */
-#include "../common/fs_opers.h" /* functions for working with the FS */
+#include "../rpcgen/fltr.h" /* RPC protocol definitions - created by rpcgen */
+#include "../common/fs_opers.h" /* functions for working with the File System */
+#include "../common/mem_opers.h" /* function for the memory manipulations */
 
-// Global system variable that store the error number
-extern int errno;
+#define DBG_SERV 1
+
+extern int errno; // global system error number
 
 /* 
  * The Upload file Section
@@ -17,7 +19,7 @@ extern int errno;
 // Open the file in a write exclusive ('x') mode 
 FILE * open_file_write_x(const t_flname fname, err_inf *p_err)
 {
-  printf("[open_file_write] 1\n");
+  if (DBG_SERV) printf("[open_file_write] 1\n");
   FILE *hfile = fopen(fname, "wbx");
   if (hfile == NULL) {
     p_err->num = 50;
@@ -28,7 +30,7 @@ FILE * open_file_write_x(const t_flname fname, err_inf *p_err)
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
     fprintf(stderr, "File Upload Failed - error %i\n", p_err->num);
   }
-  printf("[open_file_write] 2$\n");
+  if (DBG_SERV) printf("[open_file_write] DONE\n");
   return hfile;
 }
 
@@ -36,8 +38,10 @@ FILE * open_file_write_x(const t_flname fname, err_inf *p_err)
 // RC: 0 on success; >0 on failure
 int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 {
-  printf("[write_file] 1\n");
+  if (DBG_SERV) printf("[write_file] 1\n");
   size_t nch = fwrite(p_file->cont.t_flcont_val, 1, p_file->cont.t_flcont_len, hfile);
+  
+  if (DBG_SERV) printf("[write_file] 2 writing completed\n");
 
   // Check a number of written items 
   if (nch < p_file->cont.t_flcont_len) {
@@ -51,7 +55,6 @@ int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
     fclose(hfile);
     return 1;
   }
-  printf("[write_file] 2\n");
 
   // Check if an error has occurred during the writing operation
   if (ferror(hfile)) {
@@ -65,7 +68,7 @@ int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
     fclose(hfile);
     return 2;
   }
-  printf("[write_file] 5$\n");
+  if (DBG_SERV) printf("[write_file] DONE\n");
   return 0;
 }
 
@@ -76,7 +79,7 @@ int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 // file buffer if necessary. Customers must do this by themselves.
 int close_file(FILE *hfile, const t_flname fname, err_inf *p_err)
 {
-  printf("[close file] 1\n");
+  if (DBG_SERV) printf("[close file] 1\n");
   int rc = fclose(hfile);
   if (rc != 0) {
     p_err->num = 64;
@@ -86,40 +89,49 @@ int close_file(FILE *hfile, const t_flname fname, err_inf *p_err)
             fname, errno, strerror(errno));
     // TODO: implement logging and put there the full error info taken from p_err->err_inf_u.msg
   }
-  printf("[close file] 2$\n");
+  if (DBG_SERV) printf("[close file] DONE\n");
   return rc;
 }
 
 // The main function to Upload a file
 err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 {
-  printf("[upload_file] 1\n");
+  if (DBG_SERV) printf("[upload_file] 1\n");
   static err_inf ret_err; /* returned variable, must be static */
 
   // Reset an error state remained after a previous call of the 'upload' function
-  reset_err_inf(&ret_err);
+  if ( reset_err_inf(&ret_err) != 0 ) {
+    // NOTE: just a workaround - return a special value if an error has occurred
+    // while resetting the error info
+    // TODO: client should process the case if ERRNUM_ERRINF_ERR has returned by server
+    ret_err.num = ERRNUM_ERRINF_ERR;
+    fprintf(stderr, "File Upload Failed - error %i\nFailed to reset the error info\n",
+            ret_err.num);
+    return &ret_err;
+  }
+
+  if (DBG_SERV) printf("[upload_file] 2 error info reset\n");
 
   // Open the file
   FILE *hfile = open_file_write_x(file_upld->name, &ret_err);
-  if (hfile == NULL) {
-    printf("[upload_file] 1.1 error open a file\n\n");
+  if (hfile == NULL)
     return &ret_err;
-  }
+
+  if (DBG_SERV) printf("[upload_file] 3 file openned\n");
 
   // Write a content of the client file to a new file
-  if ( write_file(hfile, file_upld, &ret_err) != 0 ) {
-    printf("[upload_file] 1.2 error write to a file\n\n");
+  if ( write_file(hfile, file_upld, &ret_err) != 0 )
     return &ret_err;
-  }
+
+  if (DBG_SERV) printf("[upload_file] 4 file has written\n");
 
   // Close the file stream
   if ( close_file(hfile, file_upld->name, &ret_err) != 0 ) {
-    printf("[download_file] 1.3 error file close\n\n");
-    fprintf(stderr, "File Upload Failed - error %i\n", ret_err.num);
+    fprintf(stderr, "File Upload Failed - error %i\n\n", ret_err.num);
     return &ret_err;
   }
 
-  printf("[upload_file] 2$\n\n");
+  if (DBG_SERV) printf("[upload_file] DONE\n\n");
   return &ret_err;
 }
 
@@ -129,7 +141,7 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 // Open the file
 FILE * open_file_read(const t_flname fname, err_inf *p_err)
 {
-  printf("[open_file_read] 1\n");
+  if (DBG_SERV) printf("[open_file_read] 1\n");
   FILE *hfile = fopen(fname, "rb");
   if (hfile == NULL) {
     p_err->num = 60;
@@ -140,7 +152,7 @@ FILE * open_file_read(const t_flname fname, err_inf *p_err)
     // TODO: implement logging and put there the full error info taken from p_err.err_inf_u.msg
     fprintf(stderr, "File Download Failed - error %i\n", p_err->num);
   }
-  printf("[open_file_read] 2$\n");
+  if (DBG_SERV) printf("[open_file_read] DONE\n");
   return hfile;
 }
 
@@ -159,10 +171,10 @@ size_t get_file_size(FILE *hfile)
 // RC: 0 on success; >0 on failure
 int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 {
-  printf("[read_file] 1\n");
+  if (DBG_SERV) printf("[read_file] 1\n");
   size_t nch = fread(p_file->cont.t_flcont_val, 1, p_file->cont.t_flcont_len, hfile);
   
-  printf("[read_file] 2 reading finished\n");
+  if (DBG_SERV) printf("[read_file] 2 reading completed\n");
 
   // Check a number of items read
   if (nch < p_file->cont.t_flcont_len) {
@@ -191,7 +203,7 @@ int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
     free_file_inf(p_file); // deallocate the file content
     return 2;
   }
-  printf("[read_file] 3$\n");
+  if (DBG_SERV) printf("[read_file] DONE\n");
   return 0;
 }
 
@@ -226,6 +238,8 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
     return &ret_flerr;
   }
 
+  if (DBG_SERV) printf("[download_file] 2 error info reset\n");
+
   // Reset the file name & type info remained from the previous call of 'download' function
   if ( reset_file_name_type(p_fileinf) != 0 ) {
     p_errinf->num = 64;
@@ -235,16 +249,17 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
     return &ret_flerr;
   }
 
+  if (DBG_SERV) printf("[download_file] 3 file name & type reset\n");
+
   // Assign the file name
   p_fileinf->name = *flname;
 
   // Open the file
   // TODO: think, maybe create one file openning function to process both reading and writing
   FILE *hfile = open_file_read(p_fileinf->name, p_errinf);
-  if ( hfile == NULL ) {
-    printf("[download_file] 1.1 error\n\n");
+  if ( hfile == NULL )
     return &ret_flerr;
-  }
+  if (DBG_SERV) printf("[download_file] 4 file openned\n");
 
   // Allocate the memory to store the file content  
   if ( alloc_file_cont(&p_fileinf->cont, get_file_size(hfile)) == NULL ) {
@@ -256,19 +271,21 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
     return &ret_flerr;
   }
 
+  if (DBG_SERV) printf("[download_file] 5 memory for file content allocated\n");
+
   // Read the file content into the buffer
-  if ( read_file(hfile, p_fileinf, p_errinf) != 0 ) {
-    printf("[download_file] 1.3 error\n\n");
+  if ( read_file(hfile, p_fileinf, p_errinf) != 0 )
     return &ret_flerr;
-  }
+
+  if (DBG_SERV) printf("[download_file] 6 file has read\n");
 
   // Close the file stream
   if ( close_file(hfile, p_fileinf->name, p_errinf) != 0 ) {
-    fprintf(stderr, "File Download Failed - error %i\n", p_errinf->num);
+    fprintf(stderr, "File Download Failed - error %i\n\n", p_errinf->num);
     free_file_inf(p_fileinf); // deallocate the file content
     return &ret_flerr;
   }
 
-  printf("[download_file] 2$\n\n");
+  if (DBG_SERV) printf("[download_file] DONE\n\n");
   return &ret_flerr;
 }

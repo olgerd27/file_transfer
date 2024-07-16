@@ -2,7 +2,7 @@
 
 # Initial sources
 SRC_MAIN:=prg_clnt.c
-SRC:=$(SRC_MAIN) ../common/fs_opers.c
+SRC:=$(SRC_MAIN) ../common/fs_opers.c ../common/mem_opers.c
 # SRC:=$(SRC_MAIN) interact.c
 
 # Client RPC sources
@@ -12,7 +12,7 @@ SRC_RPC_CLN:=../rpcgen/fltr_clnt.c
 OBJ_RPC_XDR:=../rpcgen/fltr_xdr.o
 
 # Header files the program depends on
-HDR:=../common/fs_opers.h
+HDR:=../common/fs_opers.h ../common/mem_opers.h
 
 # Executables
 EXE:=$(subst .c,,$(SRC_MAIN))
