@@ -1,4 +1,6 @@
 # Build the client
+# TODO: decide maybe split build on 2 stages: compilation the source files and then linkage the object files.
+# TODO: decide where to store the object files: in the same dirs where sources reside or in a separate dir.
 
 # Initial sources
 SRC_MAIN:=prg_clnt.c

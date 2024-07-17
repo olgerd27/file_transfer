@@ -315,24 +315,24 @@ void file_download(CLIENT *client)
 char get_stdin_char()
 {
   char ch, ans = getchar(); // get one (first) character
-  // Clear the newline character left in the buffer only if the input is not just a newline character
-  if (ans != '\n')
-    while ((ch = getchar()) != '\n' && ch != EOF);
+  // If just Enter was pressed, return it;
+  // If any other character was entered, clear the newline character left
+  // in the buffer and return the inputted character. 
+  if (ans == '\n') return ans;
+  while ((ch = getchar()) != '\n' && ch != EOF);
   return ans;
 }
 
 /*
  * The confirmation prompt.
  */
-// TODO: change the behaviour from "(y/n) " and incorrect input for just pressing Enter
-// to "y/n [y] " when pressing Enter means 'y'
 int confirm_operation(enum Action *act)
 {
   // Print the prompt message
   printf("%s Request:\n"
          "    Source: %s:%s\n"
          "    Target: %s:%s\n"
-         "Confirm this operation? (y/n) ",
+         "Confirm this operation? (y/n) [y]: ",
     (*act & act_upload ? "Upload" : "Download"),
     (*act & act_upload ? "localhost" : rmt_host), filename_src,
     (*act & act_upload ? rmt_host : "localhost"), filename_trg
@@ -340,12 +340,12 @@ int confirm_operation(enum Action *act)
 
   // Get user input
   char ans = get_stdin_char();
-  while (ans != 'y' && ans != 'n') {
-    printf("Incorrect input, please repeat (y/n): ");
+  while (ans != 'y' && ans != 'n' && ans != '\n') {
+    printf("Incorrect input, please repeat (y/n) [y]: ");
     ans = get_stdin_char();
   }
   if (DBG_CLNT) printf("[confirm_operation] DONE, ans: '%c'\n", ans);
-  return (ans == 'y' ? 0 : 1);
+  return (ans == 'y' || ans == '\n' ? 0 : 1);
 }
 
 void interact(CLIENT *clnt, enum Action *act)
@@ -373,8 +373,8 @@ void interact(CLIENT *clnt, enum Action *act)
 // Perform a RPC action
 void do_RPC_action(CLIENT *clnt, enum Action act)
 {
-  // If the interaction action has choosen, set the source & target file names in the interactive mode.
-  // Call the interactive mode while the act_interact flag is turned on.
+  // Make the interaction operation: set source & target file names interactively while
+  // act_interact is ON. File transfer operation can proceed only when act_interact is OFF.
   while (act & act_interact)
     interact(clnt, &act);
 

@@ -20,7 +20,7 @@ extern int errno; // global system error number
 // Print the error message in special format to STDERR
 void print_error(const char *oper_type, const struct err_inf *p_errinf)
 {
-  fprintf(stderr, "File %s Failed - error %i\n%s",
+  fprintf(stderr, "File %s Failed - error %i\n%s\n",
           oper_type, p_errinf->num, p_errinf->err_inf_u.msg);
 }
 
@@ -35,17 +35,15 @@ FILE * open_file_write_x(const char * const flname, err_inf *p_err)
   if (hfile == NULL) {
     p_err->num = 50;
     sprintf(p_err->err_inf_u.msg,
-            "The file '%s' already exists or could not be opened in the write mode.\n"
-            "System server error %i: %s\n",
-            flname, errno, strerror(errno));
+      "The choosed file already exists or could not be opened in the write mode:\n'%s'\n"
+      "System server error %i: %s\n",
+      flname, errno, strerror(errno));
     print_error("Upload", p_err);
   }
-  if (DBG_SERV) printf("[open_file_write] DONE\n");
+  if (DBG_SERV && hfile) printf("[open_file_write] DONE\n");
   return hfile;
 }
 
-// TODO: move this function before any functions that call fclose() and 
-// call it instead of fclose()
 // Close file stream.
 // This function doesn't print an error message to stderr and doesn't reset the 
 // file buffer if necessary. Customers must do this by themselves.
@@ -60,7 +58,7 @@ int close_file(FILE *hfile, const char * const flname, err_inf *p_err)
             "System server error %i: %s",
             flname, errno, strerror(errno));
   }
-  if (DBG_SERV) printf("[close file] DONE\n");
+  if (DBG_SERV && !rc) printf("[close file] DONE\n");
   return rc;
 }
 
@@ -154,12 +152,12 @@ FILE * open_file_read(const char * const flname, err_inf *p_err)
   if (hfile == NULL) {
     p_err->num = 60;
     sprintf(p_err->err_inf_u.msg,
-            "Cannot open file '%s' in the read mode.\n"
+            "Cannot open choosed file in the read mode:\n'%s'\n"
             "System server error %i: %s",
             flname, errno, strerror(errno));
     print_error("Download", p_err);
   }
-  if (DBG_SERV) printf("[open_file_read] DONE\n");
+  if (DBG_SERV && hfile) printf("[open_file_read] DONE\n");
   return hfile;
 }
 
