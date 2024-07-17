@@ -130,13 +130,6 @@ enum filetype get_file_type(const char *filepath)
 }
 
 /*
- * NEW VERSIONS, after their acceptance delete old versions to manipulate the memory
- */
-/*
- * NEW version of the memory manipulation functions, initialy defined in prg_serv.c and prg_clnt.c.
- */
-
-/*
  * Convert the passed relative path to the full (absolute) one.
  *
  * This function converts a relative path to an absolute path. If the conversion
@@ -333,6 +326,27 @@ size_t calc_dir_cont_size(const struct lsdir_setts *p_lsd_set)
         * p_lsd_set->numb_files       // multiply on the files number
         + p_lsd_set->lensum_names     // space for all filenames
         + 1;                          // space for trailing NULL character
+}
+
+/*
+ * Get the file size in bytes.
+ *
+ * This function calculates the size of a file by seeking to the end of the file,
+ * retrieving the position (which represents the file size in bytes), and then
+ * rewinding to the beginning of the file.
+ *
+ * Parameters:
+ *  hfile - A pointer to the FILE object representing the open file.
+ * 
+ * Return value:
+ *  The size of the file in bytes.
+ */
+size_t get_file_size(FILE *hfile)
+{
+  fseek(hfile, 0, SEEK_END);
+  unsigned size = ftell(hfile);
+  rewind(hfile);
+  return size;
 }
 
 /*

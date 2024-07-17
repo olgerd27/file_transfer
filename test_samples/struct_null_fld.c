@@ -21,11 +21,6 @@ struct file_err {
 
 void check_fields(file_inf *p_file)
 {
-  if (!p_file) {
-    fprintf(stderr, "Invalid pointer p_file=%p\n", p_file);
-    return;
-  }
-
   // check p_file->name
   if (p_file->name) {
     printf("p_file->name is NOT NULL: %p\n", p_file->name);
@@ -50,7 +45,7 @@ void check_fields(file_inf *p_file)
 
 int main()
 {
-  struct file_err flerr;
+  static struct file_err flerr;
   check_fields(&flerr.file);
   return 0;
 }

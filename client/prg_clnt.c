@@ -149,17 +149,6 @@ CLIENT * create_client()
  * Error numbers range: 10-19
  */
 
-// Get the file size in bytes
-// TODO: move this function to some common file in common/ directory and 
-// call it from this file, because it's used in the server code as well.
-size_t get_file_size(FILE *hfile)
-{
-  fseek(hfile, 0, SEEK_END);
-  size_t size = ftell(hfile);
-  rewind(hfile);
-  return size;
-}
-
 /*
  * Read the file to get its content for transfering.
  *

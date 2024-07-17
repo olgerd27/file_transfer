@@ -37,6 +37,21 @@ enum select_ftype {
 enum { ERRNUM_ERRINF_ERR = -1 };
 
 /*
+ * Get the file size in bytes.
+ *
+ * This function calculates the size of a file by seeking to the end of the file,
+ * retrieving the position (which represents the file size in bytes), and then
+ * rewinding to the beginning of the file.
+ *
+ * Parameters:
+ *  hfile - A pointer to the FILE object representing the open file.
+ * 
+ * Return value:
+ *  The size of the file in bytes.
+ */
+size_t get_file_size(FILE *hfile);
+
+/*
  * Get the filename interactively by traversing directories.
  *
  * This function allows a user to interactively select a file by navigating through directories.
