@@ -12,10 +12,13 @@
 #define DBG_CLNT 1
 
 // Global definitions
-static const char *rmt_host;            // a remote host name
-static char filename_src[LEN_PATH_MAX]; // a source file name on a client (if upload) or server (if download) side
-static char filename_trg[LEN_PATH_MAX]; // a target file name on a server (if upload) or client (if download) side
-extern int errno;                       // global system error number
+static const char *rmt_host;  // a remote host name
+static char *filename_src; // a source file name on a client (if upload) or server (if download) side
+static char *filename_trg; // a target file name on a server (if upload) or client (if download) side
+static char *dynamic_src = NULL; // pointer to dynamically allocated memory to store the source file name
+static char *dynamic_trg = NULL; // pointer to dynamically allocated memory to store the target file name
+
+extern int errno;             // global system error number
 
 // The supported program actions
 enum Action {
@@ -102,12 +105,18 @@ enum Action process_args(int argc, char *argv[])
     if (strcmp(argv[3], "-i") == 0) {
       // User wants to choose the source & target file names in the interactive mode
       action |= act_interact;             // add 1 bit indicating the interaction action
+      // Allocate the memory for filenames and set it also to the separate 'dynamic' pointers,
+      // that allows to free this memory correctly afterwards
+      filename_src = dynamic_src = (char *)malloc(LEN_PATH_MAX);
+      filename_trg = dynamic_trg = (char *)malloc(LEN_PATH_MAX);
       filename_src[0] = filename_trg[0] = '\0'; // reset filenames, because they'll be set interactively later
     }
     else {
       // User wants to upload or download file, set filenames that were passed through the command line
-      strncpy(filename_src, argv[3], LEN_PATH_MAX); // set the source file name
-      strncpy(filename_trg, argv[4], LEN_PATH_MAX); // set the target file name
+      // strncpy(filename_src, argv[3], LEN_PATH_MAX); // set the source file name
+      // strncpy(filename_trg, argv[4], LEN_PATH_MAX); // set the target file name
+      filename_src = argv[3]; // set the source file name
+      filename_trg = argv[4]; // set the target file name
     }
   }
 
@@ -171,7 +180,6 @@ int read_file(const char *filename, file_inf *p_flinf)
   }
 
   // Allocate the memory to store the file content
-  p_flinf->cont.t_flcont_val = NULL; // needed to allocate memory
   if ( !alloc_file_cont(&p_flinf->cont, get_file_size(hfile)) ) {
     fclose(hfile);
     return 11;
@@ -197,35 +205,39 @@ int read_file(const char *filename, file_inf *p_flinf)
 void file_upload(CLIENT *client)
 {
   if (DBG_CLNT) printf("[file_upload] 0\n");
-  file_inf file_inf; // file info object
+  file_inf fileinf; // file info object
   err_inf *srv_errinf; // result from a server - error info
   // TODO: figure out if a memory freeing required for srv_errinf?
 
   // Init the file name & type
-  reset_file_name_type(&file_inf);
+  fileinf.name = NULL; // init with NULL for stable memory allocation
+  fileinf.cont.t_flcont_val = NULL; // init with NULL for stable memory allocation
+  reset_file_name_type(&fileinf);
   if (DBG_CLNT) printf("[file_upload] 1\n");
+
   // Set the target file name to the file object
-  strncpy(file_inf.name, filename_trg, strlen(filename_trg) + 1);
+  strncpy(fileinf.name, filename_trg, strlen(filename_trg) + 1);
   if (DBG_CLNT) printf("[file_upload] 2\n");
 
   // Get the file content and set it to the file object
-  if (read_file(filename_src, &file_inf) != 0) {
-    free_file_name(&file_inf.name); // TODO: continue here - why the crash occurred here in case of choosing file_noperm file?
+  if (read_file(filename_src, &fileinf) != 0) {
+    free_file_name(&fileinf.name);
     exit(12);
   }
-  if (DBG_CLNT) printf("[file_upload] 3\n");
+  if (DBG_CLNT) printf("[file_upload] 3, read file DONE\n");
 
   // Make a file upload to a server through RPC
-  srv_errinf = upload_file_1(&file_inf, client);
-  if (DBG_CLNT) printf("[file_upload] 4, RPC operation DONE,\nfilename: '%s'\n", file_inf.name);
+  srv_errinf = upload_file_1(&fileinf, client);
+  if (DBG_CLNT)
+    printf("[file_upload] 4, RPC operation DONE,\nfilename: '%s'\n", fileinf.name);
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by upload_file_1().
   if (srv_errinf == (err_inf *)NULL) {
+    if (DBG_CLNT) printf("[file_upload] 5, RPC error\n");
     clnt_perror(client, rmt_host);
-    // free_file_cont(&file_inf.cont); // free the file content memory in case of error
-    free_file_inf(&file_inf); // free the file info memory in case of error
-    if (DBG_CLNT) printf("[file_upload] 5\n");
+    // free_file_cont(&fileinf.cont); // free the file content memory in case of error
+    free_file_inf(&fileinf); // free the file info memory in case of error
     exit(13);
   }
   if (DBG_CLNT) printf("[file_upload] 6\n");
@@ -233,16 +245,18 @@ void file_upload(CLIENT *client)
   // Check an error that may occur on the server
   if (srv_errinf->num != 0) {
     // Error on a server has occurred. Print error message and die.
-    fprintf(stderr, "!--Server error %d: %s\n", srv_errinf->num, srv_errinf->err_inf_u.msg);
-    // free_file_cont(&file_inf.cont); // free the file content memory in case of error
-    free_file_inf(&file_inf); // free the file info memory in case of error
+    fprintf(stderr, "!--Server error %d: %s\n", 
+            srv_errinf->num, srv_errinf->err_inf_u.msg);
+    // free_file_cont(&fileinf.cont); // free the file content memory in case of error
+    free_file_inf(&fileinf); // free the file info memory in case of error
     exit(14);
   }
 
   // Okay, we successfully called the remote procedure.
 
-  if (DBG_CLNT) printf("[file_upload] before file content freeing\n");
-  free_file_inf(&file_inf); // free the file info memory
+  // Free the file info memory
+  if (DBG_CLNT) printf("[file_upload] 7, RPC DONE, before file info freeing\n");
+  free_file_inf(&fileinf); 
   if (DBG_CLNT) printf("[file_upload] DONE\n");
 }
 
@@ -282,20 +296,24 @@ void save_file(const char *flname, t_flcont *flcont)
 // The main function to Download file
 void file_download(CLIENT *client)
 {
+  if (DBG_CLNT)
+    printf("[file_download] 0, client: %p\nfilename_src: '%s'\n", (void*)client, filename_src);
+
   // Result from a server - the downloaded file content and error info
   file_err *srv_flerr;
 
   // Make a file download from a server through RPC
   srv_flerr = download_file_1((char **)&filename_src, client);
+  if (DBG_CLNT) 
+    printf("[file_download] 1, RPC operation DONE,\nfilename: '%s'\n", srv_flerr->file.name);
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by download_file_1().
   if (srv_flerr == (file_err *)NULL) {
+    if (DBG_CLNT) printf("[file_download] 2, RPC error\n");
     clnt_perror(client, rmt_host);
     exit(20);
   }
-
-  // Okay, we successfully called the remote procedure.
 
   // Check an error that may occur on the server
   if (srv_flerr->err.num != 0) {
@@ -305,11 +323,17 @@ void file_download(CLIENT *client)
     exit(21);
   }
   
+  // Okay, we successfully called the remote procedure.
+  
   // Save the remote file content to a local file
   save_file(filename_trg, &srv_flerr->file.cont);
+  if (DBG_CLNT) 
+    printf("[file_download] 3, file save DONE,\nfilename: '%s'\n", filename_trg);
 
   // Free the local memory with a remote file content
+  if (DBG_CLNT) printf("[file_download] 4, before file content freeing\n");
   free_file_cont(&srv_flerr->file.cont);
+  if (DBG_CLNT) printf("[file_download] DONE\n");
 }
 
 char get_stdin_char()
@@ -358,8 +382,8 @@ void interact(CLIENT *clnt, enum Action *act)
   }
   else if (*act & act_download) {
     strcpy(filename_src, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_orig.txt");
-    // strcpy(filename_trg, "../test/transfer_files/file_6.txt");
-    if (!get_filename_inter(".", filename_trg, sel_ftype_target)) return;
+    strcpy(filename_trg, "../test/transfer_files/file_6.txt");
+    // if (!get_filename_inter(".", filename_trg, sel_ftype_target)) return;
   }
 
   // Confirm the RPC action after completing all interactive actions.
@@ -395,6 +419,11 @@ void do_RPC_action(CLIENT *clnt, enum Action act)
       clnt_destroy(clnt); // delete the client object
       exit(7);
   }
+
+  // Free the memory allocated for the file names
+  free(dynamic_src);
+  free(dynamic_trg);
+
   if (DBG_CLNT) printf("[do_RPC_action] DONE\n");
 }
 

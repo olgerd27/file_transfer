@@ -45,8 +45,12 @@ void check_fields(file_inf *p_file)
 
 int main()
 {
-  static struct file_err flerr;
-  check_fields(&flerr.file);
+  // static struct file_err flerr;
+  // check_fields(&flerr.file);
+
+  file_inf fileinf;
+  check_fields(&fileinf);
+
   return 0;
 }
 
