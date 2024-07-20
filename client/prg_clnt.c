@@ -50,7 +50,8 @@ void print_help(const char *this_prg_name, enum Help_types help_type)
   // Print the mandatory part of help info
   fprintf(stderr, "Usage:\n"
     "%s [-u | -d] [server] [file_src] [file_targ]\n"
-    "%s [-h]\n\n", this_prg_name, this_prg_name); 
+    "%s [-u | -d] [server] -i\n"
+    "%s [-h]\n\n", this_prg_name, this_prg_name, this_prg_name); 
 
   // Print a part of the full help info
   if (help_type == hlp_full)
@@ -61,13 +62,18 @@ void print_help(const char *this_prg_name, enum Help_types help_type)
       "server     a remote server hostname\n"
       "file_src   a source file name on a client (if upload action) or server (if download action) side\n"
       "file_targ  a target file name on a server (if upload action) or client (if download action) side\n"
+      "-i         action: use interactive mode to choose the source and target files\n"
       "-h         action: print this help\n"
       "\nExamples:\n"
       "1. Upload the local file /tmp/file to server 'serva' and save it remotely as /tmp/file_upld:\n"
       "%s -u serva /tmp/file /tmp/file_upld\n\n"
       "2. Download the remote file /tmp/file from server 'servb' and save it locally as /tmp/file_down:\n"
-      "%s -d servb /tmp/file /tmp/file_down\n"
-      , this_prg_name, this_prg_name);
+      "%s -d servb /tmp/file /tmp/file_down\n\n"
+      "3. Choose the local and remote files in interactive mode and make an Upload to server 'servc':\n"
+      "%s -u servc -i\n\n"
+      "4. Choose the local and remote files in interactive mode and make an Download from server 'servd':\n"
+      "%s -d servd -i\n"
+      , this_prg_name, this_prg_name, this_prg_name, this_prg_name);
     else
       fprintf(stderr, "To see the extended help info use '-h' option.\n");
 }
