@@ -77,8 +77,12 @@ enum Action process_args(int argc, char *argv[])
 {
   enum Action action = act_none;
 
-  // User didn't pass any arguments - show a short help info
-  if (argc == 1) return act_help_short;
+  // User didn't pass any arguments or specified incorrect number of them: 
+  // show a short help info
+  if (argc == 1 || argc == 3 || argc > 5) {
+    fprintf(stderr, "!--Error 3: Wrong number of arguments\n\n");
+    return act_help_short;
+  }
 
   // Check if user wants to see the full help info
   if (argc == 2 && strcmp(argv[1], "-h") == 0)
