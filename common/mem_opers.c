@@ -2,6 +2,7 @@
 #include <string.h>
 #include <errno.h>
 #include "mem_opers.h"
+#include "fs_opers.h" // to access ERRNUM_ERRINF_ERR
 
 #define DBG_MEM 1 // debug the memory manipulation
 
@@ -285,7 +286,7 @@ int reset_err_inf(err_inf *p_err)
     // Due to its constant size, the error's message is reset by setting the memory to 0.
     // Since the error message does not change very often, a memory reset will occur only
     // if the error number is set.
-    if (p_err->num) {
+    if (p_err->num && p_err->num != ERRNUM_ERRINF_ERR) {
       p_err->num = 0;
       memset(p_err->err_inf_u.msg, 0, strlen(p_err->err_inf_u.msg));
       if (DBG_MEM) printf("[reset_err_inf] error info set to 0\n");

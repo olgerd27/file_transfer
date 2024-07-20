@@ -13,9 +13,9 @@
 
 extern int errno; // global system error number
 
-// NOTE: made the same approach for all the error messages: the error messages with the
-// short info should be provided to the client through error info object, and the error
-// messages with the extended info should be printed in STDERR on the server side.
+// NOTE: it was made the same approach for all the error messages: the error messages 
+// with the short info should be provided to the client through error info object, and 
+// the error messages with the extended info should be printed in STDERR on the server side.
 
 // Print the error message in special format to STDERR
 void print_error(const char *oper_type, const struct err_inf *p_errinf)
@@ -108,9 +108,7 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 
   // Reset an error state remained after a previous call of the 'upload' function
   if ( reset_err_inf(&ret_err) != 0 ) {
-    // NOTE: just a workaround - return a special value if an error has occurred
-    // while resetting the error info
-    // TODO: client should process the case if ERRNUM_ERRINF_ERR has returned by server
+    // Return a special value if an error has occurred while resetting the error info
     ret_err.num = ERRNUM_ERRINF_ERR;
     ret_err.err_inf_u.msg = "Failed to reset the error info\n";
     print_error("Upload", &ret_err);
@@ -204,7 +202,7 @@ int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 // The main function to Download a file
 file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
 {
-  if (DBG_SERV) printf("[download_file] 1\n");
+  if (DBG_SERV) printf("[download_file] 0\n");
   static file_err ret_flerr; // returned variable, must be static
   static file_inf *p_fileinf = &ret_flerr.file; // a pointer to a file info
   static err_inf *p_errinf = &ret_flerr.err; // a pointer to an error info
@@ -212,16 +210,14 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
 
   // Reset an error info remained from the previous call of 'download' function
   if ( reset_err_inf(p_errinf) != 0 ) {
-    // NOTE: just a workaround - return a special value if an error has occurred
-    // while resetting the error info
-    // TODO: client should process the case if ERRNUM_ERRINF_ERR has returned by server
+    // Return a special value if an error has occurred while resetting the error info
     p_errinf->num = ERRNUM_ERRINF_ERR;
     p_errinf->err_inf_u.msg = "Failed to reset the error info\n";
     print_error("Download", p_errinf);
     return &ret_flerr;
   }
 
-  if (DBG_SERV) printf("[download_file] 2 error info reset\n");
+  if (DBG_SERV) printf("[download_file] 1 error info was reset\n");
 
   // Reset the file name & type info remained from the previous call of 'download' function
   if ( reset_file_name_type(p_fileinf) != 0 ) {
@@ -231,7 +227,7 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
     return &ret_flerr;
   }
 
-  if (DBG_SERV) printf("[download_file] 3 file name & type reset\n");
+  if (DBG_SERV) printf("[download_file] 2 file name & type reset\n");
 
   // Set the file name to be read
   p_fileinf->name = *flname;
@@ -241,7 +237,7 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
   if ( (hfile = open_file_read(p_fileinf->name, p_errinf)) == NULL )
     return &ret_flerr;
 
-  if (DBG_SERV) printf("[download_file] 4 file openned\n");
+  if (DBG_SERV) printf("[download_file] 3 file openned\n");
 
   // Allocate the memory to store the file content  
   if ( alloc_file_cont(&p_fileinf->cont, get_file_size(hfile)) == NULL ) {
@@ -252,13 +248,13 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
     return &ret_flerr;
   }
 
-  if (DBG_SERV) printf("[download_file] 5 memory for file content allocated\n");
+  if (DBG_SERV) printf("[download_file] 4 memory for file content allocated\n");
 
   // Read the file content into the buffer
   if ( read_file(hfile, p_fileinf, p_errinf) != 0 )
     return &ret_flerr;
 
-  if (DBG_SERV) printf("[download_file] 6 file has read\n");
+  if (DBG_SERV) printf("[download_file] 5 file has read\n");
 
   // Close the file stream
   if ( close_file(hfile, p_fileinf->name, p_errinf) != 0 ) {

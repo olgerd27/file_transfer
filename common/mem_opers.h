@@ -3,9 +3,7 @@
 
 #include "../rpcgen/fltr.h"
 
-// The memory manipulation operations.
-// TODO: move all the following and other definitions of the memory-related function
-// to the separate file, e.g. common/memops.h
+/* The memory manipulation operations */
 
 /*
  * Allocate memory to store the file content.

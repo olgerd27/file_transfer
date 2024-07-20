@@ -113,8 +113,6 @@ enum Action process_args(int argc, char *argv[])
     }
     else {
       // User wants to upload or download file, set filenames that were passed through the command line
-      // strncpy(filename_src, argv[3], LEN_PATH_MAX); // set the source file name
-      // strncpy(filename_trg, argv[4], LEN_PATH_MAX); // set the target file name
       filename_src = argv[3]; // set the source file name
       filename_trg = argv[4]; // set the target file name
     }
@@ -304,13 +302,13 @@ void file_download(CLIENT *client)
 
   // Make a file download from a server through RPC
   srv_flerr = download_file_1((char **)&filename_src, client);
-  if (DBG_CLNT) 
-    printf("[file_download] 1, RPC operation DONE,\nfilename: '%s'\n", srv_flerr->file.name);
+  
+  if (DBG_CLNT) printf("[file_download] 1, RPC operation DONE\n");
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by download_file_1().
   if (srv_flerr == (file_err *)NULL) {
-    if (DBG_CLNT) printf("[file_download] 2, RPC error\n");
+    if (DBG_CLNT) printf("[file_download] 2, RPC error: NULL was returned\n");
     clnt_perror(client, rmt_host);
     exit(20);
   }
@@ -322,6 +320,9 @@ void file_download(CLIENT *client)
             srv_flerr->err.num, srv_flerr->err.err_inf_u.msg);
     exit(21);
   }
+
+  if (DBG_CLNT) 
+    printf("[file_download] 3, downloaded filename:\n'%s'\n", srv_flerr->file.name);
   
   // Okay, we successfully called the remote procedure.
   
