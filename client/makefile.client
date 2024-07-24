@@ -1,11 +1,11 @@
 # Build the client
-# TODO: decide maybe split build on 2 stages: compilation the source files and then linkage the object files.
+# TODO: decide maybe split build on 2 stages:compilation the source files with gathering
+#       the object file and then linkage the obtained object files into the client program.
 # TODO: decide where to store the object files: in the same dirs where sources reside or in a separate dir.
 
 # Initial sources
 SRC_MAIN:=prg_clnt.c
-SRC:=$(SRC_MAIN) ../common/fs_opers.c ../common/mem_opers.c
-# SRC:=$(SRC_MAIN) interact.c
+SRC:=$(SRC_MAIN) ../common/fs_opers.c ../common/mem_opers.c interact.c
 
 # Client RPC sources
 SRC_RPC_CLN:=../rpcgen/fltr_clnt.c
@@ -14,7 +14,7 @@ SRC_RPC_CLN:=../rpcgen/fltr_clnt.c
 OBJ_RPC_XDR:=../rpcgen/fltr_xdr.o
 
 # Header files the program depends on
-HDR:=../common/fs_opers.h ../common/mem_opers.h
+HDR:=../common/fs_opers.h ../common/mem_opers.h interact.h
 
 # Executables
 EXE:=$(subst .c,,$(SRC_MAIN))
@@ -30,6 +30,9 @@ all: TITLE $(EXE)
 TITLE:
 	@echo "$(DLM) Client build $(DLM)"
 
+# TODO: add dependencies on $(HDR) for $(EXE) or the source file it depends on.
+#       Try to use the automatic dependency generation using tools like 'gcc -MM' 
+#       to simplify the maintenance of dependencies.
 $(EXE): $(SRC) $(SRC_RPC_CLN) $(OBJ_RPC_XDR) $(HDR)
 	gcc $^ $(INCL) -o $@ $(LIBS)
 

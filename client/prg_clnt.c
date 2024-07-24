@@ -6,8 +6,9 @@
 #include <string.h> 
 #include <errno.h>
 #include "../rpcgen/fltr.h"     /* RPC protocol definitions - created by rpcgen */
-#include "../common/fs_opers.h" /* functions for working with the File System */
-#include "../common/mem_opers.h" /* function for the memory manipulations */
+#include "../common/mem_opers.h" /* for the memory manipulations */
+#include "../common/fs_opers.h" /* for working with the File System */
+#include "interact.h" /* for interaction operations */
 
 #define DBG_CLNT 1
 
@@ -18,7 +19,7 @@ static char *filename_trg; // a target file name on a server (if upload) or clie
 static char *dynamic_src = NULL; // pointer to dynamically allocated memory to store the source file name
 static char *dynamic_trg = NULL; // pointer to dynamically allocated memory to store the target file name
 
-extern int errno;             // global system error number
+extern int errno; // global system error number
 
 // The supported program actions
 enum Action {

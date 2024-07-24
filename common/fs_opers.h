@@ -4,37 +4,30 @@
 #include "../rpcgen/fltr.h"
 
 /*
- * Return a letter representing the file type used in Unix-like OS.
+ * A special error number if an error occurred while resetting the error info.
+ * Used as workaround when the error info intstance cannot be created but
+ * you need to return smth pointed out on this issue.
+ */
+enum { ERRNUM_ERRINF_ERR = -1 };
+
+/*
+ * Return the file type for the specified file.
  *
- * This function takes a `mode_t` value, which represents the file mode,
- * and returns a character corresponding to the file type.
+ * This function determines the type of a file given its path.
+ * It returns a file type enumeration value defined in `fltr.h`.
  *
  * Parameters:
- *  mode - The mode of the file.
- *
+ *  filepath - A full path to the file.
+ * 
  * Return value:
- *  A character representing the file type:
- *         'd' for directory,
- *         'b' for block device,
- *         'c' for character device,
- *         'p' for FIFO (named pipe),
- *         'l' for symbolic link,
- *         '-' for regular file,
- *         's' for socket,
- *         '?' for unknown type.
+ * A filetype enum value:
+ *         - FTYPE_DIR for directory,
+ *         - FTYPE_REG for regular file,
+ *         - FTYPE_OTH for other file types,
+ *         - FTYPE_NEX if the file does not exist,
+ *         - FTYPE_INV for an invalid file type or other errors.
  */
 enum filetype get_file_type(const char *filepath);
-
-// The types of selected files
-enum select_ftype {
-  sel_ftype_source, // the 'source' selection file type (regular file should be selected)
-  sel_ftype_target  // the 'target' selection file type (non existent file should be selected)
-};
-
-// A special error number if an error occurred while resetting the error info.
-// Used as workaround when the error info intstance cannot be created but
-// you need to return smth pointed out on this issue.
-enum { ERRNUM_ERRINF_ERR = -1 };
 
 /*
  * Get the file size in bytes.
@@ -52,21 +45,66 @@ enum { ERRNUM_ERRINF_ERR = -1 };
 size_t get_file_size(FILE *hfile);
 
 /*
- * Get the filename interactively by traversing directories.
+ * Convert the passed relative path to the full (absolute) one.
  *
- * This function allows a user to interactively select a file by navigating through directories.
- * The user is prompted to enter directory names or file names to traverse the file system starting
- * from a given directory.
+ * This function converts a relative path to an absolute path. If the conversion
+ * fails, it allocates memory for an error message and sets it in the provided errmsg pointer.
  *
  * Parameters:
- *  dir_start - a starting directory for the traversal.
- *  path_res  - an allocated char array to store the resulting file path.
- *  sel_ftype - an enum value of type select_ftype indicating whether the file to be selected
- *              is a source or target file.
+ *  path_rel  - A relative path to be converted.
+ *  path_full - A buffer to store the resulting absolute path.
+ *  errmsg    - A pointer to a char pointer where the error message will be stored
+ *              if the conversion fails.
  *
  * Return value:
- *  Returns path_res on success, and NULL on failure.
+ *  The full (absolute) path on success (same as path_full), or NULL on failure with 
+ *  the error messages in errmsg which should be freed by a caller of this function.
  */
-char *get_filename_inter(const char *dir_start, char *file_res, enum select_ftype sel_ftype);
+char *rel_to_full_path(const char *path_rel, char *path_full, char **errmsg);
+
+/*
+ * Copy a source path to a target path with a maximum length.
+ *
+ * This function copies the string `path_src` to `path_trg` ensuring that
+ * the number of characters copied does not exceed `LEN_PATH_MAX`.
+ * It uses `snprintf` to perform the copy, which guarantees that the resulting
+ * string is null-terminated and that it does not write beyond the specified
+ * maximum length.
+ *
+ * Parameters:
+ *  path_src - The source path to be copied.
+ *  path_trg - The target buffer where the source path will be copied.
+ *             The buffer should be at least `LEN_PATH_MAX` characters long.
+ *
+ * Return value:
+ *  The number of characters written to `path_trg`, not including the null-terminator.
+ */
+int copy_path(const char *path_src, char *path_trg);
+
+/*
+ * List the directory content into the file content (char array) stored in the file_err instance.
+ *
+ * This function reads the contents of a specified directory and stores the directory entries
+ * in the file content field of the passed file_err structure. The function assumes that the
+ * file name in the passed struct specifies the directory to be read and that the file type 
+ * is a directory.
+ *
+ * Errors encountered during these operations are stored in the error info field of 
+ * the file_err structure.
+ *
+ * The function performs the following steps:
+ * 1. Opens the specified directory.
+ * 2. Iterates through the directory entries to gather settings for flexible listing.
+ * 3. Resets the file content buffer based on the calculated size of the directory content.
+ * 4. Iterates through the directory entries again to populate the file content buffer 
+ *    with the directory listing.
+ *
+ * Parameters:
+ *  p_flerr - Pointer to an allocated and nulled RPC struct instance to store file & error info.
+ *
+ * Return value:
+ *  0 on success, >0 on failure.
+ */
+int ls_dir_str(file_err *p_flerr);
 
 #endif
