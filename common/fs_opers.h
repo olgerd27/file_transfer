@@ -6,13 +6,8 @@
 // Forward definitions for the types defined in the RPC protocol. The actual types
 // will be available in source file after inclusion the RPC protocol header file
 typedef enum filetype filetype;
+typedef enum pick_ftype pick_ftype;
 typedef struct file_err file_err;
-
-// The types of selected files
-enum select_ftype {
-  sel_ftype_source, // the 'source' selection file type (regular file should be selected)
-  sel_ftype_target  // the 'target' selection file type (non existent file should be selected)
-};
 
 /*
  * A special error number if an error occurred while resetting the error info.
@@ -127,15 +122,15 @@ int ls_dir_str(file_err *p_flerr);
  * file_err structure.
  *
  * Parameters:
- *  path      - a path of the file that needs to be selected.
- *  p_flerr   - a pointer to the file_err RPC struct instance to store file & error info.
- *              This struct is used to set and return the result through the function argument.
- *  sel_ftype - an enum value of type select_ftype indicating whether the file to be selected
- *              is a source or target file.
+ *  path    - a path of the file that needs to be selected.
+ *  p_flerr - a pointer to the file_err RPC struct instance to store file & error info.
+ *            This struct is used to set and return the result through the function argument.
+ *  pftype  - an enum value of type pick_ftype indicating whether the file to be selected
+ *            is a source or target file.
  *
  * Return value:
  *  RC: 0 on success, >0 on failure.
  */
-int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype);
+int select_file(const char *path, file_err *p_flerr, enum pick_ftype pftype);
 
 #endif

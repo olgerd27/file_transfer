@@ -389,13 +389,13 @@ void interact(CLIENT *clnt, enum Action *act)
   // Get and set the source & target file names
   if (*act & act_upload) {
     // strcpy(filename_src, "../test/transfer_files/file_orig.txt");
-    if (!get_filename_inter(".", filename_src, sel_ftype_source)) return;
+    if (!get_filename_inter(".", filename_src, pk_ftype_source)) return;
     strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_4.txt");
   }
   else if (*act & act_download) {
     strcpy(filename_src, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_orig.txt");
     strcpy(filename_trg, "../test/transfer_files/file_6.txt");
-    // if (!get_filename_inter(".", filename_trg, sel_ftype_target)) return;
+    // if (!get_filename_inter(".", filename_trg, pk_ftype_target)) return;
   }
 
   // Confirm the RPC action after completing all interactive actions.

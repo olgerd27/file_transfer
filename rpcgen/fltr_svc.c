@@ -22,7 +22,7 @@ fltrprog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 	union {
 		file_inf upload_file_1_arg;
 		t_flname download_file_1_arg;
-		t_flname pick_entity_1_arg;
+		picked_file pick_entity_1_arg;
 	} argument;
 	char *result;
 	xdrproc_t _xdr_argument, _xdr_result;
@@ -46,7 +46,7 @@ fltrprog_1(struct svc_req *rqstp, register SVCXPRT *transp)
 		break;
 
 	case pick_entity:
-		_xdr_argument = (xdrproc_t) xdr_t_flname;
+		_xdr_argument = (xdrproc_t) xdr_picked_file;
 		_xdr_result = (xdrproc_t) xdr_file_err;
 		local = (char *(*)(char *, struct svc_req *)) pick_entity_1_svc;
 		break;

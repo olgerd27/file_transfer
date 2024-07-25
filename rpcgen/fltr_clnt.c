@@ -40,13 +40,13 @@ download_file_1(t_flname *argp, CLIENT *clnt)
 }
 
 file_err *
-pick_entity_1(t_flname *argp, CLIENT *clnt)
+pick_entity_1(picked_file *argp, CLIENT *clnt)
 {
 	static file_err clnt_res;
 
 	memset((char *)&clnt_res, 0, sizeof(clnt_res));
 	if (clnt_call (clnt, pick_entity,
-		(xdrproc_t) xdr_t_flname, (caddr_t) argp,
+		(xdrproc_t) xdr_picked_file, (caddr_t) argp,
 		(xdrproc_t) xdr_file_err, (caddr_t) &clnt_res,
 		TIMEOUT) != RPC_SUCCESS) {
 		return (NULL);

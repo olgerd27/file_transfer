@@ -99,7 +99,7 @@ int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
   return 0;
 }
 
-// The main function to Upload a file
+// The main RPC function to Upload a file
 err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 {
   if (DBG_SERV) printf("[upload_file] 1\n");
@@ -198,9 +198,8 @@ int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
   return 0;
 }
 
-
-// The main function to Download a file
-file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
+// The main RPC function to Download a file
+file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 {
   if (DBG_SERV) printf("[download_file] 0\n");
   static file_err ret_flerr; // returned variable, must be static
@@ -230,7 +229,7 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
   if (DBG_SERV) printf("[download_file] 2 file name & type reset\n");
 
   // Set the file name to be read
-  p_fileinf->name = *flname;
+  p_fileinf->name = *p_flname;
 
   // Open the file
   // TODO: think, maybe create one file openning function to process both reading and writing
@@ -264,5 +263,13 @@ file_err * download_file_1_svc(t_flname *flname, struct svc_req *)
   }
 
   if (DBG_SERV) printf("[download_file] DONE\n\n");
+  return &ret_flerr;
+}
+
+// The main RPC function for interactive pick a file on the server
+file_err * pick_entity_1_svc(picked_file *p_flpicked, struct svc_req *)
+{
+  static file_err ret_flerr; // returned variable, must be static
+  select_file(p_flpicked->name, &ret_flerr, p_flpicked->pftype);
   return &ret_flerr;
 }

@@ -87,7 +87,7 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
  * Parameters:
  *  dir_start - a starting directory for the traversal.
  *  path_res  - an allocated char array to store the resulting file path.
- *  sel_ftype - an enum value of type select_ftype indicating whether the file to be selected
+ *  pftype    - an enum value of type pick_ftype indicating whether the file to be selected
  *              is a source or target file.
  *
  * Return value:
@@ -117,7 +117,7 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
  *           - if it exists (type doesn't matter) - error and message like:
  *             File ... exists. Please specify non-existing target file.
  */
-char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftype sel_ftype)
+char *get_filename_inter(const char *dir_start, char *path_res, enum pick_ftype pftype)
 {
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
   char path_prev[LEN_PATH_MAX]; // a copy of the previous path to restore it if necessary
@@ -128,13 +128,15 @@ char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftyp
   file_err flerr; // a local struct instance to store & pass the information about a file & error
 
   // Initialization
-  // Init the previous path with a root dir as a guaranteed valid path
+  // Init the previous path with a root dir as a guaranteed valid path on Unix-like OS
   copy_path("/", path_prev);
 
   // Init the current path (path_curr) in a way of copying dir_start
+  // TODO: delete this way of init if the way presented below will be eventially choosed
   // offset = copy_path(dir_start, path_curr); // init the current path with the passed start dir for traversal
 
-  // Init the current path (path_curr) in a way of converting the dir_start to the full (absolute) path
+  // Init the current path (path_curr) in a way of converting the dir_start 
+  // to the full (absolute) path
   char *errmsg = NULL;
   if (!rel_to_full_path(dir_start, path_curr, &errmsg)) {
     fprintf(stderr, "%s\nChange the current directory to the default one: '%s'\n", 
@@ -158,7 +160,7 @@ char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftyp
   while (1) {
     // TODO: replace select_file() with a function pointer that can be either
     // select_file() or pick_entity() RPC function
-    if (select_file(path_curr, &flerr, sel_ftype) == 0) {
+    if (select_file(path_curr, &flerr, pftype) == 0) {
       // Successful file selection (regular or non-existent file type)
       if (flerr.file.type == FTYPE_REG || flerr.file.type == FTYPE_NEX) {
         copy_path(flerr.file.name, path_res);
@@ -186,7 +188,7 @@ char *get_filename_inter(const char *dir_start, char *path_res, enum select_ftyp
 
     // Print the prompt for user input
     printf("Select the %s file on %s:\n" 
-           , (sel_ftype == sel_ftype_source ? "Source" : "Target")
+           , (pftype == pk_ftype_source ? "Source" : "Target")
            , "localhost"); // TODO: specify the actual hostname here
     
     // Get user input of filename

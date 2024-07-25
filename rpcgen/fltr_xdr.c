@@ -36,6 +36,28 @@ xdr_filetype (XDR *xdrs, filetype *objp)
 }
 
 bool_t
+xdr_pick_ftype (XDR *xdrs, pick_ftype *objp)
+{
+	register int32_t *buf;
+
+	 if (!xdr_enum (xdrs, (enum_t *) objp))
+		 return FALSE;
+	return TRUE;
+}
+
+bool_t
+xdr_picked_file (XDR *xdrs, picked_file *objp)
+{
+	register int32_t *buf;
+
+	 if (!xdr_t_flname (xdrs, &objp->name))
+		 return FALSE;
+	 if (!xdr_pick_ftype (xdrs, &objp->pftype))
+		 return FALSE;
+	return TRUE;
+}
+
+bool_t
 xdr_file_inf (XDR *xdrs, file_inf *objp)
 {
 	register int32_t *buf;

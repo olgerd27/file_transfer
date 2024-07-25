@@ -515,16 +515,16 @@ int ls_dir_str(file_err *p_flerr)
  * file_err structure.
  *
  * Parameters:
- *  path      - a path of the file that needs to be selected.
- *  p_flerr   - a pointer to the file_err RPC struct instance to store file & error info.
- *              This struct is used to set and return the result through the function argument.
- *  sel_ftype - an enum value of type select_ftype indicating whether the file to be selected
+ *  path    - a path of the file that needs to be selected.
+ *  p_flerr - a pointer to the file_err RPC struct instance to store file & error info.
+ *            This struct is used to set and return the result through the function argument.
+ *  pftype  - an enum value of type pick_ftype indicating whether the file to be selected
  *              is a source or target file.
  *
  * Return value:
  *  RC: 0 on success, >0 on failure.
  */
-int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype)
+int select_file(const char *path, file_err *p_flerr, enum pick_ftype pftype)
 {
   // Reset the error info before file selection
   if (reset_err_inf(&p_flerr->err) != 0) {
@@ -546,7 +546,7 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
   p_flerr->file.type = get_file_type(path);
 
   // Process the case of non-existent file required for the target file.
-  // Should be processing before conversion path to the absolute one.
+  // Should be processed before conversion path to the absolute one.
   if (p_flerr->file.type == FTYPE_NEX) {
     // Copy the selected file name into the file info instance
     // TODO: delete a line with strncpy() after final acception of the line with copy_path()
@@ -554,9 +554,9 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
     copy_path(path, p_flerr->file.name);
 
     // Check the correctness of the current file selection based on the selection file type
-    if (sel_ftype == sel_ftype_target)
+    if (pftype == pk_ftype_target)
       ; // OK: the non-existent file type was selected as expected for a 'target' selection file type
-    else if (sel_ftype == sel_ftype_source) {
+    else if (pftype == pk_ftype_source) {
       // Fail: the source file selection (a regular file) was expected, but the target file selection
       // (a non-existent file) was actually attempted -> produce the error
       p_flerr->err.num = 82;
@@ -587,9 +587,9 @@ int select_file(const char *path, file_err *p_flerr, enum select_ftype sel_ftype
 
     case FTYPE_REG: /* regular file */
       // Check the correctness of the current file selection based on the selection file type
-      if (sel_ftype == sel_ftype_source)
+      if (pftype == pk_ftype_source)
         ; // OK: the regular file type was selected as expected for a 'source' selection file type
-      else if (sel_ftype == sel_ftype_target) {
+      else if (pftype == pk_ftype_target) {
         // Fail: the target file selection (a non-existent file) was expected, but the source file selection
         // (a regular file) was actually attempted -> produce the error
         p_flerr->err.num = 83;

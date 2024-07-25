@@ -19,6 +19,18 @@ enum filetype {
   /* Add more file types as needed */
 };
 
+/* The types of picked (selected) files */
+enum pick_ftype {
+  pk_ftype_source, /* the 'source' type - regular file should be selected */
+  pk_ftype_target  /* the 'target' type - non existent file should be selected */
+};
+
+/* Picked file with its name and type of picking */
+struct picked_file {
+  t_flname name;      /* file name */
+  pick_ftype pftype;  /* file pick type */
+};
+
 /* File information */
 struct file_inf {
   t_flname name; /* file name */
@@ -45,6 +57,6 @@ program FLTRPROG {
    version FLTRVERS {
      err_inf upload_file(file_inf fileinf) = 1;
      file_err download_file(t_flname filename) = 2;
-     file_err pick_entity(t_flname filename) = 3;
+     file_err pick_entity(picked_file filename) = 3;
    } = 1;
 } = 0x20000027;

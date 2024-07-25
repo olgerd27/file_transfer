@@ -33,6 +33,18 @@ enum filetype {
 };
 typedef enum filetype filetype;
 
+enum pick_ftype {
+	pk_ftype_source = 0,
+	pk_ftype_target = 1,
+};
+typedef enum pick_ftype pick_ftype;
+
+struct picked_file {
+	t_flname name;
+	pick_ftype pftype;
+};
+typedef struct picked_file picked_file;
+
 struct file_inf {
 	t_flname name;
 	filetype type;
@@ -65,8 +77,8 @@ extern  err_inf * upload_file_1_svc(file_inf *, struct svc_req *);
 extern  file_err * download_file_1(t_flname *, CLIENT *);
 extern  file_err * download_file_1_svc(t_flname *, struct svc_req *);
 #define pick_entity 3
-extern  file_err * pick_entity_1(t_flname *, CLIENT *);
-extern  file_err * pick_entity_1_svc(t_flname *, struct svc_req *);
+extern  file_err * pick_entity_1(picked_file *, CLIENT *);
+extern  file_err * pick_entity_1_svc(picked_file *, struct svc_req *);
 extern int fltrprog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
@@ -88,6 +100,8 @@ extern int fltrprog_1_freeresult ();
 extern  bool_t xdr_t_flname (XDR *, t_flname*);
 extern  bool_t xdr_t_flcont (XDR *, t_flcont*);
 extern  bool_t xdr_filetype (XDR *, filetype*);
+extern  bool_t xdr_pick_ftype (XDR *, pick_ftype*);
+extern  bool_t xdr_picked_file (XDR *, picked_file*);
 extern  bool_t xdr_file_inf (XDR *, file_inf*);
 extern  bool_t xdr_err_inf (XDR *, err_inf*);
 extern  bool_t xdr_file_err (XDR *, file_err*);
@@ -96,6 +110,8 @@ extern  bool_t xdr_file_err (XDR *, file_err*);
 extern bool_t xdr_t_flname ();
 extern bool_t xdr_t_flcont ();
 extern bool_t xdr_filetype ();
+extern bool_t xdr_pick_ftype ();
+extern bool_t xdr_picked_file ();
 extern bool_t xdr_file_inf ();
 extern bool_t xdr_err_inf ();
 extern bool_t xdr_file_err ();
