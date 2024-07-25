@@ -34,7 +34,7 @@ union err_inf switch (int num) {
     string msg<LEN_ERRMSG_MAX>; /* error occured: return error message */
 };
 
-/* File + error info */
+/* File & error info */
 struct file_err {
   file_inf file; /* file info */
   err_inf err; /* error info */
@@ -45,5 +45,6 @@ program FLTRPROG {
    version FLTRVERS {
      err_inf upload_file(file_inf fileinf) = 1;
      file_err download_file(t_flname filename) = 2;
+     file_err pick_entity(t_flname filename) = 3;
    } = 1;
 } = 0x20000027;
