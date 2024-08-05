@@ -13,6 +13,7 @@
 #define DBG_CLNT 1
 
 // Global definitions
+static CLIENT *pclient;         // a client handle
 static const char *rmt_host;  // a remote host name
 static char *filename_src; // a source file name on a client (if upload) or server (if download) side
 static char *filename_trg; // a target file name on a server (if upload) or client (if download) side
@@ -115,7 +116,10 @@ enum Action process_args(int argc, char *argv[])
 
     if (strcmp(argv[3], "-i") == 0) {
       // User wants to choose the source & target file names in the interactive mode
-      action |= act_interact;             // add 1 bit indicating the interaction action
+      
+      // Add 1 bit indicating the interaction action
+      action |= act_interact;
+      
       // Allocate the memory for filenames and set it also to the separate 'dynamic' pointers,
       // that allows to free this memory correctly afterwards
       filename_src = dynamic_src = (char *)malloc(LEN_PATH_MAX);
@@ -152,14 +156,14 @@ enum Action process_args(int argc, char *argv[])
  */
 CLIENT * create_client()
 {
-  CLIENT *clnt = clnt_create(rmt_host, FLTRPROG, FLTRVERS, "tcp");
-  if (clnt == (CLIENT *)NULL) {
+  pclient = clnt_create(rmt_host, FLTRPROG, FLTRVERS, "tcp");
+  if (pclient == (CLIENT *)NULL) {
     // Print an error indication why a client handle could not be created.
     // Used when clnt_create() call fails.
     clnt_pcreateerror(rmt_host);
     exit(6);
   }
-  return clnt;
+  return pclient;
 }
 
 /*
@@ -210,13 +214,13 @@ int read_file(const char *filename, file_inf *p_flinf)
   fclose(hfile);
 }
 
-// The main function to Upload file
-void file_upload(CLIENT *client)
+// The main function to Upload file through RPC call
+void file_upload()
 {
   if (DBG_CLNT) printf("[file_upload] 0\n");
   file_inf fileinf; // file info object
-  err_inf *srv_errinf; // result from a server - error info
-  // TODO: figure out if a memory freeing required for srv_errinf?
+  err_inf *p_err_srv; // result from a server - error info
+  // TODO: figure out if a memory freeing required for p_err_srv?
 
   // Init the file name & type
   fileinf.name = NULL; // init with NULL for stable memory allocation
@@ -236,15 +240,15 @@ void file_upload(CLIENT *client)
   if (DBG_CLNT) printf("[file_upload] 3, read file DONE\n");
 
   // Make a file upload to a server through RPC
-  srv_errinf = upload_file_1(&fileinf, client);
+  p_err_srv = upload_file_1(&fileinf, pclient);
   if (DBG_CLNT)
     printf("[file_upload] 4, RPC operation DONE,\nfilename: '%s'\n", fileinf.name);
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by upload_file_1().
-  if (srv_errinf == (err_inf *)NULL) {
+  if (p_err_srv == (err_inf *)NULL) {
     if (DBG_CLNT) printf("[file_upload] 5, RPC error\n");
-    clnt_perror(client, rmt_host);
+    clnt_perror(pclient, rmt_host);
     // free_file_cont(&fileinf.cont); // free the file content memory in case of error
     free_file_inf(&fileinf); // free the file info memory in case of error
     exit(13);
@@ -252,16 +256,19 @@ void file_upload(CLIENT *client)
   if (DBG_CLNT) printf("[file_upload] 6\n");
 
   // Check an error that may occur on the server
-  if (srv_errinf->num != 0) {
+  if (p_err_srv->num != 0) {
     // Error on a server has occurred. Print error message and die.
     fprintf(stderr, "!--Server error %d: %s\n", 
-            srv_errinf->num, srv_errinf->err_inf_u.msg);
+            p_err_srv->num, p_err_srv->err_inf_u.msg);
     // free_file_cont(&fileinf.cont); // free the file content memory in case of error
     free_file_inf(&fileinf); // free the file info memory in case of error
+    clnt_destroy(pclient);   // delete the client object
     exit(14);
   }
 
   // Okay, we successfully called the remote procedure.
+
+  if (DBG_CLNT) printf("[file_download] 3, RPC is successful\n");
 
   // Free the file info memory
   if (DBG_CLNT) printf("[file_upload] 7, RPC DONE, before file info freeing\n");
@@ -302,50 +309,107 @@ void save_file(const char *flname, t_flcont *flcont)
   fclose(hfile);
 }
 
-// The main function to Download file
-void file_download(CLIENT *client)
+// The main function to Download file through RPC call
+void file_download()
 {
   if (DBG_CLNT)
-    printf("[file_download] 0, client: %p\nfilename_src: '%s'\n", (void*)client, filename_src);
+    printf("[file_download] 0, client: %p\nfilename_src: '%s'\n", (void*)pclient, filename_src);
 
-  // Result from a server - the downloaded file content and error info
-  file_err *srv_flerr;
+  // Result from a server - the downloaded file & error info
+  file_err *p_flerr_srv;
 
   // Make a file download from a server through RPC
-  srv_flerr = download_file_1((char **)&filename_src, client);
+  p_flerr_srv = download_file_1((char **)&filename_src, pclient);
   
   if (DBG_CLNT) printf("[file_download] 1, RPC operation DONE\n");
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by download_file_1().
-  if (srv_flerr == (file_err *)NULL) {
+  if (p_flerr_srv == (file_err *)NULL) {
     if (DBG_CLNT) printf("[file_download] 2, RPC error: NULL was returned\n");
-    clnt_perror(client, rmt_host);
+    clnt_perror(pclient, rmt_host);
     exit(20);
   }
 
   // Check an error that may occur on the server
-  if (srv_flerr->err.num != 0) {
+  if (p_flerr_srv->err.num != 0) {
     // Error on a server has occurred. Print error message and die.
     fprintf(stderr, "!--Server error %d: %s\n", 
-            srv_flerr->err.num, srv_flerr->err.err_inf_u.msg);
+            p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
+    clnt_destroy(pclient); // delete the client object
     exit(21);
   }
 
-  if (DBG_CLNT) 
-    printf("[file_download] 3, downloaded filename:\n'%s'\n", srv_flerr->file.name);
-  
   // Okay, we successfully called the remote procedure.
   
+  if (DBG_CLNT)
+    printf("[file_download] 3, RPC is successful\n"
+           "  Downloaded file:\n'%s'\n", p_flerr_srv->file.name);
+  
   // Save the remote file content to a local file
-  save_file(filename_trg, &srv_flerr->file.cont);
+  save_file(filename_trg, &p_flerr_srv->file.cont);
   if (DBG_CLNT) 
     printf("[file_download] 3, file save DONE,\nfilename: '%s'\n", filename_trg);
 
   // Free the local memory with a remote file content
   if (DBG_CLNT) printf("[file_download] 4, before file content freeing\n");
-  free_file_cont(&srv_flerr->file.cont);
+  free_file_cont(&p_flerr_srv->file.cont);
   if (DBG_CLNT) printf("[file_download] DONE\n");
+}
+
+/*
+ * The Pick File section
+ * Error numbers range: ??-??
+ */
+// The main function to Pick (choose) file remotelly through the RPC call.
+// Also, this function is a wrapper of the pick_file() RPC function call.
+file_err * file_pick_rmt(picked_file *p_flpkd)
+{
+  if (DBG_CLNT)
+    printf("[file_choose_rmt] 0, client: %p\nfilename_src: '%s'\n", (void *)pclient, filename_src);
+  
+  // Result from a server - the chosen file and error info
+  file_err *p_flerr_srv;
+
+  // Make a file choose on a server through RPC
+  p_flerr_srv = pick_file_1(p_flpkd, pclient);
+  
+  if (DBG_CLNT) printf("[file_choose_rmt] 1, RPC operation DONE\n");
+
+  // Print a message to standard error indicating why an RPC call failed.
+  // Used after clnt_call(), that is called here by download_file_1().
+  if (p_flerr_srv == (file_err *)NULL) {
+    if (DBG_CLNT) printf("[file_choose_rmt] 2, RPC error: NULL was returned\n");
+    clnt_perror(pclient, rmt_host);
+    exit(20);
+  }
+
+  // Check an error that may occur on the server
+  if (p_flerr_srv->err.num != 0) {
+    // Error on a server has occurred. Print error message and die.
+    fprintf(stderr, "!--Server error %d: %s\n", 
+            p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
+    clnt_destroy(pclient); // delete the client object
+    exit(21);
+  }
+
+  // Okay, we successfully called the remote procedure.
+
+  if (DBG_CLNT)
+    printf("[file_choose_rmt] 3, RPC is successful\n"
+           "  Picked file:\n'%s'\n", p_flerr_srv->file.name);
+
+  // Save the remote file content to a local file
+  // save_file(filename_trg, &p_flerr_srv->file.cont);
+  // if (DBG_CLNT)
+  //   printf("[file_choose_rmt] 3, file save DONE,\nfilename: '%s'\n", filename_trg);
+
+  // Free the local memory with a remote file content
+  // if (DBG_CLNT) printf("[file_choose_rmt] 4, before file content freeing\n");
+  // free_file_cont(&p_flerr_srv->file.cont);
+  if (DBG_CLNT) printf("[file_choose_rmt] DONE\n");
+
+  return p_flerr_srv;
 }
 
 char get_stdin_char()
@@ -384,7 +448,7 @@ int confirm_operation(enum Action *act)
   return (ans == 'y' || ans == '\n' ? 0 : 1);
 }
 
-void interact(CLIENT *clnt, enum Action *act)
+void interact(enum Action *act)
 {
   // Get and set the source & target file names
   if (*act & act_upload) {
@@ -407,32 +471,32 @@ void interact(CLIENT *clnt, enum Action *act)
 }
 
 // Perform a RPC action
-void do_RPC_action(CLIENT *clnt, enum Action act)
+void do_RPC_action(enum Action act)
 {
   // Make the interaction operation: set source & target file names interactively while
   // act_interact is ON. File transfer operation can proceed only when act_interact is OFF.
   while (act & act_interact)
-    interact(clnt, &act);
+    interact(&act);
 
   // Make the file transfer operation
   switch (act) {
     case act_upload:
-      if (DBG_CLNT) printf("[do_RPC_action] file_upload before\n");
-      file_upload(clnt); // upload file to the server
-      if (DBG_CLNT) printf("[do_RPC_action] file_upload after\n");
+      if (DBG_CLNT) printf("[do_RPC_action] before file_upload\n");
+      file_upload(); // upload file to the server
+      if (DBG_CLNT) printf("[do_RPC_action] after file_upload\n");
       break;
     case act_download:
-      if (DBG_CLNT) printf("[do_RPC_action] file_download before\n");
-      file_download(clnt); // download file from the server
-      if (DBG_CLNT) printf("[do_RPC_action] file_download after\n");
+      if (DBG_CLNT) printf("[do_RPC_action] before file_download\n");
+      file_download(); // download file from the server
+      if (DBG_CLNT) printf("[do_RPC_action] after file_download\n");
       break;
     default:
       fprintf(stderr, "Unknown program execution mode\n");
-      clnt_destroy(clnt); // delete the client object
+      clnt_destroy(pclient); // delete the client object
       exit(7);
   }
 
-  // Free the memory allocated for the file names
+  // Free the memory allocated for file names
   free(dynamic_src);
   free(dynamic_trg);
 
@@ -465,13 +529,13 @@ int main(int argc, char *argv[])
   do_non_RPC_action(argv[0], action);
 
   // Create the client object
-  CLIENT *client = create_client();
+  (void)create_client();
 
   // Do an RPC action
-  do_RPC_action(client, action);
+  do_RPC_action(action);
 
   // Delete the client object
-  clnt_destroy(client);
+  clnt_destroy(pclient);
 
   return 0;
 }

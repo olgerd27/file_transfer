@@ -57,6 +57,6 @@ program FLTRPROG {
    version FLTRVERS {
      err_inf upload_file(file_inf fileinf) = 1;
      file_err download_file(t_flname filename) = 2;
-     file_err pick_entity(picked_file filename) = 3;
+     file_err pick_file(picked_file filename) = 3;
    } = 1;
 } = 0x20000027;

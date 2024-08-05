@@ -21,6 +21,6 @@ typedef enum pick_ftype pick_ftype;
  * Return value:
  *  Returns path_res on success, and NULL on failure.
  */
-char *get_filename_inter(const char *dir_start, char *file_res, enum pick_ftype pftype);
+char *get_filename_inter(char *dir_start, char *file_res, enum pick_ftype pftype);
 
 #endif

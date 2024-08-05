@@ -6,7 +6,7 @@
 // Forward definitions for the types defined in the RPC protocol. The actual types
 // will be available in source file after inclusion the RPC protocol header file
 typedef enum filetype filetype;
-typedef enum pick_ftype pick_ftype;
+typedef struct picked_file picked_file;
 typedef struct file_err file_err;
 
 /*
@@ -113,6 +113,7 @@ int copy_path(const char *path_src, char *path_trg);
  */
 int ls_dir_str(file_err *p_flerr);
 
+// TODO: update the documentation
 /*
  * Select a file: determine its type and get its full (absolute) path.
  *
@@ -131,6 +132,6 @@ int ls_dir_str(file_err *p_flerr);
  * Return value:
  *  RC: 0 on success, >0 on failure.
  */
-int select_file(const char *path, file_err *p_flerr, enum pick_ftype pftype);
+file_err * select_file(picked_file *p_flpicked);
 
 #endif

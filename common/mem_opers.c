@@ -34,7 +34,8 @@ char * alloc_file_cont(t_flcont *p_flcont, size_t size)
 
   // Memory allocation 
   if (!p_flcont->t_flcont_val) {
-    p_flcont->t_flcont_val = (char*)malloc(size);
+    // TODO: maybe use calloc() instead of malloc() here and then there's no need to set '\n' to the first value
+    p_flcont->t_flcont_val = (char*)malloc(size * sizeof(char));
     if (!p_flcont->t_flcont_val) {
       p_flcont->t_flcont_len = 0;
       // NOTE: print this error in stderr only on the side of the caller of this function.
@@ -156,7 +157,8 @@ int reset_file_name_type(file_inf *p_file)
     // Initial dynamic memory allocation.
     // It performs for the first call of this function or after memory freeing.
     // Deallocation is required later
-    p_file->name = (char*)malloc(LEN_PATH_MAX);
+    // TODO: maybe use calloc() instead of malloc() here and then there's no need to set '\n' to the first value
+    p_file->name = (char*)malloc(LEN_PATH_MAX * sizeof(char));
     if (!p_file->name) {
       fprintf(stderr, "Error 9: Failed to allocate a memory for the file name, name ptr=%p\n", 
               (void*)p_file->name);
@@ -271,7 +273,8 @@ int reset_err_inf(err_inf *p_err)
     // Initial dynamic memory allocation.
     // It performs for the first call of this function or after memory freeing.
     // Deallocation is required later
-    p_err->err_inf_u.msg = (char*)malloc(LEN_ERRMSG_MAX);
+    // TODO: maybe use calloc() instead of malloc() here and then there's no need to set '\n' to the first value
+    p_err->err_inf_u.msg = (char*)malloc(LEN_ERRMSG_MAX * sizeof(char));
     if (!p_err->err_inf_u.msg) {
       fprintf(stderr, "Error 14: Failed to allocate a memory for the error info, msg ptr=%p\n", 
               (void*)p_err->err_inf_u.msg);

@@ -510,110 +510,113 @@ int ls_dir_str(file_err *p_flerr)
  * Select a file: determine its type and get its full (absolute) path.
  *
  * This function determines the type of the specified file and converts its
- * relative path to an absolute path. It resets the error info before performing
- * these operations. The results, including any errors, are stored in the provided
- * file_err structure.
+ * relative path to an absolute path.
+ * It resets the error info, file name & type, and also the file content buffer in ls_dir_str() 
+ * before performing these operations. The results, including any errors, are stored 
+ * in the provided file_err structure.
  *
  * Parameters:
  *  path    - a path of the file that needs to be selected.
  *  p_flerr - a pointer to the file_err RPC struct instance to store file & error info.
  *            This struct is used to set and return the result through the function argument.
  *  pftype  - an enum value of type pick_ftype indicating whether the file to be selected
- *              is a source or target file.
+ *            is a source or target file.
  *
  * Return value:
  *  RC: 0 on success, >0 on failure.
  */
-int select_file(const char *path, file_err *p_flerr, enum pick_ftype pftype)
+// TODO: update the documentation for this function
+file_err * select_file(picked_file *p_flpicked)
 {
+  static file_err flerr;
+
   // Reset the error info before file selection
-  if (reset_err_inf(&p_flerr->err) != 0) {
-    // NOTE: just a workaround - return a special value if an error has occurred 
-    // while resetting the error info; but maybe another solution should be used here
-    p_flerr->err.num = ERRNUM_ERRINF_ERR;
-    return p_flerr->err.num;
+  if (reset_err_inf(&flerr.err) != 0) {
+    // A workaround: set a special value if an error has occurred while resetting the error info
+    flerr.err.num = ERRNUM_ERRINF_ERR;
+    return &flerr;
   }
 
   // Reset the file name & type 
-  if (reset_file_name_type(&p_flerr->file) != 0) {
-    p_flerr->err.num = 81;
-    sprintf(p_flerr->err.err_inf_u.msg,
-            "Error %i: Failed to reset the file name & type\n", p_flerr->err.num);
-    return p_flerr->err.num;
+  if (reset_file_name_type(&flerr.file) != 0) {
+    flerr.err.num = 81;
+    sprintf(flerr.err.err_inf_u.msg,
+            "Error %i: Failed to reset the file name & type\n", flerr.err.num);
+    return &flerr;
   }
 
   // Determine the file type
-  p_flerr->file.type = get_file_type(path);
+  flerr.file.type = get_file_type(p_flpicked->name);
 
   // Process the case of non-existent file required for the target file.
-  // Should be processed before conversion path to the absolute one.
-  if (p_flerr->file.type == FTYPE_NEX) {
+  // Should be processed before conversion p_flpicked->name to the absolute one.
+  if (flerr.file.type == FTYPE_NEX) {
     // Copy the selected file name into the file info instance
     // TODO: delete a line with strncpy() after final acception of the line with copy_path()
-    // strncpy(p_flerr->file.name, path, strlen(path) + 1);
-    copy_path(path, p_flerr->file.name);
+    // strncpy(flerr.file.name, p_flpicked->name, strlen(p_flpicked->name) + 1);
+    copy_path(p_flpicked->name, flerr.file.name);
 
     // Check the correctness of the current file selection based on the selection file type
-    if (pftype == pk_ftype_target)
+    if (p_flpicked->pftype == pk_ftype_target)
       ; // OK: the non-existent file type was selected as expected for a 'target' selection file type
-    else if (pftype == pk_ftype_source) {
+    else if (p_flpicked->pftype == pk_ftype_source) {
       // Fail: the source file selection (a regular file) was expected, but the target file selection
       // (a non-existent file) was actually attempted -> produce the error
-      p_flerr->err.num = 82;
-      sprintf(p_flerr->err.err_inf_u.msg,
+      flerr.err.num = 82;
+      sprintf(flerr.err.err_inf_u.msg,
               "Error %i: The selected file does not exist:\n'%s'\n"
               "Only the regular file can be selected as the source file.\n",
-              p_flerr->err.num, p_flerr->file.name);
+              flerr.err.num, flerr.file.name);
     }
-    return p_flerr->err.num;
+    return &flerr;
   }
 
   // Convert the passed path into the full (absolute) path - needed to any type of existent file
   char *errmsg = NULL;
-  if (!rel_to_full_path(path, p_flerr->file.name, &errmsg)) {
-    p_flerr->err.num = 80;
-    sprintf(p_flerr->err.err_inf_u.msg, "Error %i: %s\n", p_flerr->err.num, errmsg);
+  if (!rel_to_full_path(p_flpicked->name, flerr.file.name, &errmsg)) {
+    flerr.err.num = 80;
+    sprintf(flerr.err.err_inf_u.msg, "Error %i: %s\n", flerr.err.num, errmsg);
     free(errmsg); // free allocated memory
-    return p_flerr->err.num;
+    return &flerr;
   }
 
   // Process the cases of existent file
-  switch (p_flerr->file.type) {
+  switch (flerr.file.type) {
     case FTYPE_DIR: /* directory */
       // Get the directory content and save it to file_err instance
-      // If error has occurred it sets to p_flerr, no need to check the RC
-      ls_dir_str(p_flerr);
+      // If error has occurred it sets to flerr, no need to check the RC
+      (void)ls_dir_str(&flerr);
       break;
 
     case FTYPE_REG: /* regular file */
       // Check the correctness of the current file selection based on the selection file type
-      if (pftype == pk_ftype_source)
+      if (p_flpicked->pftype == pk_ftype_source)
         ; // OK: the regular file type was selected as expected for a 'source' selection file type
-      else if (pftype == pk_ftype_target) {
+      else if (p_flpicked->pftype == pk_ftype_target) {
         // Fail: the target file selection (a non-existent file) was expected, but the source file selection
         // (a regular file) was actually attempted -> produce the error
-        p_flerr->err.num = 83;
-        sprintf(p_flerr->err.err_inf_u.msg,
+        flerr.err.num = 83;
+        sprintf(flerr.err.err_inf_u.msg,
                 "Error %i: The wrong file type was selected - regular file:\n'%s'\n"
                 "Only the non-existent file can be selected as the target file.\n",
-                p_flerr->err.num, p_flerr->file.name);
+                flerr.err.num, flerr.file.name);
       }
       break;
 
     case FTYPE_OTH: /* any other file type like link, socket, etc. */
-      p_flerr->err.num = 84;
-      sprintf(p_flerr->err.err_inf_u.msg,
+      flerr.err.num = 84;
+      sprintf(flerr.err.err_inf_u.msg,
               "Error %i: Unsupported file type was selected (other):\n'%s'\n",
-              p_flerr->err.num, p_flerr->file.name);
+              flerr.err.num, flerr.file.name);
       break;
 
     case FTYPE_INV: /* invalid file */
       // NOTE: If the rel_to_full_path() call above fails, this case will never be reached.
-      p_flerr->err.num = 85;
-      sprintf(p_flerr->err.err_inf_u.msg,
+      flerr.err.num = 85;
+      sprintf(flerr.err.err_inf_u.msg,
               "Error %i: Invalid file was selected:\n'%s'\n%s\n",
-              p_flerr->err.num, p_flerr->file.name, strerror(errno));
+              flerr.err.num, flerr.file.name, strerror(errno));
       break;
   }
-  return p_flerr->err.num;
+  return &flerr;
 }

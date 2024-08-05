@@ -76,9 +76,9 @@ extern  err_inf * upload_file_1_svc(file_inf *, struct svc_req *);
 #define download_file 2
 extern  file_err * download_file_1(t_flname *, CLIENT *);
 extern  file_err * download_file_1_svc(t_flname *, struct svc_req *);
-#define pick_entity 3
-extern  file_err * pick_entity_1(picked_file *, CLIENT *);
-extern  file_err * pick_entity_1_svc(picked_file *, struct svc_req *);
+#define pick_file 3
+extern  file_err * pick_file_1(picked_file *, CLIENT *);
+extern  file_err * pick_file_1_svc(picked_file *, struct svc_req *);
 extern int fltrprog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
@@ -88,9 +88,9 @@ extern  err_inf * upload_file_1_svc();
 #define download_file 2
 extern  file_err * download_file_1();
 extern  file_err * download_file_1_svc();
-#define pick_entity 3
-extern  file_err * pick_entity_1();
-extern  file_err * pick_entity_1_svc();
+#define pick_file 3
+extern  file_err * pick_file_1();
+extern  file_err * pick_file_1_svc();
 extern int fltrprog_1_freeresult ();
 #endif /* K&R C */
 
