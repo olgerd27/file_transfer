@@ -3,8 +3,10 @@
 
 #include <stdio.h>
 
-// Forward definitions for the types defined in the RPC protocol. The actual types
-// will be available in source file after inclusion the RPC protocol header file
+/*
+ * Forward definitions for the types defined in the RPC protocol. The actual types
+ * will be available in source file after inclusion the RPC protocol header file.
+ */
 typedef enum filetype filetype;
 typedef struct picked_file picked_file;
 typedef struct file_err file_err;

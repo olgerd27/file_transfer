@@ -367,12 +367,9 @@ file_err * file_pick_rmt(picked_file *p_flpkd)
 {
   if (DBG_CLNT)
     printf("[file_choose_rmt] 0, client: %p\nfilename_src: '%s'\n", (void *)pclient, filename_src);
-  
-  // Result from a server - the chosen file and error info
-  file_err *p_flerr_srv;
 
-  // Make a file choose on a server through RPC
-  p_flerr_srv = pick_file_1(p_flpkd, pclient);
+  // Choose a file on the server via RPC and return the choosen file info or an error
+  file_err *p_flerr_srv = pick_file_1(p_flpkd, pclient);
   
   if (DBG_CLNT) printf("[file_choose_rmt] 1, RPC operation DONE\n");
 
@@ -398,11 +395,6 @@ file_err * file_pick_rmt(picked_file *p_flpkd)
   if (DBG_CLNT)
     printf("[file_choose_rmt] 3, RPC is successful\n"
            "  Picked file:\n'%s'\n", p_flerr_srv->file.name);
-
-  // Save the remote file content to a local file
-  // save_file(filename_trg, &p_flerr_srv->file.cont);
-  // if (DBG_CLNT)
-  //   printf("[file_choose_rmt] 3, file save DONE,\nfilename: '%s'\n", filename_trg);
 
   // Free the local memory with a remote file content
   // if (DBG_CLNT) printf("[file_choose_rmt] 4, before file content freeing\n");
@@ -452,14 +444,30 @@ void interact(enum Action *act)
 {
   // Get and set the source & target file names
   if (*act & act_upload) {
+    // Select a Source file on a local host
+    if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
+                            select_file, filename_src))
+      return;
     // strcpy(filename_src, "../test/transfer_files/file_orig.txt");
-    if (!get_filename_inter(".", filename_src, pk_ftype_source)) return;
-    strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_4.txt");
+    
+    // Select a Target file on a remote host
+    if (!get_filename_inter(&(picked_file){".", pk_ftype_target}, 
+                            file_pick_rmt, filename_trg))
+      return;
+    // strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_4.txt");
   }
   else if (*act & act_download) {
-    strcpy(filename_src, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_orig.txt");
-    strcpy(filename_trg, "../test/transfer_files/file_6.txt");
-    // if (!get_filename_inter(".", filename_trg, pk_ftype_target)) return;
+    // Select a Source file on a remote host
+    if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
+                            file_pick_rmt, filename_src))
+      return;
+    // strcpy(filename_src, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_orig.txt");
+    
+    // Select a Target file on a local host
+    if (!get_filename_inter(&(picked_file){".", pk_ftype_target}, 
+                            select_file, filename_trg))
+      return;
+    // strcpy(filename_trg, "../test/transfer_files/file_6.txt");
   }
 
   // Confirm the RPC action after completing all interactive actions.

@@ -1,9 +1,16 @@
 #ifndef _INTERACT_H_
 #define _INTERACT_H_
 
-// Forward definition for the type defined in the RPC protocol. The actual type
-// will be available in source file after inclusion the RPC protocol header file
+/*
+ * Forward definitions for the types defined in the RPC protocol. The actual types
+ * will be available in source file after inclusion the RPC protocol header file.
+ */
 typedef enum pick_ftype pick_ftype;
+typedef struct picked_file picked_file;
+typedef struct file_err file_err;
+
+// The function pointer type for the file selection functions
+typedef file_err * (*T_pf_select)(picked_file *);
 
 /*
  * Get the filename interactively by traversing directories.
@@ -21,6 +28,6 @@ typedef enum pick_ftype pick_ftype;
  * Return value:
  *  Returns path_res on success, and NULL on failure.
  */
-char *get_filename_inter(char *dir_start, char *file_res, enum pick_ftype pftype);
+char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect, char *path_res);
 
 #endif

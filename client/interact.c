@@ -77,6 +77,7 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
   return nwrt;
 }
 
+// TODO: update the documentation
 /*
  * Get the filename interactively by traversing directories.
  *
@@ -86,20 +87,20 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
  *
  * Parameters:
  *  dir_start - a starting directory for the traversal.
- *  path_res  - an allocated char array to store the resulting file path.
  *  pftype    - an enum value of type pick_ftype indicating whether the file to be selected
  *              is a source or target file.
+ *  path_res  - an allocated char array to store the resulting file path.
  *
  * Return value:
  *  Returns path_res on success, and NULL on failure.
  *
  * The function performs the following steps:
- * 1. Initializes the traversal starting at dir_start or, in case of error, on '/'.
+ * 1. Initializes the traversal starting at p_flpkd->name or, in case of error, on '/'.
  * 2. Repeatedly prompts the user to select files or directories, updating the current path.
  * 3. If a regular file is selected, it copies the full path to path_res and returns it.
  * 4. Handles errors in file selection and reverts to the previous valid path if necessary.
  *
- * // TODO: update this procedure to reflect the current way of working the interactive operation 
+ * // TODO: update this procedure to reflect the current way of working the interactive operation
  * General procedure:
  * 1. list of the passed dir (initially "." or "/")
  * 2. get user input
@@ -118,7 +119,7 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
  *           - if it exists (type doesn't matter) - error and message like:
  *             File ... exists. Please specify non-existing target file.
  */
-char *get_filename_inter(char *dir_start, char *path_res, enum pick_ftype pftype)
+char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect, char *path_res)
 {
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
   char path_prev[LEN_PATH_MAX]; // a copy of the previous path to restore it if necessary
@@ -126,23 +127,22 @@ char *get_filename_inter(char *dir_start, char *path_res, enum pick_ftype pftype
   char *pfname_inp; // pointer to the inputted filename; used to differentiate between relative and absolute paths
   int offset; // offset from the beginning of the current path for the added subdir/file
   int nwrt_fname; // number of characters written to the current path in each iteration
-  picked_file file_pkd = {dir_start, pftype}; // initial instance of the picked_file struct
-  file_err *p_flerr; // a local struct instance to store & pass the information about a file & error
+  file_err *p_flerr; // pointer to the struct that stores the file & error info
 
   // Initialization
   // Init the previous path with a root dir as a guaranteed valid path on Unix-like OS
   copy_path("/", path_prev);
 
-  // Init the current path (path_curr) in a way of copying dir_start
-  // TODO: delete this way of init if the way presented below will be eventially choosed
-  // offset = copy_path(dir_start, path_curr); // init the current path with the passed start dir for traversal
+  // Init the current path (path_curr) in a way of copying p_flpkd->name
+  // TODO: delete this method of init if the presented below method will be eventially choosed
+  // offset = copy_path(p_flpkd->name, path_curr); // init the current path with the passed start dir for traversal
 
-  // Init the current path (path_curr) in a way of converting the dir_start 
+  // Init the current path (path_curr) in a way of converting the p_flpkd->name
   // to the full (absolute) path
-  // TODO: it looks it's not correct to do it here, since a conversion to the abs path 
+  // TODO: it looks it's not correct to do it here, since a conversion to the abs path
   // should occur in select_file() only that can be executed either on client or server side.
   char *errmsg = NULL;
-  if (!rel_to_full_path(dir_start, path_curr, &errmsg)) {
+  if (!rel_to_full_path(p_flpkd->name, path_curr, &errmsg)) {
     fprintf(stderr, "%s\nChange the current directory to the default one: '%s'\n", 
             errmsg, path_prev);
     free(errmsg); // free allocated memory
@@ -158,14 +158,13 @@ char *get_filename_inter(char *dir_start, char *path_res, enum pick_ftype pftype
   offset = strlen(path_curr);
 
   if (DBG_INTR)
-    printf("[get_filename_inter] 1, path_curr: '%s'\noffset: %d\n", path_curr, offset);
+    printf("[get_filename_inter] 1, path_curr: '%s'\n  offset: %d\n", path_curr, offset);
 
   // Main loop
   while (1) {
-    // TODO: replace select_file() with a function pointer that can be either
-    // select_file() or pick_file() RPC function
-    file_pkd.name = path_curr; // set the current path to the file name that should be picked
-    p_flerr = select_file(&file_pkd);
+    // Call the file selection function via its pointer for either local or remote file selection
+    p_flpkd->name = path_curr; // set the current path to the file name that should be picked
+    p_flerr = (*pf_flselect)(p_flpkd); // function pointer call
     if (p_flerr->err.num == 0) {
       if (p_flerr->file.type == FTYPE_REG || p_flerr->file.type == FTYPE_NEX) {
         // Successful file selection, it's a regular or non-existent file type
@@ -182,8 +181,8 @@ char *get_filename_inter(char *dir_start, char *path_res, enum pick_ftype pftype
       offset = copy_path(path_prev, path_curr); // restore the previous valid path
       continue; // start loop from the beginning to select the previous valid path
     }
-    
-    /* At this point we're sure that it's selected a valid directory */
+
+    /* At this point, we're sure that a valid directory has been selected. */
 
     // Update the current path with the absolute path from p_flerr->file.name to make 
     // a clearer path without "." or ".."
@@ -194,7 +193,7 @@ char *get_filename_inter(char *dir_start, char *path_res, enum pick_ftype pftype
 
     // Print the prompt for user input
     printf("Select the %s file on %s:\n" 
-           , (file_pkd.pftype == pk_ftype_source ? "Source" : "Target")
+           , (p_flpkd->pftype == pk_ftype_source ? "Source" : "Target")
            , "localhost"); // TODO: specify the actual hostname here
     
     // Get user input of filename
@@ -218,7 +217,7 @@ char *get_filename_inter(char *dir_start, char *path_res, enum pick_ftype pftype
     }
 
     if (DBG_INTR)
-      printf("[get_filename_inter] 3, path_curr + offset(%i): '%s'\nfname_inp: '%s', pfname_inp: '%s'\n",
+      printf("[get_filename_inter] 3, path_curr + offset(%i): '%s'\n  fname_inp: '%s', pfname_inp: '%s'\n",
              offset, path_curr + offset - 2, fname_inp, pfname_inp);
 
     // Construct the full path of the selected file
@@ -229,12 +228,13 @@ char *get_filename_inter(char *dir_start, char *path_res, enum pick_ftype pftype
     offset += nwrt_fname;
 
     if (DBG_INTR)
-      printf("[get_filename_inter] 4, path_curr: '%s'\nnwrt_fname: %d,  offset: %d\n", 
+      printf("[get_filename_inter] 4, path_curr: '%s'\n  nwrt_fname: %d,  offset: %d\n", 
              path_curr, nwrt_fname, offset);
   }
 
   // TODO: maybe need to free the file name & content memory - free_file_inf(), at least
-  // if file selection performs on client.
+  // if file selection performs on client. The file_err object is created in a static 
+  // memory by the select_file() function, so it's incorrect to free it for the client. 
   // TODO: think what to do if file selection performs on server.
   return NULL;
 }
