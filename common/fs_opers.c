@@ -16,6 +16,7 @@
 
 #define DBG_FT 0    // debug the file type info
 #define DBG_PATH 0  // debug the path's manipulation
+#define DBG_SLCT 1  // debug the file selection
 
 extern int errno; // global system error number
 
@@ -528,7 +529,9 @@ int ls_dir_str(file_err *p_flerr)
 // TODO: update the documentation for this function
 file_err * select_file(picked_file *p_flpicked)
 {
+  if (DBG_SLCT) printf("[select_file] 0\n");
   static file_err flerr;
+  if (DBG_SLCT) printf("[select_file] 1, file_err created, ptr=%p\n", &flerr);
 
   // Reset the error info before file selection
   if (reset_err_inf(&flerr.err) != 0) {
@@ -618,5 +621,6 @@ file_err * select_file(picked_file *p_flpicked)
               flerr.err.num, flerr.file.name, strerror(errno));
       break;
   }
+  if (DBG_SLCT) printf("[select_file] DONE\n");
   return &flerr;
 }

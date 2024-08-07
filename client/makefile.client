@@ -2,10 +2,12 @@
 # TODO: decide maybe split build on 2 stages:compilation the source files with gathering
 #       the object file and then linkage the obtained object files into the client program.
 # TODO: decide where to store the object files: in the same dirs where sources reside or in a separate dir.
+# Analyze the client program with valgrind (Interaction & Upload):
+# $> valgrind --tool=memcheck --leak-check=yes --track-origins=yes ./prg_clnt -u vmfedora -i
 
 # Initial sources
 SRC_MAIN:=prg_clnt.c
-SRC:=$(SRC_MAIN) ../common/fs_opers.c ../common/mem_opers.c interact.c
+SRC:=$(SRC_MAIN) interact.c ../common/fs_opers.c ../common/mem_opers.c 
 
 # Client RPC sources
 SRC_RPC_CLN:=../rpcgen/fltr_clnt.c
@@ -14,7 +16,7 @@ SRC_RPC_CLN:=../rpcgen/fltr_clnt.c
 OBJ_RPC_XDR:=../rpcgen/fltr_xdr.o
 
 # Header files the program depends on
-HDR:=../common/fs_opers.h ../common/mem_opers.h interact.h
+HDR:=interact.h ../common/fs_opers.h ../common/mem_opers.h
 
 # Executables
 EXE:=$(subst .c,,$(SRC_MAIN))
@@ -34,7 +36,7 @@ TITLE:
 #       Try to use the automatic dependency generation using tools like 'gcc -MM' 
 #       to simplify the maintenance of dependencies.
 $(EXE): $(SRC) $(SRC_RPC_CLN) $(OBJ_RPC_XDR) $(HDR)
-	gcc $^ $(INCL) -o $@ $(LIBS)
+	gcc -g $^ $(INCL) -o $@ $(LIBS)
 
 clean:
 	@echo "$(DLM) Client clean $(DLM)"

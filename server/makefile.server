@@ -29,7 +29,7 @@ TITLE:
 	@echo "$(DLM) Server build $(DLM)"
 
 $(EXE): $(SRC) $(SRC_RPC_SRV) $(OBJ_RPC_XDR) $(HDR)
-	gcc $^ $(INCL) -o $@ $(LIBS) 
+	gcc -g $^ $(INCL) -o $@ $(LIBS) 
 
 clean:
 	@echo "$(DLM) Server clean $(DLM)"

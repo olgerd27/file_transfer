@@ -165,11 +165,16 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect,
   while (1) {
     // Call the file selection function via its pointer for either local or remote file selection
     p_flpkd->name = path_curr; // set the current path to the file name that should be picked
-    p_flerr = (*pf_flselect)(p_flpkd); // function pointer call
+    p_flerr = (*pf_flselect)(p_flpkd); // call a function pointer call
+    if (DBG_INTR) printf("[get_filename_inter] 2, p_flerr: %p\n", (void*)p_flerr);
     if (p_flerr->err.num == 0) {
       if (p_flerr->file.type == FTYPE_REG || p_flerr->file.type == FTYPE_NEX) {
-        // Successful file selection, it's a regular or non-existent file type
+        // Successful file selection, it's a regular or non-existent file type.
+        // copy the result path before freeing the memory of file_err object
         copy_path(p_flerr->file.name, path_res);
+        // free the memory allocated by a file select function that is called by pf_flselect
+        free_file_inf(&p_flerr->file);
+        free_err_inf(&p_flerr->err);
         return path_res;
       }
     }
@@ -218,7 +223,7 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect,
     }
 
     if (DBG_INTR)
-      printf("[get_filename_inter] 2, path_curr + offset(%i): '%s'\n  fname_inp: '%s', pfname_inp: '%s'\n",
+      printf("[get_filename_inter] 3, path_curr + offset(%i): '%s'\n  fname_inp: '%s', pfname_inp: '%s'\n",
              offset, path_curr + offset - 2, fname_inp, pfname_inp);
 
     // Construct the full path of the selected file
@@ -229,13 +234,8 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect,
     offset += nwrt_fname;
 
     if (DBG_INTR)
-      printf("[get_filename_inter] 3, nwrt_fname: %d, offset: %d, path_curr:\n  '%s'\n",
+      printf("[get_filename_inter] 4, nwrt_fname: %d, offset: %d, path_curr:\n  '%s'\n",
              nwrt_fname, offset, path_curr);
   }
-
-  // TODO: maybe need to free the file name & content memory - free_file_inf(), at least
-  // if file selection performs on client. The file_err object is created in a static 
-  // memory by the select_file() function, so it's incorrect to free it for the client. 
-  // TODO: think what to do if file selection performs on server.
   return NULL;
 }

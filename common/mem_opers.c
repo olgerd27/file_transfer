@@ -50,7 +50,8 @@ char * alloc_file_cont(t_flcont *p_flcont, size_t size)
     p_flcont->t_flcont_val[0] = '\0'; // required to ensure strlen() works correctly on this memory
     p_flcont->t_flcont_len = size;
     if (DBG_MEM)
-      printf("[alloc_file_cont] file cont allocated, size=%d\n", p_flcont->t_flcont_len);
+      printf("[alloc_file_cont] file cont allocated, ptr=%p, size=%d\n", 
+        p_flcont->t_flcont_val, p_flcont->t_flcont_len);
   }
   return p_flcont->t_flcont_val;
 }
@@ -65,6 +66,7 @@ char * alloc_file_cont(t_flcont *p_flcont, size_t size)
 void free_file_name(t_flname *p_flname)
 {
   if (p_flname) {
+    if (DBG_MEM) printf("[free_file_name] 0, before freeing, ptr=%p\n", *p_flname);
     free(*p_flname);
     *p_flname = NULL;
     if (DBG_MEM) printf("[free_file_name] DONE\n");
@@ -81,6 +83,7 @@ void free_file_name(t_flname *p_flname)
 void free_file_cont(t_flcont *p_flcont)
 {
   if (p_flcont && p_flcont->t_flcont_val) {
+    if (DBG_MEM) printf("[free_file_cont] 0, before freeing, ptr=%p\n", p_flcont->t_flcont_val);
     free(p_flcont->t_flcont_val);
     p_flcont->t_flcont_val = NULL;
     p_flcont->t_flcont_len = 0;
@@ -165,7 +168,8 @@ int reset_file_name_type(file_inf *p_file)
       return 9;
     }
     p_file->name[0] = '\0'; // required to ensure strlen() works correctly on this memory
-    if (DBG_MEM) printf("[reset_file_name_type] file name allocated\n");
+    if (DBG_MEM) printf("[reset_file_name_type] file name allocated, ptr=%p, size=%d\n", 
+                        p_file->name, LEN_PATH_MAX * sizeof(char));
   }
   else {
     // Reset the previous file name.
