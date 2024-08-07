@@ -269,7 +269,9 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 // The main RPC function for interactive pick a file on the server
 file_err * pick_file_1_svc(picked_file *p_flpkd, struct svc_req *)
 {
+  if (DBG_SERV) printf("[pick_file] 0\n");
   static file_err *p_flerr_ret; // returned pointer, must be static
   p_flerr_ret = select_file(p_flpkd); // select_file() returns pointer to a static file_err object
+  if (DBG_SERV) printf("[pick_file] DONE\n\n");
   return p_flerr_ret;
 }

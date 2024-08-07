@@ -13,7 +13,7 @@
 #define DBG_CLNT 1
 
 // Global definitions
-static CLIENT *pclient;         // a client handle
+static CLIENT *pclient;       // a client handle
 static const char *rmt_host;  // a remote host name
 static char *filename_src; // a source file name on a client (if upload) or server (if download) side
 static char *filename_trg; // a target file name on a server (if upload) or client (if download) side
@@ -242,7 +242,7 @@ void file_upload()
   // Make a file upload to a server through RPC
   p_err_srv = upload_file_1(&fileinf, pclient);
   if (DBG_CLNT)
-    printf("[file_upload] 4, RPC operation DONE,\nfilename: '%s'\n", fileinf.name);
+    printf("[file_upload] 4, RPC operation DONE, filename:\n  '%s'\n", fileinf.name);
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by upload_file_1().
@@ -268,10 +268,9 @@ void file_upload()
 
   // Okay, we successfully called the remote procedure.
 
-  if (DBG_CLNT) printf("[file_download] 3, RPC is successful\n");
+  if (DBG_CLNT) printf("[file_upload] 7, RPC is successful\n");
 
   // Free the file info memory
-  if (DBG_CLNT) printf("[file_upload] 7, RPC DONE, before file info freeing\n");
   free_file_inf(&fileinf); 
   if (DBG_CLNT) printf("[file_upload] DONE\n");
 }
@@ -312,8 +311,7 @@ void save_file(const char *flname, t_flcont *flcont)
 // The main function to Download file through RPC call
 void file_download()
 {
-  if (DBG_CLNT)
-    printf("[file_download] 0, client: %p\nfilename_src: '%s'\n", (void*)pclient, filename_src);
+  if (DBG_CLNT) printf("[file_download] 0, filename_src:\n  '%s'\n", filename_src);
 
   // Result from a server - the downloaded file & error info
   file_err *p_flerr_srv;
@@ -343,16 +341,15 @@ void file_download()
   // Okay, we successfully called the remote procedure.
   
   if (DBG_CLNT)
-    printf("[file_download] 3, RPC is successful\n"
-           "  Downloaded file:\n'%s'\n", p_flerr_srv->file.name);
+    printf("[file_download] 3, RPC is successful, Downloaded file:\n  '%s'\n",
+      p_flerr_srv->file.name);
   
   // Save the remote file content to a local file
   save_file(filename_trg, &p_flerr_srv->file.cont);
   if (DBG_CLNT) 
-    printf("[file_download] 3, file save DONE,\nfilename: '%s'\n", filename_trg);
+    printf("[file_download] 4, file save DONE, filename:\n  '%s'\n", filename_trg);
 
   // Free the local memory with a remote file content
-  if (DBG_CLNT) printf("[file_download] 4, before file content freeing\n");
   free_file_cont(&p_flerr_srv->file.cont);
   if (DBG_CLNT) printf("[file_download] DONE\n");
 }
@@ -363,20 +360,19 @@ void file_download()
  */
 // The main function to Pick (choose) file remotelly through the RPC call.
 // Also, this function is a wrapper of the pick_file() RPC function call.
-file_err * file_pick_rmt(picked_file *p_flpkd)
+file_err * file_select_rmt(picked_file *p_flpkd)
 {
-  if (DBG_CLNT)
-    printf("[file_choose_rmt] 0, client: %p\nfilename_src: '%s'\n", (void *)pclient, filename_src);
+  if (DBG_CLNT) printf("[file_select_rmt] 0, init filename:\n  '%s'\n", p_flpkd->name);
 
   // Choose a file on the server via RPC and return the choosen file info or an error
   file_err *p_flerr_srv = pick_file_1(p_flpkd, pclient);
   
-  if (DBG_CLNT) printf("[file_choose_rmt] 1, RPC operation DONE\n");
+  if (DBG_CLNT) printf("[file_select_rmt] 1, RPC operation DONE\n");
 
   // Print a message to standard error indicating why an RPC call failed.
   // Used after clnt_call(), that is called here by download_file_1().
   if (p_flerr_srv == (file_err *)NULL) {
-    if (DBG_CLNT) printf("[file_choose_rmt] 2, RPC error: NULL was returned\n");
+    if (DBG_CLNT) printf("[file_select_rmt] 2, RPC error: NULL was returned\n");
     clnt_perror(pclient, rmt_host);
     exit(20);
   }
@@ -393,13 +389,12 @@ file_err * file_pick_rmt(picked_file *p_flpkd)
   // Okay, we successfully called the remote procedure.
 
   if (DBG_CLNT)
-    printf("[file_choose_rmt] 3, RPC is successful\n"
-           "  Picked file:\n'%s'\n", p_flerr_srv->file.name);
+    printf("[file_select_rmt] 3, RPC was successful, selected file:\n  '%s'\n",
+           p_flerr_srv->file.name);
 
   // Free the local memory with a remote file content
-  // if (DBG_CLNT) printf("[file_choose_rmt] 4, before file content freeing\n");
   // free_file_cont(&p_flerr_srv->file.cont);
-  if (DBG_CLNT) printf("[file_choose_rmt] DONE\n");
+  if (DBG_CLNT) printf("[file_select_rmt] DONE\n");
 
   return p_flerr_srv;
 }
@@ -445,29 +440,29 @@ void interact(enum Action *act)
   // Get and set the source & target file names
   if (*act & act_upload) {
     // Select a Source file on a local host
-    if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
-                            select_file, filename_src))
-      return;
     // strcpy(filename_src, "../test/transfer_files/file_orig.txt");
+    if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
+                            select_file, "localhost", filename_src))
+      return;
     
     // Select a Target file on a remote host
-    if (!get_filename_inter(&(picked_file){".", pk_ftype_target}, 
-                            file_pick_rmt, filename_trg))
-      return;
     // strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_4.txt");
+    if (!get_filename_inter(&(picked_file){".", pk_ftype_target}, 
+                            file_select_rmt, rmt_host, filename_trg))
+      return;
   }
   else if (*act & act_download) {
     // Select a Source file on a remote host
-    if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
-                            file_pick_rmt, filename_src))
-      return;
     // strcpy(filename_src, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_orig.txt");
+    if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
+                            file_select_rmt, rmt_host, filename_src))
+      return;
     
     // Select a Target file on a local host
-    if (!get_filename_inter(&(picked_file){".", pk_ftype_target}, 
-                            select_file, filename_trg))
-      return;
     // strcpy(filename_trg, "../test/transfer_files/file_6.txt");
+    if (!get_filename_inter(&(picked_file){".", pk_ftype_target},
+                            select_file, "localhost", filename_trg))
+      return;
   }
 
   // Confirm the RPC action after completing all interactive actions.

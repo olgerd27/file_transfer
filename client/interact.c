@@ -119,7 +119,8 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
  *           - if it exists (type doesn't matter) - error and message like:
  *             File ... exists. Please specify non-existing target file.
  */
-char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect, char *path_res)
+char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect, 
+                         const char *hostname, char *path_res)
 {
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
   char path_prev[LEN_PATH_MAX]; // a copy of the previous path to restore it if necessary
@@ -158,7 +159,7 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect, char *pa
   offset = strlen(path_curr);
 
   if (DBG_INTR)
-    printf("[get_filename_inter] 1, path_curr: '%s'\n  offset: %d\n", path_curr, offset);
+    printf("[get_filename_inter] 1, offset: %d, path_curr:\n  '%s'\n", offset, path_curr);
 
   // Main loop
   while (1) {
@@ -192,9 +193,9 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect, char *pa
     printf("\n%s:\n%s\n", p_flerr->file.name, p_flerr->file.cont.t_flcont_val);
 
     // Print the prompt for user input
-    printf("Select the %s file on %s:\n" 
-           , (p_flpkd->pftype == pk_ftype_source ? "Source" : "Target")
-           , "localhost"); // TODO: specify the actual hostname here
+    printf("Select the %s file on %s:\n",
+           (p_flpkd->pftype == pk_ftype_source ? "Source" : "Target"),
+           hostname);
     
     // Get user input of filename
     if (input_filename(fname_inp) != 0)
@@ -217,7 +218,7 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect, char *pa
     }
 
     if (DBG_INTR)
-      printf("[get_filename_inter] 3, path_curr + offset(%i): '%s'\n  fname_inp: '%s', pfname_inp: '%s'\n",
+      printf("[get_filename_inter] 2, path_curr + offset(%i): '%s'\n  fname_inp: '%s', pfname_inp: '%s'\n",
              offset, path_curr + offset - 2, fname_inp, pfname_inp);
 
     // Construct the full path of the selected file
@@ -228,8 +229,8 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect, char *pa
     offset += nwrt_fname;
 
     if (DBG_INTR)
-      printf("[get_filename_inter] 4, path_curr: '%s'\n  nwrt_fname: %d,  offset: %d\n", 
-             path_curr, nwrt_fname, offset);
+      printf("[get_filename_inter] 3, nwrt_fname: %d, offset: %d, path_curr:\n  '%s'\n",
+             nwrt_fname, offset, path_curr);
   }
 
   // TODO: maybe need to free the file name & content memory - free_file_inf(), at least
