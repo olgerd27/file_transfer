@@ -399,12 +399,9 @@ file_err * file_select_rmt(picked_file *p_flpkd)
   return p_flerr_srv;
 }
 
-/*
- * The confirmation prompt.
- */
-void print_confirm_msg(enum Action *act)
+// Print the confirmation prompt for the RPC operation to transfer the file.
+void print_confirm_trop_msg(enum Action *act)
 {
-  // Print the prompt message
   printf("\n%s Request:\n"
          "    Source: %s:%s\n"
          "    Target: %s:%s\n"
@@ -446,10 +443,10 @@ char * get_and_confirm_filename(const picked_file *p_flpkd, const char *hostname
   do {
     if (!get_filename_inter(p_flpkd, pf_select, hostname, selected_filename))
       return NULL;
-    printf("%s\nDo you really want to select the following file? (y/n) [y]: ", selected_filename);
+    printf("'%s'\nDo you really want to select this file? (y/n) [y]: ", selected_filename);
   } while (get_user_confirm() != 0);
-  printf("The %s file was successfully selected on %s.\n", 
-    p_flpkd->pftype == pk_ftype_source ? "Source" : "Target", hostname);
+  printf("The %s file was successfully selected on %s.\n",
+         get_pkd_ftype_name(p_flpkd->pftype), hostname);
   return selected_filename;
 }
 
@@ -484,7 +481,7 @@ void interact(enum Action *act)
   // Confirm the RPC action after completing all interactive actions.
   // If confirmed, substruct the act_interact action from *act; if not -> doesn't do a substruction 
   // and interact() will be called again by the caller function do_RPC_action().
-  print_confirm_msg(act);
+  print_confirm_trop_msg(act);
   if (get_user_confirm() == 0)
     *act &= ~act_interact;
   if (DBG_CLNT) printf("[interact] DONE\n");

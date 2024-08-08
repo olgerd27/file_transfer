@@ -9,6 +9,9 @@ typedef enum pick_ftype pick_ftype;
 typedef struct picked_file picked_file;
 typedef struct file_err file_err;
 
+// Return a name of the picked (selected) file type
+const char *get_pkd_ftype_name(pick_ftype pk_fltype);
+
 // The function pointer type for the file selection functions
 typedef file_err * (*T_pf_select)(picked_file *);
 

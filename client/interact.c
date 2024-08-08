@@ -77,6 +77,16 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
   return nwrt;
 }
 
+// Return a name of the picked (selected) file type
+const char *get_pkd_ftype_name(pick_ftype pk_fltype)
+{
+  switch (pk_fltype) {
+    case pk_ftype_source: return "Source";
+    case pk_ftype_target: return "Target";
+    default:              return "Invalid pick type";
+  }
+}
+
 // TODO: update the documentation
 /*
  * Get the filename interactively by traversing directories.
@@ -216,11 +226,7 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
     printf("\n%s:\n%s\n", p_flerr->file.name, p_flerr->file.cont.t_flcont_val);
 
     // Print the prompt for user input
-    // TODO: create the function to get a name of the picked file type like "Source" or "Target"
-    // And use it here and in the prg_clnt.c code.
-    printf("Select the %s file on %s:\n",
-           (flpkd_curr.pftype == pk_ftype_source ? "Source" : "Target"),
-           hostname);
+    printf("Select the %s file on %s:\n", get_pkd_ftype_name(flpkd_curr.pftype), hostname);
 
     // Get user input of filename
     if (input_filename(fname_inp) != 0)

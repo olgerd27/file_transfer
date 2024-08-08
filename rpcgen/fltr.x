@@ -21,8 +21,8 @@ enum filetype {
 
 /* The types of picked (selected) files */
 enum pick_ftype {
-  pk_ftype_source, /* the 'source' type - regular file should be selected */
-  pk_ftype_target  /* the 'target' type - non existent file should be selected */
+  pk_ftype_source,  /* the 'source' type - regular file should be selected */
+  pk_ftype_target   /* the 'target' type - non existent file should be selected */
 };
 
 /* Picked file with its name and type of picking */
