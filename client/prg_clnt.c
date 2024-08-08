@@ -438,19 +438,20 @@ int get_user_confirm()
   return (ans == 'y' || ans == '\n') ? 0 : 1;
 }
 
-// TODO: complete this function and use it for all 4 cases in interact()
-// char * get_and_confirm_filename(const picked_file *p_flpkd, const char *hostname,
-//                                 T_pf_select pf_select, char *selected_filename)
-// {
-//   do {
-//     if (!get_filename_inter(p_flpkd, pf_select, hostname, selected_filename))
-//       return NULL;
-//     printf("%s\nDo you really want to select the following file? (y/n) [y]: ", selected_filename);
-//   } while (get_user_confirm() != 0);
-//   printf("The %s file was successfully selected on %s.\n", 
-//     p_flpkd->pftype == pk_ftype_source ? "Source" : "Target", hostname);
-//   return selected_filename;
-// }
+// Get the filename and prompt the user to confirm the selection.
+// Can be used for all types of selection: Source & Target file on Client & Server.
+char * get_and_confirm_filename(const picked_file *p_flpkd, const char *hostname,
+                                T_pf_select pf_select, char *selected_filename)
+{
+  do {
+    if (!get_filename_inter(p_flpkd, pf_select, hostname, selected_filename))
+      return NULL;
+    printf("%s\nDo you really want to select the following file? (y/n) [y]: ", selected_filename);
+  } while (get_user_confirm() != 0);
+  printf("The %s file was successfully selected on %s.\n", 
+    p_flpkd->pftype == pk_ftype_source ? "Source" : "Target", hostname);
+  return selected_filename;
+}
 
 void interact(enum Action *act)
 {
@@ -459,41 +460,25 @@ void interact(enum Action *act)
   // Get and set the source & target file names
   if (*act & act_upload) {
     // Select a Source file on a local host
-    // strcpy(filename_src, "../test/transfer_files/file_orig.txt"); // for debugging
-    do {
-      hostname = "localhost";
-      if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
-                              select_file, hostname, filename_src))
-        return;
-      printf("Do you really want to select the following file?\n'%s' (y/n) [y]: ", filename_src);
-    } while (get_user_confirm() != 0);
-    printf("The Source file was successfully selected on %s.\n", hostname);
-    // if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_source}, "localhost",
-    //                                 select_file, filename_src) ) { return; }
-    
+    // strcpy(filename_src, "../test/transfer_files/file_orig.txt"); for debugging
+    if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_source}, "localhost",
+                                    select_file, filename_src) ) { return; }
+
     // Select a Target file on a remote host
     // strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_4.txt"); // for debugging
-    do {
-      hostname = rmt_host;
-      if (!get_filename_inter(&(picked_file){".", pk_ftype_target}, 
-                              file_select_rmt, hostname, filename_trg))
-        return;
-      printf("Do you really want to select the following file?\n'%s' (y/n) [y]: ", filename_trg);
-    } while (get_user_confirm() != 0);
-    printf("The Target file was successfully selected on %s.\n", hostname);
+    if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_target}, rmt_host,
+                                    file_select_rmt, filename_trg) ) { return; }
   }
   else if (*act & act_download) {
     // Select a Source file on a remote host
-    // strcpy(filename_src, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_orig.txt");
-    if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
-                            file_select_rmt, rmt_host, filename_src))
-      return;
-    
+    // strcpy(filename_src, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_orig.txt"); // for debugging
+    if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_source}, rmt_host,
+                                    file_select_rmt, filename_src) ) { return; }
+
     // Select a Target file on a local host
-    // strcpy(filename_trg, "../test/transfer_files/file_6.txt");
-    if (!get_filename_inter(&(picked_file){".", pk_ftype_target},
-                            select_file, "localhost", filename_trg))
-      return;
+    // strcpy(filename_trg, "../test/transfer_files/file_6.txt"); // for debugging
+    if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_target}, "localhost",
+                                    select_file, filename_trg) ) { return; }
   }
 
   // Confirm the RPC action after completing all interactive actions.
