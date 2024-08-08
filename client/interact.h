@@ -28,7 +28,7 @@ typedef file_err * (*T_pf_select)(picked_file *);
  * Return value:
  *  Returns path_res on success, and NULL on failure.
  */
-char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect,
+char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
                          const char *hostname, char *path_res);
 
 #endif

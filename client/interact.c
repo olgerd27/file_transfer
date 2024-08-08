@@ -5,7 +5,7 @@
 #include "../common/mem_opers.h"
 #include "../common/fs_opers.h"
 
-#define DBG_INTR 1
+#define DBG_INTR 0
 
 /*
  * Get user input for a filename.
@@ -102,12 +102,12 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
  *
  * // TODO: update this procedure to reflect the current way of working the interactive operation
  * General procedure:
- * 1. list of the passed dir (initially "." or "/")
- * 2. get user input
- * 3. add user input to the current path
- * 3. check the input:
- *    3.1 if it's a dir, go to p.1.
- *    3.2 if it's not a dir, do the following:
+ * 1 List of the passed dir (initially "." or "/")
+ * 2 Get user input
+ * 3 Add user input to the current path
+ * 4 Check the input:
+ *    4.1 If it's a dir, go to p.1.
+ *    4.2 If it's not a dir, do the following:
  *        >> for source file:
  *           - if it's a regular file - OK and return its full path
  *           - if it's NOT a regular file - error and message like:
@@ -118,8 +118,25 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
  *           - if it's NOT exist - OK and return its full path
  *           - if it exists (type doesn't matter) - error and message like:
  *             File ... exists. Please specify non-existing target file.
+ *
+ * Chain of calls to run the select_file() on the CLIENT:
+ * prg_clnt.c:main()
+ * prg_clnt.c:do_RPC_action()
+ * prg_clnt.c:interact() # p_func points to fs_opers.c:select_file(); pass p_func to get_filename_inter()
+ * interact.c:get_filename_inter() # it calls p_func in a loop
+ * fs_opers.c:select_file()
+ * 
+ * Chain of calls to run the select_file() on the SERVER:
+ * prg_clnt.c:main()
+ * prg_clnt.c:do_RPC_action()
+ * prg_clnt.c:interact() # p_func points to prg_clnt.c:file_pick_rmt(); pass p_func to get_filename_inter()
+ * interact.c:get_filename_inter() # it calls p_func in a loop
+ * prg_clnt.c:file_pick_rmt() # a wrapper for prg_clnt.c:pick_file_1()
+ * prg_clnt.c:pick_file_1() # RPC function on client
+ * prg_serv.c:pick_file_1_svc() # RPC function on server
+ * fs_opers.c:select_file()
  */
-char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect, 
+char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect, 
                          const char *hostname, char *path_res)
 {
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
@@ -128,22 +145,23 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect,
   char *pfname_inp; // pointer to the inputted filename; used to differentiate between relative and absolute paths
   int offset; // offset from the beginning of the current path for the added subdir/file
   int nwrt_fname; // number of characters written to the current path in each iteration
+  picked_file flpkd_curr = *p_flpkd; // current picked file object that will be sent to a selection function
   file_err *p_flerr; // pointer to the struct that stores the file & error info
 
   // Initialization
   // Init the previous path with a root dir as a guaranteed valid path on Unix-like OS
   copy_path("/", path_prev);
 
-  // Init the current path (path_curr) in a way of copying p_flpkd->name
+  // Init the current path (path_curr) in a way of copying flpkd_curr.name
   // TODO: delete this method of init if the presented below method will be eventially choosed
-  // offset = copy_path(p_flpkd->name, path_curr); // init the current path with the passed start dir for traversal
+  // offset = copy_path(flpkd_curr.name, path_curr); // init the current path with the passed start dir for traversal
 
-  // Init the current path (path_curr) in a way of converting the p_flpkd->name
+  // Init the current path (path_curr) in a way of converting the flpkd_curr.name
   // to the full (absolute) path
   // TODO: it looks it's not correct to do it here, since a conversion to the abs path
   // should occur in select_file() only that can be executed either on client or server side.
   char *errmsg = NULL;
-  if (!rel_to_full_path(p_flpkd->name, path_curr, &errmsg)) {
+  if (!rel_to_full_path(flpkd_curr.name, path_curr, &errmsg)) {
     fprintf(stderr, "%s\nChange the current directory to the default one: '%s'\n", 
             errmsg, path_prev);
     free(errmsg); // free allocated memory
@@ -164,8 +182,8 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect,
   // Main loop
   while (1) {
     // Call the file selection function via its pointer for either local or remote file selection
-    p_flpkd->name = path_curr; // set the current path to the file name that should be picked
-    p_flerr = (*pf_flselect)(p_flpkd); // call a function pointer call
+    flpkd_curr.name = path_curr;      // set the current path to the file name that should be picked
+    p_flerr = (*pf_flselect)(&flpkd_curr); // make a function pointer call
     if (DBG_INTR) printf("[get_filename_inter] 2, p_flerr: %p\n", (void*)p_flerr);
     if (p_flerr->err.num == 0) {
       if (p_flerr->file.type == FTYPE_REG || p_flerr->file.type == FTYPE_NEX) {
@@ -198,10 +216,12 @@ char *get_filename_inter(picked_file *p_flpkd, T_pf_select pf_flselect,
     printf("\n%s:\n%s\n", p_flerr->file.name, p_flerr->file.cont.t_flcont_val);
 
     // Print the prompt for user input
+    // TODO: create the function to get a name of the picked file type like "Source" or "Target"
+    // And use it here and in the prg_clnt.c code.
     printf("Select the %s file on %s:\n",
-           (p_flpkd->pftype == pk_ftype_source ? "Source" : "Target"),
+           (flpkd_curr.pftype == pk_ftype_source ? "Source" : "Target"),
            hostname);
-    
+
     // Get user input of filename
     if (input_filename(fname_inp) != 0)
       continue;

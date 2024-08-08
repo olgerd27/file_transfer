@@ -10,7 +10,7 @@
 #include "../common/fs_opers.h" /* for working with the File System */
 #include "interact.h" /* for interaction operations */
 
-#define DBG_CLNT 1
+#define DBG_CLNT 0
 
 // Global definitions
 static CLIENT *pclient;       // a client handle
@@ -399,6 +399,22 @@ file_err * file_select_rmt(picked_file *p_flpkd)
   return p_flerr_srv;
 }
 
+/*
+ * The confirmation prompt.
+ */
+void print_confirm_msg(enum Action *act)
+{
+  // Print the prompt message
+  printf("\n%s Request:\n"
+         "    Source: %s:%s\n"
+         "    Target: %s:%s\n"
+         "Confirm this operation? (y/n) [y]: ",
+    (*act & act_upload ? "Upload" : "Download"),
+    (*act & act_upload ? "localhost" : rmt_host), filename_src,
+    (*act & act_upload ? rmt_host : "localhost"), filename_trg
+  );
+}
+
 char get_stdin_char()
 {
   char ch, ans = getchar(); // get one (first) character
@@ -410,46 +426,61 @@ char get_stdin_char()
   return ans;
 }
 
-/*
- * The confirmation prompt.
- */
-int confirm_operation(enum Action *act)
+// Get user input to confirm a operation.
+int get_user_confirm()
 {
-  // Print the prompt message
-  printf("%s Request:\n"
-         "    Source: %s:%s\n"
-         "    Target: %s:%s\n"
-         "Confirm this operation? (y/n) [y]: ",
-    (*act & act_upload ? "Upload" : "Download"),
-    (*act & act_upload ? "localhost" : rmt_host), filename_src,
-    (*act & act_upload ? rmt_host : "localhost"), filename_trg
-  );
-
-  // Get user input
   char ans = get_stdin_char();
   while (ans != 'y' && ans != 'n' && ans != '\n') {
     printf("Incorrect input, please repeat (y/n) [y]: ");
     ans = get_stdin_char();
   }
   if (DBG_CLNT) printf("[confirm_operation] DONE, ans: '%c'\n", ans);
-  return (ans == 'y' || ans == '\n' ? 0 : 1);
+  return (ans == 'y' || ans == '\n') ? 0 : 1;
 }
+
+// TODO: complete this function and use it for all 4 cases in interact()
+// char * get_and_confirm_filename(const picked_file *p_flpkd, const char *hostname,
+//                                 T_pf_select pf_select, char *selected_filename)
+// {
+//   do {
+//     if (!get_filename_inter(p_flpkd, pf_select, hostname, selected_filename))
+//       return NULL;
+//     printf("%s\nDo you really want to select the following file? (y/n) [y]: ", selected_filename);
+//   } while (get_user_confirm() != 0);
+//   printf("The %s file was successfully selected on %s.\n", 
+//     p_flpkd->pftype == pk_ftype_source ? "Source" : "Target", hostname);
+//   return selected_filename;
+// }
 
 void interact(enum Action *act)
 {
+  const char *hostname = NULL;
+
   // Get and set the source & target file names
   if (*act & act_upload) {
     // Select a Source file on a local host
-    // strcpy(filename_src, "../test/transfer_files/file_orig.txt");
-    if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
-                            select_file, "localhost", filename_src))
-      return;
+    // strcpy(filename_src, "../test/transfer_files/file_orig.txt"); // for debugging
+    do {
+      hostname = "localhost";
+      if (!get_filename_inter(&(picked_file){".", pk_ftype_source}, 
+                              select_file, hostname, filename_src))
+        return;
+      printf("Do you really want to select the following file?\n'%s' (y/n) [y]: ", filename_src);
+    } while (get_user_confirm() != 0);
+    printf("The Source file was successfully selected on %s.\n", hostname);
+    // if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_source}, "localhost",
+    //                                 select_file, filename_src) ) { return; }
     
     // Select a Target file on a remote host
-    // strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_4.txt");
-    if (!get_filename_inter(&(picked_file){".", pk_ftype_target}, 
-                            file_select_rmt, rmt_host, filename_trg))
-      return;
+    // strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_4.txt"); // for debugging
+    do {
+      hostname = rmt_host;
+      if (!get_filename_inter(&(picked_file){".", pk_ftype_target}, 
+                              file_select_rmt, hostname, filename_trg))
+        return;
+      printf("Do you really want to select the following file?\n'%s' (y/n) [y]: ", filename_trg);
+    } while (get_user_confirm() != 0);
+    printf("The Target file was successfully selected on %s.\n", hostname);
   }
   else if (*act & act_download) {
     // Select a Source file on a remote host
@@ -468,7 +499,8 @@ void interact(enum Action *act)
   // Confirm the RPC action after completing all interactive actions.
   // If confirmed, substruct the act_interact action from *act; if not -> doesn't do a substruction 
   // and interact() will be called again by the caller function do_RPC_action().
-  if (confirm_operation(act) == 0)
+  print_confirm_msg(act);
+  if (get_user_confirm() == 0)
     *act &= ~act_interact;
   if (DBG_CLNT) printf("[interact] DONE\n");
 }

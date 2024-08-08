@@ -16,7 +16,7 @@
 
 #define DBG_FT 0    // debug the file type info
 #define DBG_PATH 0  // debug the path's manipulation
-#define DBG_SLCT 1  // debug the file selection
+#define DBG_SLCT 0  // debug the file selection
 
 extern int errno; // global system error number
 

@@ -9,7 +9,7 @@
 #include "../common/fs_opers.h" /* functions for working with the File System */
 #include "../common/mem_opers.h" /* function for the memory manipulations */
 
-#define DBG_SERV 1
+#define DBG_SERV 0
 
 extern int errno; // global system error number
 
