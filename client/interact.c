@@ -162,29 +162,8 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
   // Init the previous path with a root dir as a guaranteed valid path on Unix-like OS
   copy_path("/", path_prev);
 
-  // Init the current path (path_curr) in a way of copying flpkd_curr.name
-  // TODO: delete this method of init if the presented below method will be eventially choosed
-  // offset = copy_path(flpkd_curr.name, path_curr); // init the current path with the passed start dir for traversal
-
-  // Init the current path (path_curr) in a way of converting the flpkd_curr.name
-  // to the full (absolute) path
-  // TODO: it looks it's not correct to do it here, since a conversion to the abs path
-  // should occur in select_file() only that can be executed either on client or server side.
-  char *errmsg = NULL;
-  if (!rel_to_full_path(flpkd_curr.name, path_curr, &errmsg)) {
-    fprintf(stderr, "%s\nChange the current directory to the default one: '%s'\n", 
-            errmsg, path_prev);
-    free(errmsg); // free allocated memory
-    // The 2nd attempt: set the default previous path for the current path
-    if (!rel_to_full_path(path_prev, path_curr, &errmsg)) {
-      fprintf(stderr, "Fatal error: %s\n", errmsg);
-      free(errmsg); // free allocated memory
-      return NULL;
-    }
-  }
-
-  // Init the offset as a length of the current path
-  offset = strlen(path_curr);
+  // Init the current path (path_curr) in a way of copying the passed start dir for traversal
+  offset = copy_path(flpkd_curr.name, path_curr);
 
   if (DBG_INTR)
     printf("[get_filename_inter] 1, offset: %d, path_curr:\n  '%s'\n", offset, path_curr);
