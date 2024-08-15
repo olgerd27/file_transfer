@@ -4,7 +4,7 @@
 #include "mem_opers.h"
 #include "fs_opers.h" // to access ERRNUM_ERRINF_ERR
 
-#define DBG_MEM 0 // debug the memory manipulation
+#define DBG_MEM 1 // debug the memory manipulation
 
 extern int errno; // global system error number
 

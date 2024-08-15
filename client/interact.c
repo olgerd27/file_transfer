@@ -156,7 +156,7 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
   int offset; // offset from the beginning of the current path for the added subdir/file
   int nwrt_fname; // number of characters written to the current path in each iteration
   picked_file flpkd_curr = *p_flpkd; // current picked file object that will be sent to a selection function
-  file_err *p_flerr; // pointer to the struct that stores the file & error info
+  file_err *p_flerr; // pointer to the file & error info struct
 
   // Initialization
   // Init the previous path with a root dir as a guaranteed valid path on Unix-like OS
@@ -177,11 +177,12 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
     if (p_flerr->err.num == 0) {
       if (p_flerr->file.type == FTYPE_REG || p_flerr->file.type == FTYPE_NEX) {
         // Successful file selection, it's a regular or non-existent file type.
-        // copy the result path before freeing the memory of file_err object
+        // Copy the result path before freeing the memory of file_err object
         copy_path(p_flerr->file.name, path_res);
         // free the memory allocated by a file select function that is called by pf_flselect
-        free_file_inf(&p_flerr->file);
-        free_err_inf(&p_flerr->err);
+        // free_file_inf(&p_flerr->file);
+        // free_err_inf(&p_flerr->err);
+        xdr_free((xdrproc_t)xdr_file_err, p_flerr); // free the file & error info
         return path_res;
       }
     }
@@ -241,6 +242,8 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
     if (DBG_INTR)
       printf("[get_filename_inter] 4, nwrt_fname: %d, offset: %d, path_curr:\n  '%s'\n",
              nwrt_fname, offset, path_curr);
+    xdr_free((xdrproc_t)xdr_file_err, p_flerr); // free the file & error info
+    if (DBG_INTR) printf("[get_filename_inter] 5, file_error object freed\n");
   }
   return NULL;
 }
