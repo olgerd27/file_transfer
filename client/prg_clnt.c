@@ -124,7 +124,7 @@ enum Action process_args(int argc, char *argv[])
       // that allows to free this memory correctly afterwards
       filename_src = dynamic_src = (char *)malloc(LEN_PATH_MAX);
       filename_trg = dynamic_trg = (char *)malloc(LEN_PATH_MAX);
-      filename_src[0] = filename_trg[0] = '\0'; // reset filenames, because they'll be set interactively later
+      filename_src[0] = filename_trg[0] = '\0'; // init filenames, because they'll be set interactively later
     }
     else {
       // User wants to upload or download file, set filenames that were passed through the command line
@@ -224,7 +224,7 @@ void file_upload()
   // Init the file name & type
   fileinf.name = NULL; // init with NULL for stable memory allocation
   fileinf.cont.t_flcont_val = NULL; // init with NULL for stable memory allocation
-  reset_file_name_type(&fileinf);
+  init_file_name_type(&fileinf);
   if (DBG_CLNT) printf("[file_upload] 1\n");
 
   // Set the target file name to the file object

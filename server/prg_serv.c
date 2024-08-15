@@ -107,15 +107,15 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
   FILE *hfile;            // the file handler
 
   // Reset an error state remained after a previous call of the 'upload' function
-  if ( reset_err_inf(&ret_err) != 0 ) {
-    // Return a special value if an error has occurred while resetting the error info
+  if ( init_err_inf(&ret_err) != 0 ) {
+    // Return a special value if an error has occurred while initializing the error info
     ret_err.num = ERRNUM_ERRINF_ERR;
-    ret_err.err_inf_u.msg = "Failed to reset the error info\n";
+    ret_err.err_inf_u.msg = "Failed to init the error info\n";
     print_error("Upload", &ret_err);
     return &ret_err;
   }
 
-  if (DBG_SERV) printf("[upload_file] 2 error info reset\n");
+  if (DBG_SERV) printf("[upload_file] 2 error info init'ed\n");
 
   // Open the file
   if ( (hfile = open_file_write_x(file_upld->name, &ret_err)) == NULL )
@@ -208,25 +208,25 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
   FILE *hfile;  // the file handler
 
   // Reset an error info remained from the previous call of 'download' function
-  if ( reset_err_inf(p_errinf) != 0 ) {
-    // Return a special value if an error has occurred while resetting the error info
+  if ( init_err_inf(p_errinf) != 0 ) {
+    // Return a special value if an error has occurred while initializing the error info
     p_errinf->num = ERRNUM_ERRINF_ERR;
-    p_errinf->err_inf_u.msg = "Failed to reset the error info\n";
+    p_errinf->err_inf_u.msg = "Failed to init the error info\n";
     print_error("Download", p_errinf);
     return &ret_flerr;
   }
 
-  if (DBG_SERV) printf("[download_file] 1 error info was reset\n");
+  if (DBG_SERV) printf("[download_file] 1 error info init'ed\n");
 
-  // Reset the file name & type info remained from the previous call of 'download' function
-  if ( reset_file_name_type(p_fileinf) != 0 ) {
+  // Init the file name & type info remained from the previous call of 'download' function
+  if ( init_file_name_type(p_fileinf) != 0 ) {
     p_errinf->num = 64;
-    sprintf(p_errinf->err_inf_u.msg, "Failed to reset the file name & type\n");
+    sprintf(p_errinf->err_inf_u.msg, "Failed to init the file name & type\n");
     print_error("Download", p_errinf);
     return &ret_flerr;
   }
 
-  if (DBG_SERV) printf("[download_file] 2 file name & type reset\n");
+  if (DBG_SERV) printf("[download_file] 2 file name & type init'ed\n");
 
   // Set the file name to be read
   p_fileinf->name = *p_flname;

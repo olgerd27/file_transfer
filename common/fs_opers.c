@@ -437,7 +437,7 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
  * The function performs the following steps:
  * 1. Opens the specified directory.
  * 2. Iterates through the directory entries to gather settings for flexible listing.
- * 3. Resets the file content buffer based on the calculated size of the directory content.
+ * 3. Initializes the file content buffer based on the calculated size of the directory content.
  * 4. Iterates through the directory entries again to populate the file content buffer 
  *    with the directory listing.
  *
@@ -465,7 +465,7 @@ int ls_dir_str(file_err *p_flerr)
 
   // Preliminary loop through directory entries to get settings values 
   // for subsequent flexible listing of the directory content
-  while ((de = readdir(hdir)) != NULL) {
+  while ( (de = readdir(hdir)) != NULL ) {
     // Get the file status (info)
     if ( get_file_stat(p_flerr->file.name, de->d_name, &statbuf, &errmsg) == 0 )
       update_lsdir_setts(&statbuf, de->d_name, &lsdir_set);
@@ -477,12 +477,12 @@ int ls_dir_str(file_err *p_flerr)
     }
   }
 
-  // Reset the file content before filling it with directory listing data
-  if (reset_file_cont(&p_flerr->file.cont, calc_dir_cont_size(&lsdir_set)) != 0) {
+  // Init the file content before filling it with directory listing data
+  if ( init_file_cont(&p_flerr->file.cont, calc_dir_cont_size(&lsdir_set)) != 0 ) {
     // TODO: check an error number
     p_flerr->err.num = 86;
     sprintf(p_flerr->err.err_inf_u.msg,
-            "Error %i: Failed to reset the file content\n", p_flerr->err.num);
+            "Error %i: Failed to init the file content\n", p_flerr->err.num);
     return p_flerr->err.num;
   }
 
@@ -491,7 +491,7 @@ int ls_dir_str(file_err *p_flerr)
 
   // Loop through directory entries to get entry info with flexible fields width
   char *p_curr; // pointer to the current position in the dir content buffer
-  while ((de = readdir(hdir)) != NULL) {
+  while ( (de = readdir(hdir)) != NULL ) {
     // Calc the current position in buffer where to place the next (in this iteration) portion of data
     p_curr = p_flerr->file.cont.t_flcont_val + strlen(p_flerr->file.cont.t_flcont_val);
     
@@ -512,7 +512,7 @@ int ls_dir_str(file_err *p_flerr)
  *
  * This function determines the type of the specified file and converts its
  * relative path to an absolute path.
- * It resets the error info, file name & type, and also the file content buffer in ls_dir_str() 
+ * It initializes the error info, file name & type, and also the file content buffer in ls_dir_str() 
  * before performing these operations. The results, including any errors, are stored 
  * in the provided file_err structure.
  *
@@ -533,18 +533,18 @@ file_err * select_file(picked_file *p_flpicked)
   static file_err flerr;
   if (DBG_SLCT) printf("[select_file] 1, file_err created, ptr=%p\n", &flerr);
 
-  // Reset the error info before file selection
-  if (reset_err_inf(&flerr.err) != 0) {
-    // A workaround: set a special value if an error has occurred while resetting the error info
+  // Init the error info before file selection
+  if ( init_err_inf(&flerr.err) != 0 ) {
+    // A workaround: set a special value if an error has occurred while initializing the error info
     flerr.err.num = ERRNUM_ERRINF_ERR;
     return &flerr;
   }
 
-  // Reset the file name & type 
-  if (reset_file_name_type(&flerr.file) != 0) {
+  // Init the file name & type 
+  if ( init_file_name_type(&flerr.file) != 0 ) {
     flerr.err.num = 81;
     sprintf(flerr.err.err_inf_u.msg,
-            "Error %i: Failed to reset the file name & type\n", flerr.err.num);
+            "Error %i: Failed to init the file name & type\n", flerr.err.num);
     return &flerr;
   }
 
