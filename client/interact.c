@@ -179,9 +179,6 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
         // Successful file selection, it's a regular or non-existent file type.
         // Copy the result path before freeing the memory of file_err object
         copy_path(p_flerr->file.name, path_res);
-        // free the memory allocated by a file select function that is called by pf_flselect
-        // free_file_inf(&p_flerr->file);
-        // free_err_inf(&p_flerr->err);
         xdr_free((xdrproc_t)xdr_file_err, p_flerr); // free the file & error info
         return path_res;
       }
@@ -199,7 +196,7 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
     /* At this point, we're sure that a valid directory has been selected. */
 
     // Update the current path with the absolute path from p_flerr->file.name to make 
-    // a clearer path without "." or ".."
+    // a clear path without "." or ".."
     offset = copy_path(p_flerr->file.name, path_curr);
 
     // Print the full (absolute) path and content of the current directory

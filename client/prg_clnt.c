@@ -207,7 +207,7 @@ int read_file(const char *filename, file_inf *p_flinf)
                     "System error %i: %s\n",
                     filename, errno, strerror(errno));
     fclose(hfile);
-    free_file_cont(&p_flinf->cont); // free the file content memory in case of error
+    xdr_free((xdrproc_t)xdr_t_flcont, &p_flinf->cont); // free the file content
     return 12;
   }
 
@@ -233,8 +233,7 @@ void file_upload()
 
   // Get the file content and set it to the file object
   if (read_file(filename_src, &fileinf) != 0) {
-    // free_file_name(&fileinf.name);
-    xdr_free((xdrproc_t)xdr_t_flname, fileinf.name); // free file name
+    xdr_free((xdrproc_t)xdr_t_flname, fileinf.name); // free the file name
     exit(12);
   }
   if (DBG_CLNT) printf("[file_upload] 3, read file DONE\n");
@@ -249,7 +248,6 @@ void file_upload()
   if (p_err_srv == (err_inf *)NULL) {
     if (DBG_CLNT) printf("[file_upload] 5, RPC error\n");
     clnt_perror(pclient, rmt_host);
-    // free_file_inf(&fileinf); // free file info (file name & content)
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
     exit(13);
   }
@@ -260,11 +258,9 @@ void file_upload()
     // Error on a server has occurred. Print error message and die.
     fprintf(stderr, "!--Server error %d: %s\n", 
             p_err_srv->num, p_err_srv->err_inf_u.msg);
-    // free_file_inf(&fileinf); // free file info (file name & content)
-    // free_err_inf(p_err_srv); // free error info
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
     xdr_free((xdrproc_t)xdr_err_inf, p_err_srv); // free the error info returned from server
-    clnt_destroy(pclient);   // delete the client object
+    clnt_destroy(pclient); // delete the client object
     exit(14);
   }
 
@@ -273,8 +269,6 @@ void file_upload()
   if (DBG_CLNT) printf("[file_upload] 7, RPC is successful, before memory freeing\n");
 
   // Free the memory
-  // free_file_inf(&fileinf); // free file info
-  // free_err_inf(p_err_srv); // free error info
   xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
   xdr_free((xdrproc_t)xdr_err_inf, p_err_srv); // free the error info returned from server
   if (DBG_CLNT) printf("[file_upload] DONE\n");
@@ -337,33 +331,28 @@ void file_download()
     // Error on a server has occurred. Print error message and die.
     fprintf(stderr, "!--Server error %d: %s\n", 
             p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
-    // free_file_inf(&p_flerr_srv->file); // free file info
-    // free_err_inf(&p_flerr_srv->err); // free error info
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free file & error info returned from server
     clnt_destroy(pclient); // delete the client object
     exit(21);              // TODO: replace with return??
   }
 
   // Okay, we successfully called the remote procedure.
-  
   if (DBG_CLNT)
-    printf("[file_download] 3, RPC is successful, Downloaded file:\n  '%s'\n",
-      p_flerr_srv->file.name);
+    printf("[file_download] 3, RPC is successful, Downloaded file:\n  '%s'\n", p_flerr_srv->file.name);
   
   // Save the remote file content to a local file
   save_file(filename_trg, &p_flerr_srv->file.cont);
   if (DBG_CLNT) 
     printf("[file_download] 4, file save DONE, filename:\n  '%s'\n", filename_trg);
 
-  // Free the local memory with a remote file content
   if (DBG_CLNT)
     printf("[file_download] 5, before memory freeing, pointers: file_err=%p, file=%p\n"
            "  file_name=%p, file_cont=%p, err=%p, err_msg=%p\n",
            p_flerr_srv, &p_flerr_srv->file, p_flerr_srv->file.name, p_flerr_srv->file.cont.t_flcont_val,
            &p_flerr_srv->err, p_flerr_srv->err.err_inf_u.msg);
-  // free_file_inf(&p_flerr_srv->file); // free file info
-  // free_err_inf(&p_flerr_srv->err); // free error info
-  xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free file & error info returned from server
+
+  // Free the file & error info returned from server
+  xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv);
   if (DBG_CLNT) printf("[file_download] DONE\n");
 }
 
@@ -402,7 +391,6 @@ file_err * file_select_rmt(picked_file *p_flpkd)
   }
 
   // Okay, we successfully called the remote procedure.
-
   if (DBG_CLNT)
     printf("[file_select_rmt] DONE, RPC was successful, selected file:\n  '%s'\n",
            p_flerr_srv->file.name);
