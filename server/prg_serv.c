@@ -13,9 +13,9 @@
 
 extern int errno; // global system error number
 
-// NOTE: it was made the same approach for all the error messages: the error messages 
-// with the short info should be provided to the client through error info object, and 
-// the error messages with the extended info should be printed in STDERR on the server side.
+// NOTE: it was made the same approach for all the error messages: the error messages with
+// the short info should be provided to the client through error info object, and the error
+// messages with the extended info should be printed to STDERR on the server side only.
 
 // Print the error message in special format to STDERR
 void print_error(const char *oper_type, const struct err_inf *p_errinf)
@@ -176,7 +176,7 @@ int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
             "System server error %i: %s",
             p_file->name, errno, strerror(errno));
     print_error("Download", p_err); // print the error message to STDERR
-    free_file_inf(p_file); // deallocate the file content
+    xdr_free((xdrproc_t)xdr_file_inf, p_file); // free the file info
     fclose(hfile); // Decided not to use close_file() so as not to lose this error message
     return 1;
   }
@@ -189,7 +189,7 @@ int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
             "System server error %i: %s",
             p_file->name, errno, strerror(errno));
     print_error("Download", p_err); // print the error message to STDERR
-    free_file_inf(p_file); // deallocate the file content
+    xdr_free((xdrproc_t)xdr_file_inf, p_file); // free the file info
     fclose(hfile); // Decided not to use close_file() so as not to lose this error message
     return 2;
   }
@@ -258,7 +258,6 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
   // Close the file stream
   if ( close_file(hfile, p_fileinf->name, p_errinf) != 0 ) {
     print_error("Download", p_errinf);
-    free_file_inf(p_fileinf); // deallocate the file content
     return &ret_flerr;
   }
 
