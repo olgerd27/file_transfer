@@ -1,12 +1,11 @@
-*/prg_serv
-*/prg_clnt
-*.o
+bin/*
+obj/*
 *.swp
 *a.out
 
-# Ignore all the file in test_trans_files except file_orig.txt
-test/transfer_files/*
-!test/transfer_files/file_orig.txt
+# Ignore all files in tst/file_trans dir except file_orig.txt
+tst/file_trans/*
+!tst/file_trans/file_orig.txt
 
 # Ignore a content of this directory as it can have "no permissions" files
-test/file_types/*
+tst/file_types/*

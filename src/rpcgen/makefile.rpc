@@ -1,0 +1,53 @@
+# Build the RPC files for both server & client
+# Pass the MODE=DBG argument if you need a debug mode compilation.
+
+# Construct the object dir
+ifeq ($(MODE),DBG)
+  OPT_MODE := -g
+  D_MODE := debug
+else
+  OPT_MODE :=
+  D_MODE := release
+endif
+D_OBJ := ../../obj/$(D_MODE)/$(notdir $(CURDIR))
+
+# Initial sources
+SRC_RPC := fltr.x
+
+# Server & client RPC sources
+HDR_RPC := $(subst .x,.h,$(SRC_RPC))
+SRC_RPC_SRV := $(subst .x,_svc.c,$(SRC_RPC))
+SRC_RPC_CLN := $(subst .x,_clnt.c,$(SRC_RPC))
+
+# XDR RPC files
+SRC_RPC_XDR := $(subst .x,_xdr.c,$(SRC_RPC))
+OBJ_RPC_XDR := $(D_OBJ)/$(subst .x,_xdr.o,$(SRC_RPC))
+
+# The non-standard directories to the header files
+INCL := -I/usr/include/tirpc
+
+# Commands
+CC := gcc
+CMD_CREATE_DIR = mkdir -p $(dir $@)
+MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
+CMD_COMP = $(CC) -c $(OPT_MODE) $< $(INCL) -o $@
+
+DLM := "---------------"
+
+### Execution
+all: TITLE $(OBJ_RPC_XDR)
+
+TITLE:
+	@echo "$(DLM) RPCGEN build $(DLM)"
+
+$(OBJ_RPC_XDR): $(SRC_RPC_XDR)
+	@$(CMD_CREATE_DIR)
+	@$(MSG_COMP)
+	$(CMD_COMP)
+
+$(HDR_RPC) $(SRC_RPC_SRV) $(SRC_RPC_CLN) $(SRC_RPC_XDR): $(SRC_RPC)
+	rpcgen $<
+
+clean:
+	@echo "$(DLM) RPCGEN clean $(DLM)"
+	@rm -fv $(OBJ_RPC_XDR) $(SRC_RPC_XDR) $(SRC_RPC_CLN) $(SRC_RPC_SRV) $(HDR_RPC) 

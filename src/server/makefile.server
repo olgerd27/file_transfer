@@ -1,0 +1,104 @@
+# Build the server
+# Pass the MODE=DBG argument if you need a debug mode compilation.
+
+# Analyze the client program with valgrind (Interaction & Upload):
+# valgrind --tool=memcheck --leak-check=yes --track-origins=yes ../../bin/release/prg_serv
+
+# Directories
+# The final dir name where the source & object files resides
+D_SRV := $(notdir $(CURDIR))
+D_CMN := common
+D_RPC := rpcgen
+
+# The target dirs for object and executable files
+ifeq ($(MODE),DBG)
+  OPT_MODE := -g
+  D_MODE := debug
+else
+  OPT_MODE :=
+  D_MODE := release
+endif
+D_OBJ_SRV := ../../obj/$(D_MODE)/$(D_SRV)
+D_OBJ_CMN := $(subst $(D_SRV),$(D_CMN),$(D_OBJ_SRV))
+D_OBJ_RPC := $(subst $(D_SRV),$(D_RPC),$(D_OBJ_SRV))
+D_BIN := ../../bin/$(D_MODE)
+
+# Initial sources
+SRC_MAIN := prg_serv.c
+SRC_SRV := $(SRC_MAIN)
+SRC_CMN := ../$(D_CMN)/fs_opers.c ../$(D_CMN)/mem_opers.c
+SRC_RPC := ../$(D_RPC)/fltr_svc.c
+
+# Header files the program depends on
+# TODO: add header files as dependencies to build object files
+HDR_CMN := ../$(D_CMN)/fs_opers.h ../$(D_CMN)/mem_opers.h
+HDR_RPC := ../$(D_RPC)/fltr.h
+
+# The object files with respective paths
+OBJS := $(addprefix $(D_OBJ_SRV)/,$(subst .c,.o,$(SRC_SRV))) \
+		$(addprefix $(D_OBJ_CMN)/,$(notdir $(subst .c,.o,$(SRC_CMN)))) \
+		$(addprefix $(D_OBJ_RPC)/,$(notdir $(subst .c,.o,$(SRC_RPC)))) \
+		$(D_OBJ_RPC)/fltr_xdr.o
+
+# Final executable
+EXE := $(D_BIN)/$(subst .c,,$(SRC_MAIN))
+
+INCL := -I/usr/include/tirpc
+LIBS := -lnsl -ltirpc
+
+# Commands
+CC := gcc
+CMD_CREATE_DIR = mkdir -p $(dir $@)
+
+MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
+CMD_COMP = $(CC) -c $(OPT_MODE) $< $(INCL) -o $@
+
+MSG_LINK = echo "Linking $(notdir $@):"
+CMD_LINK = $(CC) $(OPT_MODE) $^ $(LIBS) -o $@
+
+DLM:="---------------"
+
+### Execution
+.PHONY: all clean debug
+
+all: TITLE $(EXE)
+
+TITLE:
+	@echo "$(DLM) Server build $(DLM)"
+
+$(EXE): $(OBJS)
+	@$(CMD_CREATE_DIR)
+	@$(MSG_LINK)
+	$(CMD_LINK)
+
+$(D_OBJ_SRV)/%.o: %.c
+	@$(CMD_CREATE_DIR)
+	@$(MSG_COMP)
+	$(CMD_COMP)
+
+$(D_OBJ_CMN)/%.o: ../$(D_CMN)/%.c
+	@$(CMD_CREATE_DIR)
+	@$(MSG_COMP)
+	$(CMD_COMP)
+
+$(D_OBJ_RPC)/%.o: ../$(D_RPC)/%.c
+	@$(CMD_CREATE_DIR)
+	@$(MSG_COMP)
+	$(CMD_COMP)
+
+# Clean rule to remove build artifacts
+clean:
+	@echo "$(DLM) Server clean $(DLM)"
+	@rm -fv $(EXE) $(OBJS)
+
+# Debug rule to print all variables
+debug:
+	@echo "$(DLM) Server debug info $(DLM)"
+	@echo "SRC_SRV: $(SRC_SRV)"
+	@echo "SRC_CMN: $(SRC_CMN)"
+	@echo "SRC_RPC: $(SRC_RPC)"
+	@echo "D_OBJ_SRV: $(D_OBJ_SRV)"
+	@echo "D_OBJ_CMN: $(D_OBJ_CMN)"
+	@echo "D_OBJ_RPC: $(D_OBJ_RPC)"
+	@echo "OBJS: $(OBJS)"
+	@echo "EXE: $(EXE)"
