@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <string.h> 
 #include <errno.h>
-#include "../rpcgen/fltr.h"     /* RPC protocol definitions - created by rpcgen */
 #include "../common/mem_opers.h" /* for the memory manipulations */
 #include "../common/fs_opers.h" /* for working with the File System */
 #include "interact.h" /* for interaction operations */

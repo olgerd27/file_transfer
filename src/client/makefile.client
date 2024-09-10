@@ -4,6 +4,10 @@
 # Analyze the client program with valgrind (Interaction & Upload):
 # valgrind --tool=memcheck --leak-check=yes --track-origins=yes ../../bin/release/prg_clnt -u vmfedora -i
 
+# Default target - must be at the top of makefile (just to not specify 'all' each time to execute this file)
+.PHONY: all clean debug
+all: TITLE BIN
+
 # Directories
 # The final dir name where the source & object files resides
 D_CLN := $(notdir $(CURDIR))
@@ -12,7 +16,7 @@ D_RPC := rpcgen
 
 # The target dirs for object and executable files
 ifeq ($(MODE),DBG)
-  OPT_MODE := -g
+  OPT_MODE := -g -Wall
   D_MODE := debug
 else
   OPT_MODE :=
@@ -44,34 +48,31 @@ OBJS := $(addprefix $(D_OBJ_CLN)/,$(subst .c,.o,$(SRC_CLN))) \
 # Final executable
 EXE := $(D_BIN)/$(subst .c,,$(SRC_MAIN))
 
-INCL:=-I/usr/include/tirpc
+# Include TI-RPC header files as the system ones to not include them to the dependencies files
+INCL:=-isystem /usr/include/tirpc
 LIBS:=-lnsl -ltirpc
 
 # Commands
 CC := gcc
+OPT_DEPS := -MMD -MP
 CMD_CREATE_DIR = mkdir -p $(dir $@)
 
 MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
-CMD_COMP = $(CC) -c $(OPT_MODE) $< $(INCL) -o $@
+CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) -c $< $(INCL) -o $@
 
 MSG_LINK = echo "Linking $(notdir $@):"
 CMD_LINK = $(CC) $(OPT_MODE) $^ $(LIBS) -o $@
 
+# Include automatically generated dependencies
+-include $(OBJS:.o=.d)
+
 DLM:="---------------"
 
 ### Execution
-.PHONY: all clean debug
-
-all: TITLE $(EXE)
-
 TITLE:
 	@echo "$(DLM) Client build $(DLM)"
 
-# TODO: add dependencies on $(HDR) for $(EXE) or the source file it depends on.
-#       Try to use the automatic dependency generation using tools like 'gcc -MM' 
-#       to simplify the maintenance of dependencies.
-#$(EXE): $(SRC) $(SRC_RPC_CLN) $(OBJ_RPC_XDR) $(HDR)
-#	gcc -g $^ $(INCL) -o $@ $(LIBS)
+BIN: $(EXE)
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)
@@ -96,7 +97,7 @@ $(D_OBJ_RPC)/%.o: ../$(D_RPC)/%.c
 # Clean rule to remove build artifacts
 clean:
 	@echo "$(DLM) Client clean $(DLM)"
-	@rm -fv $(EXE) $(OBJS)
+	@rm -fv $(EXE) $(OBJS) $(OBJS:.o=.d)
 
 # Debug rule to print all variables
 debug:
