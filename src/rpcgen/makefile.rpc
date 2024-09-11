@@ -1,15 +1,22 @@
 # Build the RPC files for both server & client
 # Pass the MODE=DBG argument if you need a debug mode compilation.
 
+# Default target - must be at the top of makefile that allows to execute 'all' automatically
+.PHONY: all clean
+all: TITLE OBJ_BUILD
+
 # Construct the object dir
 ifeq ($(MODE),DBG)
-  OPT_MODE := -g
+  OPT_MODE := -g -Wall
   D_MODE := debug
 else
   OPT_MODE :=
   D_MODE := release
 endif
 D_OBJ := ../../obj/$(D_MODE)/$(notdir $(CURDIR))
+
+# Dependency compiler options
+OPT_DEPS := -MMD -MP
 
 # Initial sources
 SRC_RPC := fltr.x
@@ -23,19 +30,24 @@ SRC_RPC_CLN := $(subst .x,_clnt.c,$(SRC_RPC))
 SRC_RPC_XDR := $(subst .x,_xdr.c,$(SRC_RPC))
 OBJ_RPC_XDR := $(D_OBJ)/$(subst .x,_xdr.o,$(SRC_RPC))
 
-# The non-standard directories to the header files
-INCL := -I/usr/include/tirpc
+# Including the TI-RPC header files as the system ones allows 
+# to not include them to the dependencies files
+INCL:=-isystem /usr/include/tirpc
 
 # Commands
 CC := gcc
 CMD_CREATE_DIR = mkdir -p $(dir $@)
+
 MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
-CMD_COMP = $(CC) -c $(OPT_MODE) $< $(INCL) -o $@
+CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) $(INCL) -c $< -o $@
+
+# Include automatically generated dependencies
+-include $(OBJ_RPC_XDR:.o=.d)
 
 DLM := "---------------"
 
 ### Execution
-all: TITLE $(OBJ_RPC_XDR)
+OBJ_BUILD: $(OBJ_RPC_XDR)
 
 TITLE:
 	@echo "$(DLM) RPCGEN build $(DLM)"
@@ -50,4 +62,5 @@ $(HDR_RPC) $(SRC_RPC_SRV) $(SRC_RPC_CLN) $(SRC_RPC_XDR): $(SRC_RPC)
 
 clean:
 	@echo "$(DLM) RPCGEN clean $(DLM)"
-	@rm -fv $(OBJ_RPC_XDR) $(SRC_RPC_XDR) $(SRC_RPC_CLN) $(SRC_RPC_SRV) $(HDR_RPC) 
+	@rm -fv $(OBJ_RPC_XDR) $(OBJ_RPC_XDR:.o=.d) \
+	$(SRC_RPC_XDR) $(SRC_RPC_CLN) $(SRC_RPC_SRV) $(HDR_RPC) 

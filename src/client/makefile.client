@@ -1,12 +1,12 @@
 # Build the client
 # Pass the MODE=DBG argument if you need a debug mode compilation.
 
-# Analyze the client program with valgrind (Interaction & Upload):
+# Analyze the program with valgrind (Interaction & Upload):
 # valgrind --tool=memcheck --leak-check=yes --track-origins=yes ../../bin/release/prg_clnt -u vmfedora -i
 
-# Default target - must be at the top of makefile (just to not specify 'all' each time to execute this file)
+# Default target - must be at the top of makefile that allows to execute 'all' automatically
 .PHONY: all clean debug
-all: TITLE BIN
+all: TITLE BIN_BUILD
 
 # Directories
 # The final dir name where the source & object files resides
@@ -27,17 +27,14 @@ D_OBJ_CMN := $(subst $(D_CLN),$(D_CMN),$(D_OBJ_CLN))
 D_OBJ_RPC := $(subst $(D_CLN),$(D_RPC),$(D_OBJ_CLN))
 D_BIN := ../../bin/$(D_MODE)
 
+# Dependency compiler options
+OPT_DEPS := -MMD -MP
+
 # Initial sources
 SRC_MAIN := prg_clnt.c
 SRC_CLN := $(SRC_MAIN) interact.c 
 SRC_CMN := ../$(D_CMN)/fs_opers.c ../$(D_CMN)/mem_opers.c
 SRC_RPC := ../$(D_RPC)/fltr_clnt.c
-
-# Header files the program depends on
-# TODO: add header files as dependencies to build object files
-HDR_CLN := interact.h
-HDR_CMN := ../$(D_CMN)/fs_opers.h ../$(D_CMN)/mem_opers.h
-HDR_RPC := ../$(D_RPC)/fltr.h
 
 # The object files with respective paths
 OBJS := $(addprefix $(D_OBJ_CLN)/,$(subst .c,.o,$(SRC_CLN))) \
@@ -48,17 +45,18 @@ OBJS := $(addprefix $(D_OBJ_CLN)/,$(subst .c,.o,$(SRC_CLN))) \
 # Final executable
 EXE := $(D_BIN)/$(subst .c,,$(SRC_MAIN))
 
-# Include TI-RPC header files as the system ones to not include them to the dependencies files
+# Including the TI-RPC header files as the system ones allows 
+# to not include them to the dependencies files
 INCL:=-isystem /usr/include/tirpc
+
 LIBS:=-lnsl -ltirpc
 
 # Commands
 CC := gcc
-OPT_DEPS := -MMD -MP
 CMD_CREATE_DIR = mkdir -p $(dir $@)
 
 MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
-CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) -c $< $(INCL) -o $@
+CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) $(INCL) -c $< -o $@
 
 MSG_LINK = echo "Linking $(notdir $@):"
 CMD_LINK = $(CC) $(OPT_MODE) $^ $(LIBS) -o $@
@@ -72,7 +70,7 @@ DLM:="---------------"
 TITLE:
 	@echo "$(DLM) Client build $(DLM)"
 
-BIN: $(EXE)
+BIN_BUILD: $(EXE)
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)

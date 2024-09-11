@@ -1,8 +1,12 @@
 # Build the server
 # Pass the MODE=DBG argument if you need a debug mode compilation.
 
-# Analyze the client program with valgrind (Interaction & Upload):
+# Analyze the program with valgrind (Interaction & Upload):
 # valgrind --tool=memcheck --leak-check=yes --track-origins=yes ../../bin/release/prg_serv
+
+# Default target - must be at the top of makefile that allows to execute 'all' automatically
+.PHONY: all clean debug
+all: TITLE BIN_BUILD
 
 # Directories
 # The final dir name where the source & object files resides
@@ -12,7 +16,7 @@ D_RPC := rpcgen
 
 # The target dirs for object and executable files
 ifeq ($(MODE),DBG)
-  OPT_MODE := -g
+  OPT_MODE := -g -Wall
   D_MODE := debug
 else
   OPT_MODE :=
@@ -23,16 +27,14 @@ D_OBJ_CMN := $(subst $(D_SRV),$(D_CMN),$(D_OBJ_SRV))
 D_OBJ_RPC := $(subst $(D_SRV),$(D_RPC),$(D_OBJ_SRV))
 D_BIN := ../../bin/$(D_MODE)
 
+# Dependency compiler options
+OPT_DEPS := -MMD -MP
+
 # Initial sources
 SRC_MAIN := prg_serv.c
 SRC_SRV := $(SRC_MAIN)
 SRC_CMN := ../$(D_CMN)/fs_opers.c ../$(D_CMN)/mem_opers.c
 SRC_RPC := ../$(D_RPC)/fltr_svc.c
-
-# Header files the program depends on
-# TODO: add header files as dependencies to build object files
-HDR_CMN := ../$(D_CMN)/fs_opers.h ../$(D_CMN)/mem_opers.h
-HDR_RPC := ../$(D_RPC)/fltr.h
 
 # The object files with respective paths
 OBJS := $(addprefix $(D_OBJ_SRV)/,$(subst .c,.o,$(SRC_SRV))) \
@@ -43,28 +45,32 @@ OBJS := $(addprefix $(D_OBJ_SRV)/,$(subst .c,.o,$(SRC_SRV))) \
 # Final executable
 EXE := $(D_BIN)/$(subst .c,,$(SRC_MAIN))
 
-INCL := -I/usr/include/tirpc
-LIBS := -lnsl -ltirpc
+# Including the TI-RPC header files as the system ones allows 
+# to not include them to the dependencies files
+INCL:=-isystem /usr/include/tirpc
+
+LIBS:=-lnsl -ltirpc
 
 # Commands
 CC := gcc
 CMD_CREATE_DIR = mkdir -p $(dir $@)
 
 MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
-CMD_COMP = $(CC) -c $(OPT_MODE) $< $(INCL) -o $@
+CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) $(INCL) -c $< -o $@
 
 MSG_LINK = echo "Linking $(notdir $@):"
 CMD_LINK = $(CC) $(OPT_MODE) $^ $(LIBS) -o $@
 
+# Include automatically generated dependencies
+-include $(OBJS:.o=.d)
+
 DLM:="---------------"
 
 ### Execution
-.PHONY: all clean debug
-
-all: TITLE $(EXE)
-
 TITLE:
 	@echo "$(DLM) Server build $(DLM)"
+
+BIN_BUILD: $(EXE)
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)
@@ -89,7 +95,7 @@ $(D_OBJ_RPC)/%.o: ../$(D_RPC)/%.c
 # Clean rule to remove build artifacts
 clean:
 	@echo "$(DLM) Server clean $(DLM)"
-	@rm -fv $(EXE) $(OBJS)
+	@rm -fv $(EXE) $(OBJS) $(OBJS:.o=.d)
 
 # Debug rule to print all variables
 debug:
