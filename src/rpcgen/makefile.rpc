@@ -2,8 +2,8 @@
 # Pass the MODE=DBG argument if you need a debug mode compilation.
 
 # Default target - must be at the top of makefile that allows to execute 'all' automatically
-.PHONY: all clean
-all: TITLE OBJ_BUILD
+.PHONY: all clean debug
+all: TITLE_BEG OBJ_BUILD TITLE_END
 
 # Construct the object dir
 ifeq ($(MODE),DBG)
@@ -18,17 +18,17 @@ D_OBJ := ../../obj/$(D_MODE)/$(notdir $(CURDIR))
 # Dependency compiler options
 OPT_DEPS := -MMD -MP
 
-# Initial sources
+# Initial RPC source files
 SRC_RPC := fltr.x
 
-# Server & client RPC sources
+# RPC C-lang source files
 HDR_RPC := $(subst .x,.h,$(SRC_RPC))
-SRC_RPC_SRV := $(subst .x,_svc.c,$(SRC_RPC))
-SRC_RPC_CLN := $(subst .x,_clnt.c,$(SRC_RPC))
+SRCS := $(subst .x,_xdr.c,$(SRC_RPC)) \
+		$(subst .x,_svc.c,$(SRC_RPC)) \
+		$(subst .x,_clnt.c,$(SRC_RPC))
 
-# XDR RPC files
-SRC_RPC_XDR := $(subst .x,_xdr.c,$(SRC_RPC))
-OBJ_RPC_XDR := $(D_OBJ)/$(subst .x,_xdr.o,$(SRC_RPC))
+# RPC object files
+OBJS := $(addprefix $(D_OBJ)/,$(subst .c,.o,$(SRCS)))
 
 # Including the TI-RPC header files as the system ones allows 
 # to not include them to the dependencies files
@@ -42,25 +42,34 @@ MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
 CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) $(INCL) -c $< -o $@
 
 # Include automatically generated dependencies
--include $(OBJ_RPC_XDR:.o=.d)
+-include $(OBJS:.o=.d)
 
 DLM := "---------------"
 
 ### Execution
-OBJ_BUILD: $(OBJ_RPC_XDR)
+OBJ_BUILD: $(OBJS)
 
-TITLE:
+TITLE_BEG:
 	@echo "$(DLM) RPCGEN build $(DLM)"
 
-$(OBJ_RPC_XDR): $(SRC_RPC_XDR)
+TITLE_END:
+	@echo "$(DLM) RPCGEN build completed"
+
+$(D_OBJ)/%.o: %.c
 	@$(CMD_CREATE_DIR)
 	@$(MSG_COMP)
 	$(CMD_COMP)
 
-$(HDR_RPC) $(SRC_RPC_SRV) $(SRC_RPC_CLN) $(SRC_RPC_XDR): $(SRC_RPC)
+$(HDR_RPC) $(SRCS): $(SRC_RPC)
+	@echo "Executing rpcgen for $(notdir $<) -> $(notdir $(HDR_RPC) $(SRCS)):"
 	rpcgen $<
 
 clean:
 	@echo "$(DLM) RPCGEN clean $(DLM)"
-	@rm -fv $(OBJ_RPC_XDR) $(OBJ_RPC_XDR:.o=.d) \
-	$(SRC_RPC_XDR) $(SRC_RPC_CLN) $(SRC_RPC_SRV) $(HDR_RPC) 
+	@rm -fv $(OBJS) $(OBJS:.o=.d) $(SRCS) $(HDR_RPC) 
+
+# Debug rule to print all variables
+debug:
+	@echo "$(DLM) RPCGEN debug info $(DLM)"
+	@echo "SRCS: $(SRCS)"
+	@echo "OBJS: $(OBJS)"

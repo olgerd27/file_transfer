@@ -1,6 +1,13 @@
-all:
+.PHONY: all rpcgen server client clean
+all: server client
+
+rpcgen:
 	@cd src/rpcgen && make --no-print-directory -f makefile.rpc
+
+server:
 	@cd src/server && make --no-print-directory -f makefile.server
+
+client:
 	@cd src/client && make --no-print-directory -f makefile.client
 
 clean:

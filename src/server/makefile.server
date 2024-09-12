@@ -6,7 +6,7 @@
 
 # Default target - must be at the top of makefile that allows to execute 'all' automatically
 .PHONY: all clean debug
-all: TITLE BIN_BUILD
+all: TITLE RPC_BUILD EXE_BUILD
 
 # Directories
 # The final dir name where the source & object files resides
@@ -34,13 +34,11 @@ OPT_DEPS := -MMD -MP
 SRC_MAIN := prg_serv.c
 SRC_SRV := $(SRC_MAIN)
 SRC_CMN := ../$(D_CMN)/fs_opers.c ../$(D_CMN)/mem_opers.c
-SRC_RPC := ../$(D_RPC)/fltr_svc.c
 
 # The object files with respective paths
 OBJS := $(addprefix $(D_OBJ_SRV)/,$(subst .c,.o,$(SRC_SRV))) \
 		$(addprefix $(D_OBJ_CMN)/,$(notdir $(subst .c,.o,$(SRC_CMN)))) \
-		$(addprefix $(D_OBJ_RPC)/,$(notdir $(subst .c,.o,$(SRC_RPC)))) \
-		$(D_OBJ_RPC)/fltr_xdr.o
+		$(D_OBJ_RPC)/fltr_svc.o $(D_OBJ_RPC)/fltr_xdr.o
 
 # Final executable
 EXE := $(D_BIN)/$(subst .c,,$(SRC_MAIN))
@@ -70,7 +68,12 @@ DLM:="---------------"
 TITLE:
 	@echo "$(DLM) Server build $(DLM)"
 
-BIN_BUILD: $(EXE)
+# RPC code must be generated before building the server
+RPC_BUILD:
+	@echo "Building RPC files"
+	@cd ../rpcgen && make --no-print-directory -f makefile.rpc
+
+EXE_BUILD: $(EXE)
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)
@@ -87,11 +90,6 @@ $(D_OBJ_CMN)/%.o: ../$(D_CMN)/%.c
 	@$(MSG_COMP)
 	$(CMD_COMP)
 
-$(D_OBJ_RPC)/%.o: ../$(D_RPC)/%.c
-	@$(CMD_CREATE_DIR)
-	@$(MSG_COMP)
-	$(CMD_COMP)
-
 # Clean rule to remove build artifacts
 clean:
 	@echo "$(DLM) Server clean $(DLM)"
@@ -100,11 +98,10 @@ clean:
 # Debug rule to print all variables
 debug:
 	@echo "$(DLM) Server debug info $(DLM)"
-	@echo "SRC_SRV: $(SRC_SRV)"
-	@echo "SRC_CMN: $(SRC_CMN)"
-	@echo "SRC_RPC: $(SRC_RPC)"
 	@echo "D_OBJ_SRV: $(D_OBJ_SRV)"
 	@echo "D_OBJ_CMN: $(D_OBJ_CMN)"
 	@echo "D_OBJ_RPC: $(D_OBJ_RPC)"
+	@echo "SRC_SRV: $(SRC_SRV)"
+	@echo "SRC_CMN: $(SRC_CMN)"
 	@echo "OBJS: $(OBJS)"
 	@echo "EXE: $(EXE)"
