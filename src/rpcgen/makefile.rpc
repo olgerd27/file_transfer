@@ -71,5 +71,8 @@ clean:
 # Debug rule to print all variables
 debug:
 	@echo "$(DLM) RPCGEN debug info $(DLM)"
+	@echo "HDR_RPC: $(HDR_RPC)"
 	@echo "SRCS: $(SRCS)"
+	@echo
 	@echo "OBJS: $(OBJS)"
+	@echo "Dependency files: $(OBJS:.o=.d)"

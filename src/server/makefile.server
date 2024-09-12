@@ -6,7 +6,7 @@
 
 # Default target - must be at the top of makefile that allows to execute 'all' automatically
 .PHONY: all clean debug
-all: TITLE RPC_BUILD EXE_BUILD
+all: TITLE RPC_BUILD SRV_BUILD
 
 # Directories
 # The final dir name where the source & object files resides
@@ -30,24 +30,29 @@ D_BIN := ../../bin/$(D_MODE)
 # Dependency compiler options
 OPT_DEPS := -MMD -MP
 
-# Initial sources
+# RPC sources
+SRC_RPC_X := ../$(D_RPC)/fltr.x
+
+# Server sources
 SRC_MAIN := prg_serv.c
 SRC_SRV := $(SRC_MAIN)
 SRC_CMN := ../$(D_CMN)/fs_opers.c ../$(D_CMN)/mem_opers.c
 
 # The object files with respective paths
-OBJS := $(addprefix $(D_OBJ_SRV)/,$(subst .c,.o,$(SRC_SRV))) \
-		$(addprefix $(D_OBJ_CMN)/,$(notdir $(subst .c,.o,$(SRC_CMN)))) \
-		$(D_OBJ_RPC)/fltr_svc.o $(D_OBJ_RPC)/fltr_xdr.o
+OBJ_RPC := $(D_OBJ_RPC)/$(notdir $(subst .x,_svc.o,$(SRC_RPC_X))) \
+			$(D_OBJ_RPC)/$(notdir $(subst .x,_xdr.o,$(SRC_RPC_X)))
+OBJ_SRV := $(addprefix $(D_OBJ_SRV)/,$(subst .c,.o,$(SRC_SRV))) \
+			$(addprefix $(D_OBJ_CMN)/,$(notdir $(subst .c,.o,$(SRC_CMN))))
+OBJS := $(OBJ_SRV) $(OBJ_RPC)
 
 # Final executable
 EXE := $(D_BIN)/$(subst .c,,$(SRC_MAIN))
 
 # Including the TI-RPC header files as the system ones allows 
 # to not include them to the dependencies files
-INCL:=-isystem /usr/include/tirpc
+INCL := -isystem /usr/include/tirpc
 
-LIBS:=-lnsl -ltirpc
+LIBS := -lnsl -ltirpc
 
 # Commands
 CC := gcc
@@ -59,8 +64,8 @@ CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) $(INCL) -c $< -o $@
 MSG_LINK = echo "Linking $(notdir $@):"
 CMD_LINK = $(CC) $(OPT_MODE) $^ $(LIBS) -o $@
 
-# Include automatically generated dependencies
--include $(OBJS:.o=.d)
+# Include automatically generated dependencies related to server
+-include $(OBJ_SRV:.o=.d)
 
 DLM:="---------------"
 
@@ -68,12 +73,15 @@ DLM:="---------------"
 TITLE:
 	@echo "$(DLM) Server build $(DLM)"
 
-# RPC code must be generated before building the server
-RPC_BUILD:
-	@echo "Building RPC files"
-	@cd ../rpcgen && make --no-print-directory -f makefile.rpc
+# RPC object files must be generated before building the server
+RPC_BUILD: $(OBJ_RPC)
 
-EXE_BUILD: $(EXE)
+$(OBJ_RPC): $(SRC_RPC_X)
+	@echo "Building RPC files"
+	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc
+
+# Build the server
+SRV_BUILD: $(EXE)
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)
@@ -93,7 +101,8 @@ $(D_OBJ_CMN)/%.o: ../$(D_CMN)/%.c
 # Clean rule to remove build artifacts
 clean:
 	@echo "$(DLM) Server clean $(DLM)"
-	@rm -fv $(EXE) $(OBJS) $(OBJS:.o=.d)
+	@rm -fv $(EXE) $(OBJ_SRV) $(OBJ_SRV:.o=.d)
+	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc clean
 
 # Debug rule to print all variables
 debug:
@@ -101,7 +110,15 @@ debug:
 	@echo "D_OBJ_SRV: $(D_OBJ_SRV)"
 	@echo "D_OBJ_CMN: $(D_OBJ_CMN)"
 	@echo "D_OBJ_RPC: $(D_OBJ_RPC)"
+	@echo
 	@echo "SRC_SRV: $(SRC_SRV)"
 	@echo "SRC_CMN: $(SRC_CMN)"
+	@echo "SRC_RPC_X: $(SRC_RPC_X)"
+	@echo
+	@echo "OBJ_SRV: $(OBJ_SRV)"
+	@echo "OBJ_RPC: $(OBJ_RPC)"
 	@echo "OBJS: $(OBJS)"
+	@echo
+	@echo "Dependency files: $(OBJ_SRV:.o=.d)"
+	@echo
 	@echo "EXE: $(EXE)"

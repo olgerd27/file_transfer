@@ -6,7 +6,7 @@
 
 # Default target - must be at the top of makefile that allows to execute 'all' automatically
 .PHONY: all clean debug
-all: TITLE BIN_BUILD
+all: TITLE RPC_BUILD CLN_BUILD
 
 # Directories
 # The final dir name where the source & object files resides
@@ -30,26 +30,29 @@ D_BIN := ../../bin/$(D_MODE)
 # Dependency compiler options
 OPT_DEPS := -MMD -MP
 
-# Initial sources
+# RPC sources
+SRC_RPC_X := ../$(D_RPC)/fltr.x
+
+# Client sources
 SRC_MAIN := prg_clnt.c
 SRC_CLN := $(SRC_MAIN) interact.c 
 SRC_CMN := ../$(D_CMN)/fs_opers.c ../$(D_CMN)/mem_opers.c
-SRC_RPC := ../$(D_RPC)/fltr_clnt.c
 
 # The object files with respective paths
-OBJS := $(addprefix $(D_OBJ_CLN)/,$(subst .c,.o,$(SRC_CLN))) \
-		$(addprefix $(D_OBJ_CMN)/,$(notdir $(subst .c,.o,$(SRC_CMN)))) \
-		$(addprefix $(D_OBJ_RPC)/,$(notdir $(subst .c,.o,$(SRC_RPC)))) \
-		$(D_OBJ_RPC)/fltr_xdr.o
+OBJ_RPC := $(D_OBJ_RPC)/$(notdir $(subst .x,_clnt.o,$(SRC_RPC_X))) \
+			$(D_OBJ_RPC)/$(notdir $(subst .x,_xdr.o,$(SRC_RPC_X)))
+OBJ_CLN := $(addprefix $(D_OBJ_CLN)/,$(subst .c,.o,$(SRC_CLN))) \
+			$(addprefix $(D_OBJ_CMN)/,$(notdir $(subst .c,.o,$(SRC_CMN))))
+OBJS := $(OBJ_RPC) $(OBJ_CLN)
 
 # Final executable
 EXE := $(D_BIN)/$(subst .c,,$(SRC_MAIN))
 
 # Including the TI-RPC header files as the system ones allows 
 # to not include them to the dependencies files
-INCL:=-isystem /usr/include/tirpc
+INCL := -isystem /usr/include/tirpc
 
-LIBS:=-lnsl -ltirpc
+LIBS := -lnsl -ltirpc
 
 # Commands
 CC := gcc
@@ -62,7 +65,7 @@ MSG_LINK = echo "Linking $(notdir $@):"
 CMD_LINK = $(CC) $(OPT_MODE) $^ $(LIBS) -o $@
 
 # Include automatically generated dependencies
--include $(OBJS:.o=.d)
+-include $(OBJ_CLN:.o=.d)
 
 DLM:="---------------"
 
@@ -70,7 +73,14 @@ DLM:="---------------"
 TITLE:
 	@echo "$(DLM) Client build $(DLM)"
 
-BIN_BUILD: $(EXE)
+# RPC object files must be generated before building the server
+RPC_BUILD: $(OBJ_RPC)
+
+$(OBJ_RPC): $(SRC_RPC_X)
+	@echo "Building RPC files"
+	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc
+
+CLN_BUILD: $(EXE)
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)
@@ -87,24 +97,27 @@ $(D_OBJ_CMN)/%.o: ../$(D_CMN)/%.c
 	@$(MSG_COMP)
 	$(CMD_COMP)
 
-$(D_OBJ_RPC)/%.o: ../$(D_RPC)/%.c
-	@$(CMD_CREATE_DIR)
-	@$(MSG_COMP)
-	$(CMD_COMP)
-
 # Clean rule to remove build artifacts
 clean:
 	@echo "$(DLM) Client clean $(DLM)"
-	@rm -fv $(EXE) $(OBJS) $(OBJS:.o=.d)
+	@rm -fv $(EXE) $(OBJ_CLN) $(OBJ_CLN:.o=.d)
+	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc clean
 
 # Debug rule to print all variables
 debug:
 	@echo "$(DLM) Client debug info $(DLM)"
-	@echo "SRC_CLN: $(SRC_CLN)"
-	@echo "SRC_CMN: $(SRC_CMN)"
-	@echo "SRC_RPC: $(SRC_RPC)"
 	@echo "D_OBJ_CLN: $(D_OBJ_CLN)"
 	@echo "D_OBJ_CMN: $(D_OBJ_CMN)"
 	@echo "D_OBJ_RPC: $(D_OBJ_RPC)"
+	@echo
+	@echo "SRC_CLN: $(SRC_CLN)"
+	@echo "SRC_CMN: $(SRC_CMN)"
+	@echo "SRC_RPC_X: $(SRC_RPC_X)"
+	@echo
+	@echo "OBJ_CLN: $(OBJ_CLN)"
+	@echo "OBJ_RPC: $(OBJ_RPC)"
 	@echo "OBJS: $(OBJS)"
+	@echo
+	@echo "Dependency files: $(OBJ_CLN:.o=.d)"
+	@echo
 	@echo "EXE: $(EXE)"
