@@ -47,19 +47,16 @@ FILE *open_file(const char *const flname, const char *const mode, err_inf *p_err
 {
   FILE *hfile = fopen(flname, mode);
   if (hfile == NULL) {
+    int errno_save = errno; // save errno before error info reset 
+
     // reset the error info object and put the error message
     if (reset_err_inf(p_errinf) != 0) exit(1);
     p_errinf->num = 60; // TODO: check the error number
     
-    // Print the main error message
-    sprintf(p_errinf->err_inf_u.msg,
-            "%s:\n%s\n", get_error_message(mode), flname);
-    
-    // Print the additional system error message if it was occurred
-    printf("errno = %d\n", errno);
-    if (errno)
-      sprintf(p_errinf->err_inf_u.msg + strlen(p_errinf->err_inf_u.msg) - 1,
-        "System error %i: %s\n", errno, strerror(errno));
+    // print the error message + system error
+    int nch = sprintf(p_errinf->err_inf_u.msg,
+                "%s:\n%s\nSystem error %i: %s\n",
+                get_error_message(mode), flname, errno_save, strerror(errno_save));
     if (DBG_FLOP) printf("[open_file] failed\n");
   }
   if (DBG_FLOP && hfile) printf("[open_file] DONE\n");
