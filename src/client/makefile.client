@@ -36,7 +36,7 @@ SRC_RPC_X := ../$(D_RPC)/fltr.x
 # Client sources
 SRC_MAIN := prg_clnt.c
 SRC_CLN := $(SRC_MAIN) interact.c 
-SRC_CMN := ../$(D_CMN)/fs_opers.c ../$(D_CMN)/mem_opers.c
+SRC_CMN := ../$(D_CMN)/mem_opers.c ../$(D_CMN)/fs_opers.c ../$(D_CMN)/file_opers.c
 
 # The object files with respective paths
 OBJ_RPC := $(D_OBJ_RPC)/$(notdir $(subst .x,_clnt.o,$(SRC_RPC_X))) \

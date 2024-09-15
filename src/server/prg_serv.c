@@ -6,8 +6,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include "../rpcgen/fltr.h" /* RPC protocol definitions - created by rpcgen */
-#include "../common/fs_opers.h" /* functions for working with the File System */
-#include "../common/mem_opers.h" /* function for the memory manipulations */
+#include "../common/mem_opers.h" /* for the memory manipulations */
+#include "../common/fs_opers.h" /* for working with the File System */
+#include "../common/file_opers.h" /* for the files manipulations */
 
 #define DBG_SERV 1
 
@@ -20,29 +21,30 @@ extern int errno; // global system error number
 // Print the error message in special format to STDERR
 void print_error(const char *oper_type, const struct err_inf *p_errinf)
 {
-  fprintf(stderr, "File %s Failed - error %i\n%s\n",
+  fprintf(stderr, "%s Failed - error %i\n%s\n",
           oper_type, p_errinf->num, p_errinf->err_inf_u.msg);
 }
 
 /* 
  * The Upload file Section
  */
-// Open the file in a write exclusive ('x') mode 
-FILE * open_file_write_x(const char * const flname, err_inf *p_err)
-{
-  if (DBG_SERV) printf("[open_file_write] 1\n");
-  FILE *hfile = fopen(flname, "wbx");
-  if (hfile == NULL) {
-    p_err->num = 50;
-    sprintf(p_err->err_inf_u.msg,
-      "The choosed file already exists or could not be opened in the write mode:\n'%s'\n"
-      "System server error %i: %s\n",
-      flname, errno, strerror(errno));
-    print_error("Upload", p_err);
-  }
-  if (DBG_SERV && hfile) printf("[open_file_write] DONE\n");
-  return hfile;
-}
+// TODO: delete after accepting the common version
+// Open the file in a write exclusive ('x') mode
+// FILE * open_file_write_x(const char * const flname, err_inf *p_err)
+// {
+//   if (DBG_SERV) printf("[open_file_write] 1\n");
+//   FILE *hfile = fopen(flname, "wbx");
+//   if (hfile == NULL) {
+//     p_err->num = 50;
+//     sprintf(p_err->err_inf_u.msg,
+//       "The file already exists or could not be opened in the write mode:\n'%s'\n"
+//       "System server error %i: %s\n",
+//       flname, errno, strerror(errno));
+//     print_error("Upload", p_err);
+//   }
+//   if (DBG_SERV && hfile) printf("[open_file_write] DONE\n");
+//   return hfile;
+// }
 
 // Close file stream.
 // This function doesn't print an error message to stderr and doesn't reset the 
@@ -102,12 +104,14 @@ int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 // The main RPC function to Upload a file
 err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 {
-  if (DBG_SERV) printf("[upload_file] 1\n");
+  if (DBG_SERV)
+    printf("[upload_file] 1, request to upload file and save it as:\n  '%s'\n",
+            file_upld->name);
   static err_inf ret_err; // returned variable, must be static
   FILE *hfile;            // the file handler
 
   // Reset an error state remained after a previous call of the 'upload' function
-  if ( init_err_inf(&ret_err) != 0 ) {
+  if ( reset_err_inf(&ret_err) != 0 ) {
     // Return a special value if an error has occurred while initializing the error info
     ret_err.num = ERRNUM_ERRINF_ERR;
     ret_err.err_inf_u.msg = "Failed to init the error info\n";
@@ -115,11 +119,13 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
     return &ret_err;
   }
 
-  if (DBG_SERV) printf("[upload_file] 2 error info init'ed\n");
+  if (DBG_SERV) printf("[upload_file] 2, error info was init'ed\n");
 
   // Open the file
-  if ( (hfile = open_file_write_x(file_upld->name, &ret_err)) == NULL )
+  if ( (hfile = open_file(file_upld->name, "wbx", &ret_err)) == NULL ) {
+    print_error("Upload", &ret_err);
     return &ret_err;
+  }
 
   if (DBG_SERV) printf("[upload_file] 3 file openned\n");
 
@@ -142,22 +148,23 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 /*
  * The Download file Section
  */
+// TODO: delete after accepting the common version
 // Open the file
-FILE * open_file_read(const char * const flname, err_inf *p_err)
-{
-  if (DBG_SERV) printf("[open_file_read] 1\n");
-  FILE *hfile = fopen(flname, "rb");
-  if (hfile == NULL) {
-    p_err->num = 60;
-    sprintf(p_err->err_inf_u.msg,
-            "Cannot open choosed file in the read mode:\n'%s'\n"
-            "System server error %i: %s",
-            flname, errno, strerror(errno));
-    print_error("Download", p_err);
-  }
-  if (DBG_SERV && hfile) printf("[open_file_read] DONE\n");
-  return hfile;
-}
+// FILE * open_file_read(const char * const flname, err_inf *p_err)
+// {
+//   if (DBG_SERV) printf("[open_file_read] 1\n");
+//   FILE *hfile = fopen(flname, "rb");
+//   if (hfile == NULL) {
+//     p_err->num = 60;
+//     sprintf(p_err->err_inf_u.msg,
+//             "Cannot open file for reading:\n'%s'\n"
+//             "System server error %i: %s",
+//             flname, errno, strerror(errno));
+//     print_error("Download", p_err);
+//   }
+//   if (DBG_SERV && hfile) printf("[open_file_read] DONE\n");
+//   return hfile;
+// }
 
 // Read the file content into the buffer.
 // RC: 0 on success; >0 on failure
@@ -208,7 +215,7 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
   FILE *hfile;  // the file handler
 
   // Reset an error info remained from the previous call of 'download' function
-  if ( init_err_inf(p_errinf) != 0 ) {
+  if ( reset_err_inf(p_errinf) != 0 ) {
     // Return a special value if an error has occurred while initializing the error info
     p_errinf->num = ERRNUM_ERRINF_ERR;
     p_errinf->err_inf_u.msg = "Failed to init the error info\n";
@@ -216,25 +223,26 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
     return &ret_flerr;
   }
 
-  if (DBG_SERV) printf("[download_file] 1 error info init'ed\n");
+  if (DBG_SERV) printf("[download_file] 1, error info was init'ed\n");
 
   // Init the file name & type info remained from the previous call of 'download' function
-  if ( init_file_name_type(p_fileinf) != 0 ) {
+  if ( reset_file_name_type(p_fileinf) != 0 ) {
     p_errinf->num = 64;
     sprintf(p_errinf->err_inf_u.msg, "Failed to init the file name & type\n");
     print_error("Download", p_errinf);
     return &ret_flerr;
   }
 
-  if (DBG_SERV) printf("[download_file] 2 file name & type init'ed\n");
+  if (DBG_SERV) printf("[download_file] 2, file name & type was init'ed\n");
 
   // Set the file name to be read
   p_fileinf->name = *p_flname;
 
   // Open the file
-  // TODO: think, maybe create one file openning function to process both reading and writing
-  if ( (hfile = open_file_read(p_fileinf->name, p_errinf)) == NULL )
+  if ( (hfile = open_file(p_fileinf->name, "rb", p_errinf)) == NULL ) {
+    print_error("Download", p_errinf);
     return &ret_flerr;
+  }
 
   if (DBG_SERV) printf("[download_file] 3 file openned\n");
 
@@ -244,6 +252,7 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
     sprintf(p_errinf->err_inf_u.msg,
             "Failed to allocate memory for the content of file:\n'%s'\n", p_fileinf->name);
     print_error("Download", p_errinf);
+    fclose(hfile);
     return &ret_flerr;
   }
 

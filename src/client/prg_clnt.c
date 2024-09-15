@@ -7,6 +7,7 @@
 #include <errno.h>
 #include "../common/mem_opers.h" /* for the memory manipulations */
 #include "../common/fs_opers.h" /* for working with the File System */
+#include "../common/file_opers.h" /* for the files manipulations */
 #include "interact.h" /* for interaction operations */
 
 #define DBG_CLNT 1
@@ -183,12 +184,20 @@ CLIENT * create_client()
 int read_file(const char *filename, file_inf *p_flinf)
 {
   // Open the file
-  FILE *hfile = fopen(filename, "rb");
-  if (hfile == NULL) {
-    fprintf(stderr, "!--Error 10: cannot open file '%s' for reading\n"
-                    "System error %i: %s\n",
-                    filename, errno, strerror(errno));
-    return 10;
+  // FILE *hfile;
+  // if ( (hfile = fopen(filename, "rb")) == NULL ) {
+  //   fprintf(stderr, "!--Error 10: Cannot open file for reading:\n'%s'\n"
+  //                   "System error %i: %s\n",
+  //                   filename, errno, strerror(errno));
+  //   return 10;
+  // }
+
+  FILE *hfile;
+  err_inf errinf;  errinf.err_inf_u.msg = NULL;
+  if ( (hfile = open_file(filename, "rb", &errinf)) == NULL ) {
+    fprintf(stderr, "!--Error %d: %s\n", errinf.num, errinf.err_inf_u.msg);
+    xdr_free((xdrproc_t)xdr_err_inf, &errinf);
+    return errinf.num;
   }
 
   // Allocate the memory to store the file content
@@ -202,7 +211,7 @@ int read_file(const char *filename, file_inf *p_flinf)
 
   // Check a number of items read and if an error has occurred
   if (ferror(hfile) || nch < p_flinf->cont.t_flcont_len) {
-    fprintf(stderr, "!--Error 12: file reading error: '%s'.\n"
+    fprintf(stderr, "!--Error 12: File reading error: '%s'.\n"
                     "System error %i: %s\n",
                     filename, errno, strerror(errno));
     fclose(hfile);
@@ -223,7 +232,7 @@ void file_upload()
   // Init the file name & type
   fileinf.name = NULL; // init with NULL for stable memory allocation
   fileinf.cont.t_flcont_val = NULL; // init with NULL for stable memory allocation
-  init_file_name_type(&fileinf);
+  reset_file_name_type(&fileinf);
   if (DBG_CLNT) printf("[file_upload] 1\n");
 
   // Set the target file name to the file object
@@ -232,7 +241,7 @@ void file_upload()
 
   // Get the file content and set it to the file object
   if (read_file(filename_src, &fileinf) != 0) {
-    xdr_free((xdrproc_t)xdr_t_flname, fileinf.name); // free the file name
+    free_file_name(&fileinf.name);
     exit(12);
   }
   if (DBG_CLNT) printf("[file_upload] 3, read file DONE\n");
@@ -277,17 +286,26 @@ void file_upload()
  * The Download File section
  * Error numbers range: 20-29
  */
+// TODO: maybe this function have to return some code of successfullness?
 // Save a file downloaded on the server to a new local file
 void save_file(const char *flname, t_flcont *flcont)
 {
   // Open the file 
-  FILE *hfile = fopen(flname, "wbx");
-  if (hfile == NULL) {
-    fprintf(stderr, 
-      "!--Error 22: The file '%s' already exists or could not be opened in the write mode.\n"
-      "System error %i: %s\n", 
-      flname, errno, strerror(errno));
-    exit(22); // TODO: replace with return
+  // FILE *hfile = fopen(flname, "wbx");
+  // if (hfile == NULL) {
+  //   fprintf(stderr, 
+  //     "!--Error 22: The file already exists or could not be opened in the write mode.\n'%s'\n"
+  //     "System error %i: %s\n", 
+  //     flname, errno, strerror(errno));
+  //   exit(22); // TODO: replace with return
+  // }
+
+  FILE *hfile;
+  err_inf errinf;  errinf.err_inf_u.msg = NULL;
+  if ( (hfile = open_file(flname, "wbx", &errinf)) == NULL ) {
+    fprintf(stderr, "!--Error %d: %s\n", errinf.num, errinf.err_inf_u.msg);
+    xdr_free((xdrproc_t)xdr_err_inf, &errinf);
+    return errinf.num;
   }
 
   // Write the server file data to a new file

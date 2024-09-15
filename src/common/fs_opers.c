@@ -170,8 +170,8 @@ size_t get_file_size(FILE *hfile)
 char *rel_to_full_path(const char *path_rel, char *path_full, char **errmsg)
 {
   if (!realpath(path_rel, path_full)) {
-    // allocate an approximate memory size to store the entire error message
-    *errmsg = malloc(LEN_ERRMSG_MAX + LEN_PATH_MAX);
+    // allocate memory and put the error message
+    *errmsg = malloc(LEN_ERRMSG_MAX);
     if (*errmsg)
       sprintf(*errmsg, "Failed to resolve the specified path:\n'%s'\n%s",
               path_rel, strerror(errno));
@@ -225,8 +225,8 @@ static int get_file_stat(const char *dirname, const char *filename, struct stat 
   // Construct the full path to the needed file
   // A NULL-character appends to fullpath automatically by snprintf()
   if ( snprintf(fullpath, LEN_PATH_MAX, "%s/%s", dirname, filename) < 0 ) {
-    // allocate an approximate memory size to store the entire error message
-    *errmsg = malloc(LEN_ERRMSG_MAX + LEN_PATH_MAX);
+    // allocate memory and put the error message
+    *errmsg = malloc(LEN_ERRMSG_MAX);
     if (*errmsg)
       sprintf(*errmsg, "get_file_stat(): Invalid path to filename:\n'%s/%s'\n", 
               dirname, filename);
@@ -235,8 +235,8 @@ static int get_file_stat(const char *dirname, const char *filename, struct stat 
 
   // Get the file status (info)
   if (lstat(fullpath, p_statbuf) == -1) {
-    // allocate an approximate memory size to store the entire error message
-    *errmsg = malloc(LEN_ERRMSG_MAX + LEN_PATH_MAX);
+    // allocate memory and put the error message
+    *errmsg = malloc(LEN_ERRMSG_MAX);
     if (*errmsg)
       sprintf(*errmsg, "get_file_stat(): Cannot get the file status for:\n'%s/%s'\n%s\n",
               dirname, filename, strerror(errno));
@@ -478,7 +478,7 @@ int ls_dir_str(file_err *p_flerr)
   }
 
   // Init the file content before filling it with directory listing data
-  if ( init_file_cont(&p_flerr->file.cont, calc_dir_cont_size(&lsdir_set)) != 0 ) {
+  if ( reset_file_cont(&p_flerr->file.cont, calc_dir_cont_size(&lsdir_set)) != 0 ) {
     // TODO: check an error number
     p_flerr->err.num = 86;
     sprintf(p_flerr->err.err_inf_u.msg,
@@ -534,14 +534,14 @@ file_err * select_file(picked_file *p_flpicked)
   if (DBG_SLCT) printf("[select_file] 1, file_err created, ptr=%p\n", &flerr);
 
   // Init the error info before file selection
-  if ( init_err_inf(&flerr.err) != 0 ) {
+  if ( reset_err_inf(&flerr.err) != 0 ) {
     // A workaround: set a special value if an error has occurred while initializing the error info
     flerr.err.num = ERRNUM_ERRINF_ERR;
     return &flerr;
   }
 
   // Init the file name & type 
-  if ( init_file_name_type(&flerr.file) != 0 ) {
+  if ( reset_file_name_type(&flerr.file) != 0 ) {
     flerr.err.num = 81;
     sprintf(flerr.err.err_inf_u.msg,
             "Error %i: Failed to init the file name & type\n", flerr.err.num);

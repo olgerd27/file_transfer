@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define LEN_PATH_MAX 4096
-#define LEN_ERRMSG_MAX 512
+#define LEN_ERRMSG_MAX 4096
 
 typedef char *t_flname;
 

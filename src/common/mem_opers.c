@@ -126,7 +126,7 @@ void free_err_inf(err_inf *p_err)
 
 // TODO: check if the error numbers are ok in this function
 /*
- * Init the file name & type.
+ * Reset (init) the file name & type.
  *
  * The file name's memory size is constant (LEN_PATH_MAX) and it's allocated just once
  * if it is currently unallocated.
@@ -142,16 +142,16 @@ void free_err_inf(err_inf *p_err)
  * to the other side.
  *
  * Parameters:
- *  p_file      - A pointer to a file info struct instance to init.
+ *  p_file      - A pointer to a file info struct instance to reset.
  *
  * Return value:
  *  0 on success, >0 on failure.
  */
-int init_file_name_type(file_inf *p_file)
+int reset_file_name_type(file_inf *p_file)
 {
   // Check if the memory for the file info struct instance is allocated
   if (!p_file) {
-    fprintf(stderr, "Error 8: Failed to init the file name & type. p_file=%p\n", (void*)p_file);
+    fprintf(stderr, "Error 8: Failed to reset the file name & type. p_file=%p\n", (void*)p_file);
     return 8;
   }
 
@@ -168,7 +168,7 @@ int init_file_name_type(file_inf *p_file)
       return 9;
     }
     p_file->name[0] = '\0'; // required to ensure strlen() works correctly on this memory
-    if (DBG_MEM) printf("[init_file_name_type] file name allocated, ptr=%p, size=%d\n", 
+    if (DBG_MEM) printf("[reset_file_name_type] file name allocated, ptr=%p, size=%d\n", 
                         p_file->name, LEN_PATH_MAX * sizeof(char));
   }
   else {
@@ -176,99 +176,99 @@ int init_file_name_type(file_inf *p_file)
     // Due to its constant size, the file name is reset by setting the memory to 0.
     // Since the file name changes often, a memory reset should occur in each call of this function.
     memset(p_file->name, 0, strlen(p_file->name));
-    if (DBG_MEM) printf("[init_file_name_type] file name set to 0\n");
+    if (DBG_MEM) printf("[reset_file_name_type] file name set to 0\n");
   }
 
   // Init the file type
   p_file->type = FTYPE_DFL;
 
-  if (DBG_MEM) printf("[init_file_name_type] DONE\n");
+  if (DBG_MEM) printf("[reset_file_name_type] DONE\n");
   return 0;
 }
 
 /*
- * Init the file content.
+ * Reset (init) the file content.
  *
  * Memory deallocation and allocation of new one with the size_fcont size.
- * Due to its variable size, the file contents are initialized by reallocating memory
+ * Due to its variable size, the file contents are reset by reallocating memory
  * rather than setting it to 0.
  * Memory deallocation must be done separately outside of this function.
  *
  * Parameters:
- *  p_flcont    - A pointer to a file content instance to init.
+ *  p_flcont    - A pointer to a file content instance to reset.
  *  size_fcont  - The size of the memory to allocate for the file content.
  *
  * Return value:
  *  0 on success, >0 on failure.
  */
-int init_file_cont(t_flcont *p_flcont, size_t size_fcont)
+int reset_file_cont(t_flcont *p_flcont, size_t size_fcont)
 {
   free_file_cont(p_flcont);
   if (!alloc_file_cont(p_flcont, size_fcont))
     return 10;
-  if (DBG_MEM) printf("[init_file_cont] DONE\n");
+  if (DBG_MEM) printf("[reset_file_cont] DONE\n");
   return 0;
 }
 
 /*
- * Init the file info.
+ * Reset (init) the file info.
  *
- * This function initializes the file information, including the file name, type, and content.
+ * This function resets (initializes) the file information, including the file name, type, and content.
  * It allocates new memory for the file content based on the specified size.
  *
  * Parameters:
- *  p_file      - A pointer to a file info instance to init.
+ *  p_file      - A pointer to a file info instance to reset.
  *  size_fcont  - The size of the memory to allocate for the file content.
  *
  * Return value:
  *  0 on success, >0 on failure.
  */
-int init_file_inf_NEW(file_inf *p_file, size_t size_fcont)
+int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont)
 {
   // check if the memory for the file info instance is allocated
   if (!p_file) {
-    fprintf(stderr, "Error 8: Failed to init the file info. p_file=%p\n", (void*)p_file);
+    fprintf(stderr, "Error 8: Failed to reset the file info. p_file=%p\n", (void*)p_file);
     return 8;
   }
 
-  // init the file name & type
+  // reset the file name & type
   int rc;
-  if ( (rc = init_file_name_type(p_file)) != 0 )
+  if ( (rc = reset_file_name_type(p_file)) != 0 )
     return rc;
   
-  // init the file content
-  if ( (rc = init_file_cont(&p_file->cont, size_fcont)) != 0 )
+  // reset the file content
+  if ( (rc = reset_file_cont(&p_file->cont, size_fcont)) != 0 )
     return rc;
   
-  if (DBG_MEM) printf("[init_file_inf_NEW] DONE\n");
+  if (DBG_MEM) printf("[reset_file_inf_NEW] DONE\n");
   return 0;
 }
 
 // TODO: check if the error numbers are ok in this function
 /*
- * Init the error info.
+ * Reset (init) the error info.
  *
- * This function initializes an error info instance by allocating memory for the error
- * message if it is not already allocated and setting the error number and system
- * error number to 0. The error message is reset if the error number is set.
+ * This function resets (initializes) an error info instance by allocating memory for 
+ * the error message if it is not already allocated and setting the error number and 
+ * system error number to 0. The error message is reset if the error number is set.
  *
  * Parameters:
- *  p_err - A pointer to an error info instance to init.
+ *  p_err - A pointer to an error info instance to reset.
  * 
  * Return value:
  *  0 on success, >0 on failure.
  * 
  * Notes:
- * - error message memory is allocated only if it's not allocated (size is LEN_ERRMSG_MAX)
+ * - error message memory is allocated only if it was not done previously (size is LEN_ERRMSG_MAX)
  * - error number is set to 0
  * - error message is set to 0 if the error number is set
  * - system error number is set to 0
  */
-int init_err_inf(err_inf *p_err)
+int reset_err_inf(err_inf *p_err)
 {
   // Check if the memory for the error info instance is allocated
   if (!p_err) {
-    fprintf(stderr, "Error 13: Failed to init the error information, p_err=%p\n", (void*)p_err);
+    fprintf(stderr, "Error 13: Failed to reset the error information, p_err=%p\n", (void*)p_err);
     return 11;
   }
 
@@ -286,7 +286,7 @@ int init_err_inf(err_inf *p_err)
     }
     p_err->err_inf_u.msg[0] = '\0'; // required to ensure strlen() works correctly on this memory
     p_err->num = 0;
-    if (DBG_MEM) printf("[init_err_inf] error info allocated\n");
+    if (DBG_MEM) printf("[reset_err_inf] error info allocated\n");
   }
   else {
     // Reset the previous error info.
@@ -296,13 +296,13 @@ int init_err_inf(err_inf *p_err)
     if (p_err->num && p_err->num != ERRNUM_ERRINF_ERR) {
       p_err->num = 0;
       memset(p_err->err_inf_u.msg, 0, strlen(p_err->err_inf_u.msg));
-      if (DBG_MEM) printf("[init_err_inf] error info set to 0\n");
+      if (DBG_MEM) printf("[reset_err_inf] error info set to 0\n");
     }
   }
 
   // Reset the system error number
   if (errno) errno = 0;
 
-  if (DBG_MEM) printf("[init_err_inf] DONE\n");
+  if (DBG_MEM) printf("[reset_err_inf] DONE\n");
   return 0;
 }

@@ -3,7 +3,7 @@
  */
 
 const LEN_PATH_MAX = 4096; /* max length for file names, equal to standard PATH_MAX */
-const LEN_ERRMSG_MAX = 512; /* max length for error messages */
+const LEN_ERRMSG_MAX = 4096; /* max length for error messages */
 
 typedef string t_flname<LEN_PATH_MAX>; /* file name type */
 typedef opaque t_flcont<>; /* file content type */
