@@ -183,21 +183,12 @@ CLIENT * create_client()
  */
 int read_file(const char *filename, file_inf *p_flinf)
 {
-  // Open the file
-  // FILE *hfile;
-  // if ( (hfile = fopen(filename, "rb")) == NULL ) {
-  //   fprintf(stderr, "!--Error 10: Cannot open file for reading:\n'%s'\n"
-  //                   "System error %i: %s\n",
-  //                   filename, errno, strerror(errno));
-  //   return 10;
-  // }
-
   FILE *hfile;
-  err_inf errinf;  errinf.err_inf_u.msg = NULL;
-  if ( (hfile = open_file(filename, "rb", &errinf)) == NULL ) {
-    fprintf(stderr, "!--Error %d: %s\n", errinf.num, errinf.err_inf_u.msg);
-    xdr_free((xdrproc_t)xdr_err_inf, &errinf);
-    return errinf.num;
+  err_inf *p_errinf = NULL;
+  if ( (hfile = open_file(filename, "rb", &p_errinf)) == NULL ) {
+    fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
+    xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
+    return p_errinf->num;
   }
 
   // Allocate the memory to store the file content
@@ -288,24 +279,14 @@ void file_upload()
  */
 // TODO: maybe this function have to return some code of successfullness?
 // Save a file downloaded on the server to a new local file
-void save_file(const char *flname, t_flcont *flcont)
+int save_file(const char *flname, t_flcont *flcont)
 {
-  // Open the file 
-  // FILE *hfile = fopen(flname, "wbx");
-  // if (hfile == NULL) {
-  //   fprintf(stderr, 
-  //     "!--Error 22: The file already exists or could not be opened in the write mode.\n'%s'\n"
-  //     "System error %i: %s\n", 
-  //     flname, errno, strerror(errno));
-  //   exit(22); // TODO: replace with return
-  // }
-
   FILE *hfile;
-  err_inf errinf;  errinf.err_inf_u.msg = NULL;
-  if ( (hfile = open_file(flname, "wbx", &errinf)) == NULL ) {
-    fprintf(stderr, "!--Error %d: %s\n", errinf.num, errinf.err_inf_u.msg);
-    xdr_free((xdrproc_t)xdr_err_inf, &errinf);
-    return errinf.num;
+  err_inf *p_errinf = NULL;
+  if ( (hfile = open_file(flname, "wbx", &p_errinf)) == NULL ) {
+    fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
+    xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
+    return p_errinf->num;
   }
 
   // Write the server file data to a new file

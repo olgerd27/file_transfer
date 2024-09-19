@@ -28,24 +28,6 @@ void print_error(const char *oper_type, const struct err_inf *p_errinf)
 /* 
  * The Upload file Section
  */
-// TODO: delete after accepting the common version
-// Open the file in a write exclusive ('x') mode
-// FILE * open_file_write_x(const char * const flname, err_inf *p_err)
-// {
-//   if (DBG_SERV) printf("[open_file_write] 1\n");
-//   FILE *hfile = fopen(flname, "wbx");
-//   if (hfile == NULL) {
-//     p_err->num = 50;
-//     sprintf(p_err->err_inf_u.msg,
-//       "The file already exists or could not be opened in the write mode:\n'%s'\n"
-//       "System server error %i: %s\n",
-//       flname, errno, strerror(errno));
-//     print_error("Upload", p_err);
-//   }
-//   if (DBG_SERV && hfile) printf("[open_file_write] DONE\n");
-//   return hfile;
-// }
-
 // Close file stream.
 // This function doesn't print an error message to stderr and doesn't reset the 
 // file buffer if necessary. Customers must do this by themselves.
@@ -108,64 +90,47 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
     printf("[upload_file] 1, request to upload file and save it as:\n  '%s'\n",
             file_upld->name);
   static err_inf ret_err; // returned variable, must be static
+  static err_inf *p_ret_err = &ret_err; // pointer to a returned static variable
   FILE *hfile;            // the file handler
 
   // Reset an error state remained after a previous call of the 'upload' function
-  if ( reset_err_inf(&ret_err) != 0 ) {
+  if ( reset_err_inf(p_ret_err) != 0 ) {
     // Return a special value if an error has occurred while initializing the error info
     ret_err.num = ERRNUM_ERRINF_ERR;
     ret_err.err_inf_u.msg = "Failed to init the error info\n";
-    print_error("Upload", &ret_err);
-    return &ret_err;
+    print_error("Upload", p_ret_err);
+    return p_ret_err;
   }
 
   if (DBG_SERV) printf("[upload_file] 2, error info was init'ed\n");
 
   // Open the file
-  if ( (hfile = open_file(file_upld->name, "wbx", &ret_err)) == NULL ) {
-    print_error("Upload", &ret_err);
-    return &ret_err;
+  if ( (hfile = open_file(file_upld->name, "wbx", &p_ret_err)) == NULL ) {
+    print_error("Upload", p_ret_err);
+    return p_ret_err;
   }
 
   if (DBG_SERV) printf("[upload_file] 3 file openned\n");
 
   // Write a content of the client file to a new file
-  if ( write_file(hfile, file_upld, &ret_err) != 0 )
-    return &ret_err;
+  if ( write_file(hfile, file_upld, p_ret_err) != 0 )
+    return p_ret_err;
 
   if (DBG_SERV) printf("[upload_file] 4 file has written\n");
 
   // Close the file stream
-  if ( close_file(hfile, file_upld->name, &ret_err) != 0 ) {
-    print_error("Upload", &ret_err);
-    return &ret_err;
+  if ( close_file(hfile, file_upld->name, p_ret_err) != 0 ) {
+    print_error("Upload", p_ret_err);
+    return p_ret_err;
   }
 
   if (DBG_SERV) printf("[upload_file] DONE\n\n");
-  return &ret_err;
+  return p_ret_err;
 }
 
 /*
  * The Download file Section
  */
-// TODO: delete after accepting the common version
-// Open the file
-// FILE * open_file_read(const char * const flname, err_inf *p_err)
-// {
-//   if (DBG_SERV) printf("[open_file_read] 1\n");
-//   FILE *hfile = fopen(flname, "rb");
-//   if (hfile == NULL) {
-//     p_err->num = 60;
-//     sprintf(p_err->err_inf_u.msg,
-//             "Cannot open file for reading:\n'%s'\n"
-//             "System server error %i: %s",
-//             flname, errno, strerror(errno));
-//     print_error("Download", p_err);
-//   }
-//   if (DBG_SERV && hfile) printf("[open_file_read] DONE\n");
-//   return hfile;
-// }
-
 // Read the file content into the buffer.
 // RC: 0 on success; >0 on failure
 int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
@@ -239,7 +204,7 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
   p_fileinf->name = *p_flname;
 
   // Open the file
-  if ( (hfile = open_file(p_fileinf->name, "rb", p_errinf)) == NULL ) {
+  if ( (hfile = open_file(p_fileinf->name, "rb", &p_errinf)) == NULL ) {
     print_error("Download", p_errinf);
     return &ret_flerr;
   }
