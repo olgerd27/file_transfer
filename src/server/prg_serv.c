@@ -28,24 +28,6 @@ void print_error(const char *oper_type, const struct err_inf *p_errinf)
 /* 
  * The Upload file Section
  */
-// Close file stream.
-// This function doesn't print an error message to stderr and doesn't reset the 
-// file buffer if necessary. Customers must do this by themselves.
-int close_file(FILE *hfile, const char * const flname, err_inf *p_err)
-{
-  if (DBG_SERV) printf("[close file] 1\n");
-  int rc = fclose(hfile);
-  if (rc != 0) {
-    p_err->num = 64;
-    sprintf(p_err->err_inf_u.msg,
-            "Failed to close the file:\n'%s'\n"
-            "System server error %i: %s",
-            flname, errno, strerror(errno));
-  }
-  if (DBG_SERV && !rc) printf("[close file] DONE\n");
-  return rc;
-}
-
 // Write a content of the client file to a new file.
 // RC: 0 on success; >0 on failure
 int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
@@ -84,11 +66,12 @@ int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 }
 
 // The main RPC function to Upload a file
+// TODO: check if the file content, passed as an argument, should be freed at the end of this function 
+//       and in case of errors?
 err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 {
   if (DBG_SERV)
-    printf("[upload_file] 1, request to upload file and save it as:\n  '%s'\n",
-            file_upld->name);
+    printf("[upload_file] 1, request to upload file and save it as:\n  '%s'\n", file_upld->name);
   static err_inf ret_err; // returned variable, must be static
   static err_inf *p_ret_err = &ret_err; // pointer to a returned static variable
   FILE *hfile;            // the file handler
@@ -119,7 +102,7 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
   if (DBG_SERV) printf("[upload_file] 4 file has written\n");
 
   // Close the file stream
-  if ( close_file(hfile, file_upld->name, p_ret_err) != 0 ) {
+  if ( close_file(file_upld->name, hfile, &p_ret_err) != 0 ) {
     print_error("Upload", p_ret_err);
     return p_ret_err;
   }
@@ -230,7 +213,7 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
   if (DBG_SERV) printf("[download_file] 5 file has read\n");
 
   // Close the file stream
-  if ( close_file(hfile, p_fileinf->name, p_errinf) != 0 ) {
+  if ( close_file(p_fileinf->name, hfile, &p_errinf) != 0 ) {
     print_error("Download", p_errinf);
     return &ret_flerr;
   }

@@ -19,7 +19,6 @@ extern int errno; // global system error number
  * Parameters:
  * p_flcont - A pointer to a file content instance where the allocated memory will be stored.
  * size     - The size of the memory to allocate.
- * p_err    - A pointer to an error info instance where error info will be written in case of an error.
  * 
  * Return value:
  *  A pointer to the allocated memory, or NULL in case of an error.

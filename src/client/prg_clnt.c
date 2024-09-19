@@ -175,17 +175,19 @@ CLIENT * create_client()
  * Read the file to get its content for transfering.
  *
  * Parameters:
- * filename
+ * flname
  * p_flinf
  *
  * Return value:
  *  0 on success, >0 on failure.
  */
-int read_file(const char *filename, file_inf *p_flinf)
+int read_file(const char *flname, file_inf *p_flinf)
 {
-  FILE *hfile;
   err_inf *p_errinf = NULL;
-  if ( (hfile = open_file(filename, "rb", &p_errinf)) == NULL ) {
+  
+  // Open the file
+  FILE *hfile;
+  if ( (hfile = open_file(flname, "rb", &p_errinf)) == NULL ) {
     fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
     return p_errinf->num;
@@ -204,13 +206,19 @@ int read_file(const char *filename, file_inf *p_flinf)
   if (ferror(hfile) || nch < p_flinf->cont.t_flcont_len) {
     fprintf(stderr, "!--Error 12: File reading error: '%s'.\n"
                     "System error %i: %s\n",
-                    filename, errno, strerror(errno));
+                    flname, errno, strerror(errno));
     fclose(hfile);
     xdr_free((xdrproc_t)xdr_t_flcont, &p_flinf->cont); // free the file content
     return 12;
   }
 
-  fclose(hfile);
+  // Close the file
+  // fclose(hfile); // TODO: delete after accepting the next lines
+  if ( close_file(flname, hfile, &p_errinf) != 0 ) {
+    fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
+    xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
+    return p_errinf->num;
+  }
 }
 
 // The main function to Upload file through RPC call
@@ -282,6 +290,8 @@ void file_upload()
 int save_file(const char *flname, t_flcont *flcont)
 {
   FILE *hfile;
+
+  // Open the file
   err_inf *p_errinf = NULL;
   if ( (hfile = open_file(flname, "wbx", &p_errinf)) == NULL ) {
     fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
@@ -302,7 +312,13 @@ int save_file(const char *flname, t_flcont *flcont)
     exit(23); // TODO: replace with return
   }
 
-  fclose(hfile);
+  // Close the file
+  // fclose(hfile); // TODO: delete after accepting the next lines
+  if ( close_file(flname, hfile, &p_errinf) != 0 ) {
+    fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
+    xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
+    return p_errinf->num;
+  }
 }
 
 // The main function to Download file through RPC call
