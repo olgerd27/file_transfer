@@ -213,7 +213,6 @@ int read_file(const char *flname, file_inf *p_flinf)
   }
 
   // Close the file
-  // fclose(hfile); // TODO: delete after accepting the next lines
   if ( close_file(flname, hfile, &p_errinf) != 0 ) {
     fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
@@ -224,7 +223,8 @@ int read_file(const char *flname, file_inf *p_flinf)
 // The main function to Upload file through RPC call
 void file_upload()
 {
-  if (DBG_CLNT) printf("[file_upload] 0\n");
+  if (DBG_CLNT)
+    printf("[file_upload] 0, initiate File Upload - source file:\n  '%s'\n", filename_src);
   file_inf fileinf; // file info object
   err_inf *p_err_srv; // result from a server - error info
 
@@ -232,7 +232,7 @@ void file_upload()
   fileinf.name = NULL; // init with NULL for stable memory allocation
   fileinf.cont.t_flcont_val = NULL; // init with NULL for stable memory allocation
   reset_file_name_type(&fileinf);
-  if (DBG_CLNT) printf("[file_upload] 1\n");
+  if (DBG_CLNT) printf("[file_upload] 1, file name & type info was init'ed\n");
 
   // Set the target file name to the file object
   strncpy(fileinf.name, filename_trg, strlen(filename_trg) + 1);
@@ -287,33 +287,26 @@ void file_upload()
  */
 // TODO: maybe this function have to return some code of successfullness?
 // Save a file downloaded on the server to a new local file
-int save_file(const char *flname, t_flcont *flcont)
+int save_file(const char *flname, t_flcont *p_flcont)
 {
   FILE *hfile;
+  err_inf *p_errinf = NULL;
 
   // Open the file
-  err_inf *p_errinf = NULL;
   if ( (hfile = open_file(flname, "wbx", &p_errinf)) == NULL ) {
     fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
     return p_errinf->num;
   }
 
-  // Write the server file data to a new file
-  size_t nch = fwrite(flcont->t_flcont_val, 1, flcont->t_flcont_len, hfile);
-
-  // Check a number of writtem items and if an error has occurred
-  if (nch < flcont->t_flcont_len || ferror(hfile)) {
-    fprintf(stderr,
-            "!--Error 23: error writing to the file: '%s'.\n"
-            "System error %i: %s\n",
-            flname, errno, strerror(errno));
-    fclose(hfile);
-    exit(23); // TODO: replace with return
+  // Write the server file content to a new file
+  if ( write_file(flname, p_flcont, hfile, &p_errinf) != 0 ) {
+    fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
+    xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
+    return p_errinf->num;
   }
 
   // Close the file
-  // fclose(hfile); // TODO: delete after accepting the next lines
   if ( close_file(flname, hfile, &p_errinf) != 0 ) {
     fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
@@ -324,7 +317,7 @@ int save_file(const char *flname, t_flcont *flcont)
 // The main function to Download file through RPC call
 void file_download()
 {
-  if (DBG_CLNT) printf("[file_download] 0, filename_src:\n  '%s'\n", filename_src);
+  if (DBG_CLNT) printf("[file_download] 0, initiate File Download - source file:\n  '%s'\n", filename_src);
 
   // Make a file download from a server through RPC and return the downloaded
   // file info & error info object (error info is filled in if an error occurs)

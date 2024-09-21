@@ -5,7 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include "../rpcgen/fltr.h" /* RPC protocol definitions - created by rpcgen */
 #include "../common/mem_opers.h" /* for the memory manipulations */
 #include "../common/fs_opers.h" /* for working with the File System */
 #include "../common/file_opers.h" /* for the files manipulations */
@@ -28,50 +27,14 @@ void print_error(const char *oper_type, const struct err_inf *p_errinf)
 /* 
  * The Upload file Section
  */
-// Write a content of the client file to a new file.
-// RC: 0 on success; >0 on failure
-int write_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
-{
-  if (DBG_SERV) printf("[write_file] 1\n");
-  size_t nch = fwrite(p_file->cont.t_flcont_val, 1, p_file->cont.t_flcont_len, hfile);
-  
-  if (DBG_SERV) printf("[write_file] 2 writing completed\n");
-
-  // Check if an error has occurred during the writing operation
-  if (ferror(hfile)) {
-    p_err->num = 51;
-    sprintf(p_err->err_inf_u.msg,
-            "Failed to write to the file:\n'%s'\n"
-            "System server error %i: %s",
-            p_file->name, errno, strerror(errno));
-    print_error("Upload", p_err); // print the error message to STDERR
-    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
-    return 1;
-  }
-
-  // Check a number of written items 
-  if (nch < p_file->cont.t_flcont_len) {
-    p_err->num = 52;
-    sprintf(p_err->err_inf_u.msg,
-            "Partial writing to the file:\n'%s'.\n"
-            "System server error %i: %s",
-            p_file->name, errno, strerror(errno));
-    print_error("Upload", p_err); // print the error message to STDERR
-    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
-    return 2;
-  }
-
-  if (DBG_SERV) printf("[write_file] DONE\n");
-  return 0;
-}
-
 // The main RPC function to Upload a file
 // TODO: check if the file content, passed as an argument, should be freed at the end of this function 
 //       and in case of errors?
 err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 {
   if (DBG_SERV)
-    printf("[upload_file] 1, request to upload file and save it as:\n  '%s'\n", file_upld->name);
+    printf("[upload_file] 0, request to Upload file and save it on server as:\n  %s\n", 
+            file_upld->name);
   static err_inf ret_err; // returned variable, must be static
   static err_inf *p_ret_err = &ret_err; // pointer to a returned static variable
   FILE *hfile;            // the file handler
@@ -81,25 +44,27 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
     // Return a special value if an error has occurred while initializing the error info
     ret_err.num = ERRNUM_ERRINF_ERR;
     ret_err.err_inf_u.msg = "Failed to init the error info\n";
-    print_error("Upload", p_ret_err);
+    print_error("Upload", p_ret_err); // print the error message to STDERR
     return p_ret_err;
   }
 
-  if (DBG_SERV) printf("[upload_file] 2, error info was init'ed\n");
+  if (DBG_SERV) printf("[upload_file] 1, error info was init'ed\n");
 
   // Open the file
   if ( (hfile = open_file(file_upld->name, "wbx", &p_ret_err)) == NULL ) {
-    print_error("Upload", p_ret_err);
+    print_error("Upload", p_ret_err); // print the error message to STDERR
     return p_ret_err;
   }
 
-  if (DBG_SERV) printf("[upload_file] 3 file openned\n");
+  if (DBG_SERV) printf("[upload_file] 2 file openned\n");
 
   // Write a content of the client file to a new file
-  if ( write_file(hfile, file_upld, p_ret_err) != 0 )
+  if ( write_file(file_upld->name, &file_upld->cont, hfile, &p_ret_err) != 0 ) {
+    print_error("Upload", p_ret_err); // print the error message to STDERR
     return p_ret_err;
+  }
 
-  if (DBG_SERV) printf("[upload_file] 4 file has written\n");
+  if (DBG_SERV) printf("[upload_file] 3 file has written\n");
 
   // Close the file stream
   if ( close_file(file_upld->name, hfile, &p_ret_err) != 0 ) {
@@ -156,7 +121,8 @@ int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
 // The main RPC function to Download a file
 file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 {
-  if (DBG_SERV) printf("[download_file] 0\n");
+  if (DBG_SERV)
+    printf("[download_file] 0, request to Download server's file:\n  %s\n", *p_flname);
   static file_err ret_flerr; // returned variable, must be static
   static file_inf *p_fileinf = &ret_flerr.file; // a pointer to a file info
   static err_inf *p_errinf = &ret_flerr.err; // a pointer to an error info

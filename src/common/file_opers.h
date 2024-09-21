@@ -2,9 +2,7 @@
 #define _FILE_OPERS_H_
 
 #include <stdio.h>
-
-// Forward definitions for the types defined in the RPC protocol.
-typedef struct err_inf err_inf;
+#include "../rpcgen/fltr.h"
 
 /*
  * Open a file and optionally return error information.
@@ -26,12 +24,14 @@ typedef struct err_inf err_inf;
  *  flname    - the name of the file to open.
  *  mode      - the mode in which to open the file (e.g., "r", "w").
  *  pp_errinf - a double pointer to an error info structure to store error information.
- *              If NULL, no error info is provided. If uninitialized, memory is allocated.
+ *              If an error occurs, this structure is validated and allocated if necessary,
+ *              and the error information (number and message) is saved in it.
+ *              If pp_errinf is NULL, no error info is provided.
  *
  * Return value:
  *  A pointer to a FILE object if successful, or NULL on failure.
  */
-FILE *open_file(const char *const flname, const char *const mode, err_inf **pp_errinf);
+FILE *open_file(const char *flname, const char *mode, err_inf **pp_errinf);
 
 /*
  * Close the file stream.
@@ -46,13 +46,37 @@ FILE *open_file(const char *const flname, const char *const mode, err_inf **pp_e
  *  pp_errinf - a double pointer to an error info structure to store error information.
  *              If an error occurs, this structure is validated and allocated if necessary,
  *              and the error information (number and message) is saved in it.
- *              If NULL, no error info is provided. If uninitialized, memory is allocated.
+ *              If pp_errinf is NULL, no error info is provided.
  *
  * Return value:
  *  0       - if the file is successfully closed,
  *  <0 (-1) - on failure. In such cases, the error information is prepared,
  *            and the system error message is stored in pp_errinf.
  */
-int close_file(const char *const flname, FILE *hfile, err_inf **pp_errinf);
+int close_file(const char *flname, FILE *hfile, err_inf **pp_errinf);
+
+/*
+ * Write content to a file.
+ *
+ * This function writes data from a file content structure to the specified file handle.
+ * If any errors occur during the writing process, it allocates and fills an error
+ * information with details about the failure and close the file handle.
+ *
+ * Parameters:
+ *  flname    - the name of the file being written to.
+ *  p_flcont  - a pointer to the file content structure containing the data to be written.
+ *  hfile     - a file handle (FILE*) where the data will be written.
+ *  pp_errinf - a double pointer to an error info structure to store error information.
+ *              If an error occurs, this structure is validated and allocated if necessary,
+ *              and the error information (number and message) is saved in it.
+ *              If pp_errinf is NULL, no error info is provided.
+ *
+ * Return value:
+ *  0 on success.
+ *  1 if a write error occurs,
+ *  2 if a partial write occurs,
+ * -1 if an error occurs while preparing error information.
+ */
+int write_file(const char *flname, const t_flcont *p_flcont, FILE *hfile, err_inf **pp_errinf);
 
 #endif

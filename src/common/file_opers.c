@@ -81,6 +81,36 @@ static int prepare_err_info(err_inf **pp_errinf)
   return 0;
 }
 
+/*
+ * Formats and saves a detailed error message to a buffer.
+ *
+ * This function constructs a detailed error message based on the provided parameters.
+ * It formats the message into the provided buffer, which can then be used
+ * by the caller for error handling and reporting. The message includes:
+ *   - A description of the action that failed (e.g., "Failed to close the file").
+ *   - The filename associated with the error.
+ *   - The system error number (`errno_sys`) and corresponding system error message.
+ *
+ * Parameters:
+ *  msg_act   - the message describing the action that failed.
+ *  filename  - the name of the file associated with the error.
+ *  errno_sys - the system error number (errno).
+ *  buff      - the buffer where the formatted error message will be stored.
+ *              Ensure that the buffer is large enough to hold the message
+ *              (recommended size is at least LEN_ERRMSG_MAX).
+ *
+ * Note: this function does not allocate memory for `buff`. The caller must ensure 
+ * that the buffer passed in has sufficient size to hold the formatted message.
+ */
+static void format_error_msg(const char *msg_act, const char *filename, 
+                             int errno_sys, char *buff)
+{
+  snprintf(buff, LEN_ERRMSG_MAX,
+           "%s:\n%s\n"
+           "System error %i: %s\n",
+           msg_act, filename, errno_sys, strerror(errno_sys));
+}
+
 /* Open a file */
 /*
  * Get an error message based on the file open mode.
@@ -149,12 +179,12 @@ static const char *get_error_message(const char *mode) {
  *  pp_errinf - a double pointer to an error info structure to store error information.
  *              If an error occurs, this structure is validated and allocated if necessary,
  *              and the error information (number and message) is saved in it.
- *              If NULL, no error info is provided. If uninitialized, memory is allocated.
+ *              If pp_errinf is NULL, no error info is provided.
  *
  * Return value:
  *  A pointer to a FILE object if successful, or NULL on failure.
  */
-FILE *open_file(const char *const flname, const char *const mode, err_inf **pp_errinf)
+FILE *open_file(const char *flname, const char *mode, err_inf **pp_errinf)
 {
   FILE *hfile = fopen(flname, mode);
   if (hfile == NULL) {
@@ -165,13 +195,9 @@ FILE *open_file(const char *const flname, const char *const mode, err_inf **pp_e
     if ( prepare_err_info(pp_errinf) != 0 )
       return NULL;
 
-    // Save the error info
+    // construct the error info: number and own error message + system error
     (*pp_errinf)->num = 60; // TODO: check the error number, or maybe use system error number?
-    
-    // construct the own error message + system error
-    snprintf((*pp_errinf)->err_inf_u.msg, LEN_ERRMSG_MAX,
-             "%s:\n%s\nSystem error %i: %s\n",
-             get_error_message(mode), flname, errno_save, strerror(errno_save));
+    format_error_msg(get_error_message(mode), flname, errno_save, (*pp_errinf)->err_inf_u.msg);
   }
   if (DBG_FLOP && hfile) printf("[open_file] DONE\n");
   return hfile;
@@ -191,14 +217,14 @@ FILE *open_file(const char *const flname, const char *const mode, err_inf **pp_e
  *  pp_errinf - a double pointer to an error info structure to store error information.
  *              If an error occurs, this structure is validated and allocated if necessary,
  *              and the error information (number and message) is saved in it.
- *              If NULL, no error info is provided. If uninitialized, memory is allocated.
+ *              If pp_errinf is NULL, no error info is provided.
  *
  * Return value:
  *  0       - if the file is successfully closed,
- *  <0 (-1) - on failure. In such cases, the error information is prepared, 
+ *  <0 (-1) - on failure. In such cases, the error information is prepared,
  *            and the system error message is stored in pp_errinf.
  */
-int close_file(const char *const flname, FILE *hfile, err_inf **pp_errinf)
+int close_file(const char *flname, FILE *hfile, err_inf **pp_errinf)
 {
   int rc = fclose(hfile);
   if (rc != 0) {
@@ -209,14 +235,10 @@ int close_file(const char *const flname, FILE *hfile, err_inf **pp_errinf)
     if ( prepare_err_info(pp_errinf) != 0 )
       return -1;
 
-    // save the error info
+    // construct the error info: number and own error message + system error
     (*pp_errinf)->num = 64;
-    
-    // construct the own error message + system error
-    snprintf((*pp_errinf)->err_inf_u.msg, LEN_ERRMSG_MAX,
-             "Failed to close the file:\n%s\n"
-             "System error %i: %s\n",
-             flname, errno_save, strerror(errno_save));
+    format_error_msg("Failed to close the file",
+                     flname, errno_save, (*pp_errinf)->err_inf_u.msg);
   }
   if (DBG_FLOP && !rc) printf("[close file] DONE\n");
   return rc;
@@ -233,15 +255,79 @@ static int allocate_file_content(const t_flname flname, t_flcont *p_flcont,
     if ( prepare_err_info(pp_errinf) != 0 )
       return -1;
     
-    // construct the error message
-    (*pp_errinf)->num = 61;
+    // construct the error info
+    (*pp_errinf)->num = 61; // TODO: check the error number, or maybe use system error number?
     snprintf((*pp_errinf)->err_inf_u.msg, LEN_ERRMSG_MAX,
              "Failed to allocate memory for the content of file:\n'%s'\n", flname);
-    
-    // close the file
-    fclose(hfile);
 
+    fclose(hfile);
     return (*pp_errinf)->num;
   }
+  return 0;
+}
+
+/* Write a file */
+/*
+ * Write content to a file.
+ *
+ * This function writes data from a file content structure to the specified file handle.
+ * If any errors occur during the writing process, it allocates and fills an error
+ * information with details about the failure and close the file handle.
+ *
+ * Parameters:
+ *  flname    - the name of the file being written to.
+ *  p_flcont  - a pointer to the file content structure containing the data to be written.
+ *  hfile     - a file handle (FILE*) where the data will be written.
+ *  pp_errinf - a double pointer to an error info structure to store error information.
+ *              If an error occurs, this structure is validated and allocated if necessary,
+ *              and the error information (number and message) is saved in it.
+ *              If pp_errinf is NULL, no error info is provided.
+ *
+ * Return value:
+ *  0 on success,
+ *  1 if a write error occurs, 
+ *  2 if a partial write occurs,
+ * -1 if an error occurs while preparing error information.
+ */
+int write_file(const char *flname, const t_flcont *p_flcont, FILE *hfile, err_inf **pp_errinf)
+{
+  size_t nch = fwrite(p_flcont->t_flcont_val, 1, p_flcont->t_flcont_len, hfile);
+  if (DBG_FLOP) printf("[write_file] 1, writing completed\n");
+
+  // Check if an error has occurred during the writing operation
+  if (ferror(hfile)) {
+    // save errno before error info preparation that can reset errno
+    int errno_save = errno;
+
+    // prepare err_inf - validate and allocate if needed
+    if (prepare_err_info(pp_errinf) != 0)
+      return -1;
+
+    // construct the error info: number and own error message + system error
+    (*pp_errinf)->num = 51; // TODO: check the error number, or maybe use system error number?
+    format_error_msg("Failed to write to the file",
+                     flname, errno_save, (*pp_errinf)->err_inf_u.msg);
+    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
+    return 1;
+  }
+
+  // Check a number of written items 
+  if (nch < p_flcont->t_flcont_len) {
+    // save errno before error info preparation that can reset errno
+    int errno_save = errno;
+
+    // prepare err_inf - validate and allocate if needed
+    if (prepare_err_info(pp_errinf) != 0)
+      return -1;
+
+    // construct the error info: number and own error message + system error
+    (*pp_errinf)->num = 52; // TODO: check the error number, or maybe use system error number?
+    format_error_msg("Partial writing to the file",
+                     flname, errno_save, (*pp_errinf)->err_inf_u.msg);
+    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
+    return 2;
+  }
+
+  if (DBG_FLOP) printf("[write_file] DONE\n");
   return 0;
 }
