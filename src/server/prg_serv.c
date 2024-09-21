@@ -79,45 +79,6 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 /*
  * The Download file Section
  */
-// Read the file content into the buffer.
-// RC: 0 on success; >0 on failure
-int read_file(FILE *hfile, file_inf *p_file, err_inf *p_err)
-{
-  if (DBG_SERV) printf("[read_file] 1\n");
-  size_t nch = fread(p_file->cont.t_flcont_val, 1, p_file->cont.t_flcont_len, hfile);
-  
-  if (DBG_SERV) printf("[read_file] 2 reading completed\n");
-
-  // Check if an error has occurred during the reading operation
-  if (ferror(hfile)) {
-    p_err->num = 62;
-    sprintf(p_err->err_inf_u.msg,
-            "Failed to read from the file:\n'%s'\n"
-            "System server error %i: %s",
-            p_file->name, errno, strerror(errno));
-    print_error("Download", p_err); // print the error message to STDERR
-    xdr_free((xdrproc_t)xdr_file_inf, p_file); // free the file info
-    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
-    return 1;
-  }
-
-  // Check a number of items read
-  if (nch < p_file->cont.t_flcont_len) {
-    p_err->num = 63;
-    sprintf(p_err->err_inf_u.msg,
-            "Partial reading of the file:\n'%s'\n"
-            "System server error %i: %s",
-            p_file->name, errno, strerror(errno));
-    print_error("Download", p_err); // print the error message to STDERR
-    xdr_free((xdrproc_t)xdr_file_inf, p_file); // free the file info
-    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
-    return 2;
-  }
-
-  if (DBG_SERV) printf("[read_file] DONE\n");
-  return 0;
-}
-
 // The main RPC function to Download a file
 file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 {
@@ -160,27 +121,19 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 
   if (DBG_SERV) printf("[download_file] 3 file openned\n");
 
-  // Allocate the memory to store the file content  
-  if ( alloc_file_cont(&p_fileinf->cont, get_file_size(hfile)) == NULL ) {
-    p_errinf->num = 61;
-    sprintf(p_errinf->err_inf_u.msg,
-            "Failed to allocate memory for the content of file:\n'%s'\n", p_fileinf->name);
+  // Read the file content into the buffer
+  if ( read_file(p_fileinf->name, &p_fileinf->cont, hfile, &p_errinf) != 0 ) {
     print_error("Download", p_errinf);
-    fclose(hfile);
+    xdr_free((xdrproc_t)xdr_file_inf, p_fileinf); // free the file info
     return &ret_flerr;
   }
-
-  if (DBG_SERV) printf("[download_file] 4 memory for file content allocated\n");
-
-  // Read the file content into the buffer
-  if ( read_file(hfile, p_fileinf, p_errinf) != 0 )
-    return &ret_flerr;
 
   if (DBG_SERV) printf("[download_file] 5 file has read\n");
 
   // Close the file stream
   if ( close_file(p_fileinf->name, hfile, &p_errinf) != 0 ) {
     print_error("Download", p_errinf);
+    xdr_free((xdrproc_t)xdr_file_inf, p_fileinf); // free the file info
     return &ret_flerr;
   }
 

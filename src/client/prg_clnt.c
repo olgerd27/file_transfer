@@ -181,35 +181,23 @@ CLIENT * create_client()
  * Return value:
  *  0 on success, >0 on failure.
  */
-int read_file(const char *flname, file_inf *p_flinf)
+int read_file_cont(const t_flname flname, file_inf *p_flinf)
 {
+  FILE *hfile;
   err_inf *p_errinf = NULL;
   
   // Open the file
-  FILE *hfile;
   if ( (hfile = open_file(flname, "rb", &p_errinf)) == NULL ) {
     fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
     return p_errinf->num;
   }
 
-  // Allocate the memory to store the file content
-  if ( !alloc_file_cont(&p_flinf->cont, get_file_size(hfile)) ) {
-    fclose(hfile);
-    return 11;
-  }
-
   // Read the file content into the buffer
-  size_t nch = fread(p_flinf->cont.t_flcont_val, 1, p_flinf->cont.t_flcont_len, hfile);
-
-  // Check a number of items read and if an error has occurred
-  if (ferror(hfile) || nch < p_flinf->cont.t_flcont_len) {
-    fprintf(stderr, "!--Error 12: File reading error: '%s'.\n"
-                    "System error %i: %s\n",
-                    flname, errno, strerror(errno));
-    fclose(hfile);
-    xdr_free((xdrproc_t)xdr_t_flcont, &p_flinf->cont); // free the file content
-    return 12;
+  if ( read_file(flname, &p_flinf->cont, hfile, &p_errinf) != 0 ) {
+    fprintf(stderr, "!--Error %d: %s\n", p_errinf->num, p_errinf->err_inf_u.msg);
+    xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
+    return p_errinf->num;
   }
 
   // Close the file
@@ -238,9 +226,9 @@ void file_upload()
   strncpy(fileinf.name, filename_trg, strlen(filename_trg) + 1);
   if (DBG_CLNT) printf("[file_upload] 2\n");
 
-  // Get the file content and set it to the file object
-  if (read_file(filename_src, &fileinf) != 0) {
-    free_file_name(&fileinf.name);
+  // Get (read) the file content and set it to the file object
+  if ( read_file_cont(filename_src, &fileinf) != 0 ) {
+    xdr_free((xdrproc_t)xdr_file_inf, &fileinf);
     exit(12);
   }
   if (DBG_CLNT) printf("[file_upload] 3, read file DONE\n");
@@ -287,7 +275,7 @@ void file_upload()
  */
 // TODO: maybe this function have to return some code of successfullness?
 // Save a file downloaded on the server to a new local file
-int save_file(const char *flname, t_flcont *p_flcont)
+int save_file_cont(const t_flname flname, t_flcont *p_flcont)
 {
   FILE *hfile;
   err_inf *p_errinf = NULL;
@@ -347,8 +335,9 @@ void file_download()
   if (DBG_CLNT)
     printf("[file_download] 3, RPC is successful, Downloaded file:\n  '%s'\n", p_flerr_srv->file.name);
   
+  // TODO: check the return code
   // Save the remote file content to a local file
-  save_file(filename_trg, &p_flerr_srv->file.cont);
+  save_file_cont(filename_trg, &p_flerr_srv->file.cont);
   if (DBG_CLNT) 
     printf("[file_download] 4, file save DONE, filename:\n  '%s'\n", filename_trg);
 
