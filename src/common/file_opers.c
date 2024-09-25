@@ -41,71 +41,57 @@ static int alloc_reset_err_inf(err_inf **pp_errinf) {
     return 0;
 }
 
-/* Prepare the err_inf for use, including allocation if necessary.
- * This function checks whether the provided double pointer to an error info
- * (`err_inf`) is `NULL` and, if needed, allocates memory for it.
- * The function ensures that the caller has a valid and initialized
- * `err_inf` structure to store error information.
+/* Process error info and format an error message.
  *
- * The function is typically used in file operation functions, where error
- * handling is required. It handles both cases where the caller provides
- * a pre-allocated error info structure or when `NULL` is passed and
- * a new structure needs to be allocated.
- *
- * NOTE. A call of this function resets the system errno value.
- *       It must be saved in advance.
+ * This function processes error information and constructs an error message that
+ * includes details about the failed action, the associated file, and optionally,
+ * system error details if `errno` is non-zero. It ensures the error info structure
+ * is prepared (allocated if needed) and stores the error message in the provided buffer.
  *
  * Parameters:
- *  p_errinf - Double pointer to an `err_inf` structure.
- *             - If `p_errinf` is `NULL`, no error handling is done, and
- *               the function returns an error.
- *             - If `*p_errinf` is `NULL`, the function attempts to allocate
- *               memory for `err_inf`.
+ *  filename    - the name of the file associated with the error.
+ *  errnum      - the custom error number to be stored in the error info structure.
+ *  errmsg_act  - a brief message describing the failed action.
+ *  p_errinf    - a double pointer to an `err_inf` structure.
+ *                -> If `p_errinf` is `NULL`, no error handling is done, and
+ *                   the function returns an error code.
+ *                -> If `*pp_errinf` is `NULL`, the function attempts to allocate
+ *                   memory for `err_inf` and initialize it.
  * Return value:
- *  0 on success, or <0 (-1) on failure.
+ *  0 on success,
+ * <0 (-1) on failure (error info could not be processed or allocated).
+ *
+ *  Note: The system error (based on `errno`) is included in the message only if
+ * `errno` is non-zero at the time the function is called.
  */
-static int prepare_err_info(err_inf **pp_errinf)
+static int process_error(const char *filename, int errnum, 
+                         const char *errmsg_act, err_inf **pp_errinf)
 {
-  // no error info is provided
+  // Save the system error value, because it'll be reset by alloc_reset_err_inf()
+  int errno_sys = errno;
+
+  // Prepare err_inf - validate and allocate if needed:
+  // - no error info is provided
   if (!pp_errinf)
     return -1;
 
-  // allocate the memory for the error info instance if it's not done previously
+  // - allocate the memory for the error info instance if it's not done previously
   if (!*pp_errinf && alloc_reset_err_inf(pp_errinf) != 0)
     return -1;
+
+  // Construct the error info
+  (*pp_errinf)->num = errnum;
+  int nch = snprintf((*pp_errinf)->err_inf_u.msg, LEN_ERRMSG_MAX, 
+                     "%s:\n%s\n", errmsg_act, filename);
+
+  // add system error information only if errno_sys is non-zero
+  if (errno_sys)
+    snprintf((*pp_errinf)->err_inf_u.msg + nch, LEN_ERRMSG_MAX, 
+              "System error %i: %s\n", errno_sys, strerror(errno_sys));
 
   return 0;
 }
 
-/* Formats and saves a detailed error message to a buffer.
- * This function constructs a detailed error message based on the provided parameters.
- * It formats the message into the provided buffer, which can then be used
- * by the caller for error handling and reporting. The message includes:
- *   - A description of the action that failed (e.g., "Failed to close the file").
- *   - The filename associated with the error.
- *   - The system error number (`errno_sys`) and corresponding system error message.
- *
- * Parameters:
- *  msg_act   - the message describing the action that failed.
- *  filename  - the name of the file associated with the error.
- *  errno_sys - the system error number (errno).
- *  buff      - the buffer where the formatted error message will be stored.
- *              Ensure that the buffer is large enough to hold the message
- *              (recommended size is at least LEN_ERRMSG_MAX).
- *
- * Note: this function does not allocate memory for `buff`. The caller must ensure 
- * that the buffer passed in has sufficient size to hold the formatted message.
- */
-static void format_error_msg(const char *msg_act, const char *filename, 
-                             int errno_sys, char *buff)
-{
-  snprintf(buff, LEN_ERRMSG_MAX,
-           "%s:\n%s\n"
-           "System error %i: %s\n",
-           msg_act, filename, errno_sys, strerror(errno_sys));
-}
-
-/* Open a file */
 /* Get an error message based on the file open mode.
  * This helper function returns an appropriate error message based on the file
  * opening mode (e.g., "r", "w", etc.). If the mode is invalid or not found in
@@ -150,6 +136,7 @@ static const char *get_error_message(const char *mode) {
 }
 
 /* Open a file and optionally return error information.
+ *
  * This function attempts to open a file in the specified mode. If the file cannot
  * be opened, and the error info pointer is provided, it allocates an error structure
  * and stores detailed error information.
@@ -177,24 +164,14 @@ static const char *get_error_message(const char *mode) {
 FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_errinf)
 {
   FILE *hfile = fopen(flname, mode);
-  if (hfile == NULL) {
-    // save errno before error info preparation that can reset errno
-    int errno_save = errno;
-
-    // prepare err_inf - validate and allocate if needed
-    if ( prepare_err_info(pp_errinf) != 0 )
-      return NULL;
-
-    // construct the error info: number and own error message + system error
-    (*pp_errinf)->num = 60; // TODO: check the error number, or maybe use system error number?
-    format_error_msg(get_error_message(mode), flname, errno_save, (*pp_errinf)->err_inf_u.msg);
-  }
+  if (hfile == NULL)
+    (void)process_error(flname, 60, get_error_message(mode), pp_errinf);
   if (DBG_FLOP && hfile) printf("[open_file] DONE\n");
   return hfile;
 }
 
-/* Close a file */
 /* Close the file stream.
+ *
  * Closes the file stream and handles any errors that may occur during the process.
  * If an error occurs, this function prepares the error information using the provided
  * error info pointer (pp_errinf). The system error (errno) is captured and used
@@ -216,60 +193,14 @@ FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_errinf)
 int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
 {
   int rc = fclose(hfile);
-  if (rc != 0) {
-    // save errno before error info preparation that can reset errno
-    int errno_save = errno;
-
-    // prepare err_inf - validate and allocate if needed
-    if ( prepare_err_info(pp_errinf) != 0 )
-      return -1;
-
-    // construct the error info: number and own error message + system error
-    (*pp_errinf)->num = 64;
-    format_error_msg("Failed to close the file",
-                     flname, errno_save, (*pp_errinf)->err_inf_u.msg);
-  }
+  if (rc != 0)
+    (void)process_error(flname, 64, "Failed to close the file", pp_errinf);
   if (DBG_FLOP && !rc) printf("[close file] DONE\n");
   return rc;
 }
 
-/* Read a file */
-/* Allocates memory for the content of a file.
- *
- * This function allocates the necessary memory for storing the content of the specified
- * file. If memory allocation fails, error information is stored in the provided error
- * info structure.
- *
- * Parameters:
- *  flname     - the name of the file for which memory is being allocated.
- *  p_flcont   - a pointer to a structure where the file content will be stored.
- *  hfile      - a pointer to the opened file handle to determine the file size.
- *  pp_errinf - a double pointer to an error info structure to store error information.
- *              If an error occurs, this structure is validated and allocated if necessary,
- *              and the error information (number and message) is saved in it.
- *              If pp_errinf is NULL, no error info is provided.
- *
- * Return value:
- *  0 on success, a positive error number on failure.
- */
-static int allocate_file_content(const t_flname flname, t_flcont *p_flcont,
-                                 FILE *hfile, err_inf **pp_errinf)
-{
-  if ( alloc_file_cont(p_flcont, get_file_size(hfile)) == NULL ) {
-    // prepare err_inf - validate and allocate if needed
-    if ( prepare_err_info(pp_errinf) != 0 )
-      return -1;
-    
-    // construct the error info
-    (*pp_errinf)->num = 61; // TODO: check the error number, or maybe use system error number?
-    snprintf((*pp_errinf)->err_inf_u.msg, LEN_ERRMSG_MAX,
-             "Failed to allocate memory for the content of file:\n%s\n", flname);
-    return (*pp_errinf)->num;
-  }
-  return 0;
-}
-
 /* Reads the content of a file into a specified buffer.
+ *
  * This function allocates memory for the file content, reads data from the specified
  * file handle, and handles any errors that may occur during the reading process.
  * If any errors occur during the reading process, it allocates and fills
@@ -293,45 +224,27 @@ static int allocate_file_content(const t_flname flname, t_flcont *p_flcont,
 int read_file(const t_flname flname, t_flcont *p_flcont, FILE *hfile, err_inf **pp_errinf)
 {
   // Allocate the memory to store the file content
-  if ( allocate_file_content(flname, p_flcont, hfile, pp_errinf) != 0 ) {
+  if ( alloc_file_cont(p_flcont, get_file_size(hfile)) == NULL ) {
+    errno = 0; // reset system error to avoid getting a system error message for this error case
+    (void)process_error(flname, 61, "Failed to allocate memory for the content of file", pp_errinf);
     fclose(hfile);
     return 1;
   }
 
   size_t nch = fread(p_flcont->t_flcont_val, 1, p_flcont->t_flcont_len, hfile);
-  if (DBG_FLOP) printf("[read_file] 1, reading completed\n");
 
   // Check if an error has occurred during the reading operation
   if (ferror(hfile)) {
-    // save errno before error info preparation that can reset errno
-    int errno_save = errno;
-
-    // prepare err_inf - validate and allocate if needed
-    if (prepare_err_info(pp_errinf) != 0)
-      return -1;
-
-    // construct the error info: number and own error message + system error
-    (*pp_errinf)->num = 62; // TODO: check the error number, or maybe use system error number?
-    format_error_msg("Failed to read from the file",
-                     flname, errno_save, (*pp_errinf)->err_inf_u.msg);
-    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
+    (void)process_error(flname, 62, "Failed to read from the file", pp_errinf);
+    fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 2;
   }
 
   // Check a number of items read
   if (nch < p_flcont->t_flcont_len) {
-    // save errno before error info preparation that can reset errno
-    int errno_save = errno;
-
-    // prepare err_inf - validate and allocate if needed
-    if (prepare_err_info(pp_errinf) != 0)
-      return -1;
-
-    // construct the error info: number and own error message + system error
-    (*pp_errinf)->num = 63; // TODO: check the error number, or maybe use system error number?
-    format_error_msg("Partial reading of the file",
-                     flname, errno_save, (*pp_errinf)->err_inf_u.msg);
-    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
+    // TODO: check the error number. But also think, maybe it worths to return system error number?
+    (void)process_error(flname, 63, "Partial reading of the file", pp_errinf);
+    fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 3;
   }
 
@@ -339,8 +252,8 @@ int read_file(const t_flname flname, t_flcont *p_flcont, FILE *hfile, err_inf **
   return 0;
 }
 
-/* Write a file */
 /* Write content to a file.
+ *
  * This function writes data from a file content structure to the specified file handle.
  * If any errors occur during the writing process, it allocates and fills an error
  * information with details about the failure and close the file handle.
@@ -367,35 +280,17 @@ int write_file(const t_flname flname, const t_flcont *p_flcont, FILE *hfile, err
 
   // Check if an error has occurred during the writing operation
   if (ferror(hfile)) {
-    // save errno before error info preparation that can reset errno
-    int errno_save = errno;
-
-    // prepare err_inf - validate and allocate if needed
-    if (prepare_err_info(pp_errinf) != 0)
-      return -1;
-
-    // construct the error info: number and own error message + system error
-    (*pp_errinf)->num = 51; // TODO: check the error number, or maybe use system error number?
-    format_error_msg("Failed to write to the file",
-                     flname, errno_save, (*pp_errinf)->err_inf_u.msg);
-    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
+    // TODO: check the error number. But also think, maybe it worths to return system error number?
+    (void)process_error(flname, 51, "Failed to write to the file", pp_errinf);
+    fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 1;
   }
 
   // Check a number of written items 
   if (nch < p_flcont->t_flcont_len) {
-    // save errno before error info preparation that can reset errno
-    int errno_save = errno;
-
-    // prepare err_inf - validate and allocate if needed
-    if (prepare_err_info(pp_errinf) != 0)
-      return -1;
-
-    // construct the error info: number and own error message + system error
-    (*pp_errinf)->num = 52; // TODO: check the error number, or maybe use system error number?
-    format_error_msg("Partial writing to the file",
-                     flname, errno_save, (*pp_errinf)->err_inf_u.msg);
-    fclose(hfile); // Decided not to use close_file() so as not to lose this error message
+    // TODO: check the error number. But also think, maybe it worths to return system error number?
+    (void)process_error(flname, 52, "Partial writing to the file", pp_errinf);
+    fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 2;
   }
 
