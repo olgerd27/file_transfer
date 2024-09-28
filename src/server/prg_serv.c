@@ -18,7 +18,7 @@ extern int errno; // global system error number
 // messages with the extended info should be printed to STDERR on the server side only.
 
 // Print the error message in special format to STDERR
-void print_error(const char *oper_type, const struct err_inf *p_errinf)
+static void print_error(const char *oper_type, const struct err_inf *p_errinf)
 {
   fprintf(stderr, "%s Failed - error %i\n%s\n",
           oper_type, p_errinf->num, p_errinf->err_inf_u.msg);
@@ -54,10 +54,12 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
     xdr_free((xdrproc_t)xdr_file_inf, file_upld); // free the file info
     return p_ret_err;
   }
+  if (DBG_SERV) printf("[upload_file] 2, file saved\n");
 
   if (DBG_SERV) printf("[upload_file] DONE\n\n");
   // TODO: check if the file content, passed as an argument, should be freed 
   // at the end of this function and in case of errors?
+  xdr_free((xdrproc_t)xdr_file_inf, file_upld); // free the file info
   return p_ret_err;
 }
 
