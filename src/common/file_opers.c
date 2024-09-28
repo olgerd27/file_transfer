@@ -161,7 +161,7 @@ static const char *get_error_message(const char *mode) {
  * Return value:
  *  A pointer to a FILE object if successful, or NULL on failure.
  */
-FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_errinf)
+static FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_errinf)
 {
   FILE *hfile = fopen(flname, mode);
   if (hfile == NULL)
@@ -190,7 +190,7 @@ FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_errinf)
  *  <0 (-1) - on failure. In such cases, the error information is prepared,
  *            and the system error message is stored in pp_errinf.
  */
-int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
+static int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
 {
   int rc = fclose(hfile);
   if (rc != 0)
@@ -221,7 +221,8 @@ int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
  *  2 for read error,
  *  3 for partial read error.
  */
-int read_file(const t_flname flname, t_flcont *p_flcont, FILE *hfile, err_inf **pp_errinf)
+static int read_file(const t_flname flname, t_flcont *p_flcont, 
+                     FILE *hfile, err_inf **pp_errinf)
 {
   // Allocate the memory to store the file content
   if ( alloc_file_cont(p_flcont, get_file_size(hfile)) == NULL ) {
@@ -252,6 +253,36 @@ int read_file(const t_flname flname, t_flcont *p_flcont, FILE *hfile, err_inf **
   return 0;
 }
 
+/*
+ * Read the file content into the beffer.
+ *
+ * Parameters:
+ * flname   -
+ * p_flcont -
+ *
+ * Return value:
+ *  0 on success, >0 on failure.
+ */
+int read_file_cont(const t_flname flname, t_flcont *p_flcont,
+                   err_inf **pp_errinf)
+{
+  // Open the file
+  FILE *hfile = NULL;    // the file handler
+  if ( (hfile = open_file(flname, "rb", pp_errinf)) == NULL )
+    return (*pp_errinf)->num;
+
+  // Read the file content into the buffer
+  if ( read_file(flname, p_flcont, hfile, pp_errinf) != 0 )
+    return (*pp_errinf)->num;
+
+  // Close the file stream
+  if ( close_file(flname, hfile, pp_errinf) != 0 )
+    return (*pp_errinf)->num;
+
+  printf("[read_file_cont] DONE\n");
+  return 0;
+}
+
 /* Write content to a file.
  *
  * This function writes data from a file content structure to the specified file handle.
@@ -273,7 +304,8 @@ int read_file(const t_flname flname, t_flcont *p_flcont, FILE *hfile, err_inf **
  *  2 if a partial write occurs,
  * -1 if an error occurs while preparing error information.
  */
-int write_file(const t_flname flname, const t_flcont *p_flcont, FILE *hfile, err_inf **pp_errinf)
+static int write_file(const t_flname flname, const t_flcont *p_flcont, 
+                      FILE *hfile, err_inf **pp_errinf)
 {
   size_t nch = fwrite(p_flcont->t_flcont_val, 1, p_flcont->t_flcont_len, hfile);
   if (DBG_FLOP) printf("[write_file] 1, writing completed\n");
@@ -295,5 +327,25 @@ int write_file(const t_flname flname, const t_flcont *p_flcont, FILE *hfile, err
   }
 
   if (DBG_FLOP) printf("[write_file] DONE\n");
+  return 0;
+}
+
+// Save a file content to a new local file
+int save_file_cont(const t_flname flname, const t_flcont *p_flcont,
+                   err_inf **pp_errinf)
+{
+  // Open the file
+  FILE *hfile = NULL;    // the file handler
+  if ( (hfile = open_file(flname, "wbx", pp_errinf)) == NULL )
+    return (*pp_errinf)->num;
+
+  // Write a content of the client file to a new file
+  if ( write_file(flname, p_flcont, hfile, pp_errinf) != 0 )
+    return (*pp_errinf)->num;
+
+  // Close the file stream
+  if ( close_file(flname, hfile, pp_errinf) != 0 )
+    return (*pp_errinf)->num;
+
   return 0;
 }

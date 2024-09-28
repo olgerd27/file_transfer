@@ -27,27 +27,6 @@ void print_error(const char *oper_type, const struct err_inf *p_errinf)
 /* 
  * The Upload file Section
  */
-// Save a file content to a new local file
-// TODO: implement the read_file_cont() in the same manner
-static int save_file_cont(const t_flname flname, const t_flcont *p_flcont, err_inf **pp_errinf)
-{
-  FILE *hfile = NULL;    // the file handler
-
-  // Open the file
-  if ( (hfile = open_file(flname, "wbx", pp_errinf)) == NULL )
-    return (*pp_errinf)->num;
-
-  // Write a content of the client file to a new file
-  if ( write_file(flname, p_flcont, hfile, pp_errinf) != 0 )
-    return (*pp_errinf)->num;
-
-  // Close the file stream
-  if ( close_file(flname, hfile, pp_errinf) != 0 )
-    return (*pp_errinf)->num;
-
-  return 0;
-}
-
 // The main RPC function to Upload a file
 err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 {
@@ -85,27 +64,6 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 /*
  * The Download file Section
  */
-// Read the file content into the buffer
-static int read_file_cont(const t_flname flname, t_flcont *p_flcont, err_inf **pp_errinf)
-{
-  FILE *hfile = NULL;    // the file handler
-
-  // Open the file
-  if ( (hfile = open_file(flname, "rb", pp_errinf)) == NULL )
-    return (*pp_errinf)->num;
-
-  // Read the file content into the buffer
-  if ( read_file(flname, p_flcont, hfile, pp_errinf) != 0 )
-    return (*pp_errinf)->num;
-
-  // Close the file stream
-  if ( close_file(flname, hfile, pp_errinf) != 0 )
-    return (*pp_errinf)->num;
-
-  printf("[read_file_cont] DONE\n");
-  return 0;
-}
-
 // The main RPC function to Download a file.
 // Note: if an error occurs, xdr_free() is called automatically to free 
 // the file content memory.

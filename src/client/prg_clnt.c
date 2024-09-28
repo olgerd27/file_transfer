@@ -178,50 +178,13 @@ static void process_file_error(err_inf *p_errinf)
  * The Upload File section
  * Error numbers range: 10-19
  */
-
-/*
- * Read the file to get its content for transfering.
- *
- * Parameters:
- * flname   - 
- * p_flcont - 
- *
- * Return value:
- *  0 on success, >0 on failure.
- */
-static int read_file_cont(const t_flname flname, t_flcont *p_flcont)
-{
-  FILE *hfile = NULL; // the file handler
-  err_inf *p_errinf = NULL; // a nulled pointer to an error info structure
-  
-  // Open the file
-  if ( (hfile = open_file(flname, "rb", &p_errinf)) == NULL ) {
-    process_file_error(p_errinf);
-    return p_errinf->num;
-  }
-
-  // Read the file content into the buffer
-  if ( read_file(flname, p_flcont, hfile, &p_errinf) != 0 ) {
-    process_file_error(p_errinf);
-    return p_errinf->num;
-  }
-
-  // Close the file
-  if ( close_file(flname, hfile, &p_errinf) != 0 ) {
-    process_file_error(p_errinf);
-    return p_errinf->num;
-  }
-
-  return 0;
-}
-
 // The main function to Upload file through RPC call
 void file_upload()
 {
   if (DBG_CLNT)
     printf("[file_upload] 0, initiate File Upload - source file:\n  '%s'\n", filename_src);
   file_inf fileinf; // file info object
-  err_inf *p_err_srv; // result from a server - error info
+  err_inf *p_err_srv = NULL; // result from a server - error info
 
   // Init the file name & type
   fileinf.name = NULL; // init with NULL for stable memory allocation
@@ -233,9 +196,9 @@ void file_upload()
   strncpy(fileinf.name, filename_trg, strlen(filename_trg) + 1);
   if (DBG_CLNT) printf("[file_upload] 2\n");
 
-  // Get (read) the file content and set it to the file object
-  
-  if ( read_file_cont(filename_src, &fileinf.cont) != 0 ) {
+  // Get (read) the file content and save it into the file object for transfering
+  if ( read_file_cont(filename_src, &fileinf.cont, &p_err_srv) != 0 ) {
+    process_file_error(p_err_srv);
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf);
     exit(12);
   }
@@ -281,33 +244,6 @@ void file_upload()
  * The Download File section
  * Error numbers range: 20-29
  */
-// Save a file downloaded on the server to a new local file
-static int save_file_cont(const t_flname flname, const t_flcont *p_flcont)
-{
-  FILE *hfile = NULL;       // the file handler
-  err_inf *p_errinf = NULL; // a nulled pointer to an error info structure
-
-  // Open the file
-  if ( (hfile = open_file(flname, "wbx", &p_errinf)) == NULL ) {
-    process_file_error(p_errinf);
-    return p_errinf->num;
-  }
-
-  // Write the server file content to a new file
-  if ( write_file(flname, p_flcont, hfile, &p_errinf) != 0 ) {
-    process_file_error(p_errinf);
-    return p_errinf->num;
-  }
-
-  // Close the file
-  if ( close_file(flname, hfile, &p_errinf) != 0 ) {
-    process_file_error(p_errinf);
-    return p_errinf->num;
-  }
-  
-  return 0;
-}
-
 // The main function to Download file through RPC call
 // TODO: check if it's correct to exit from this function in case of errors
 void file_download()
@@ -343,7 +279,9 @@ void file_download()
     printf("[file_download] 3, RPC is successful, Downloaded file:\n  '%s'\n", p_flerr_srv->file.name);
   
   // Save (write) the remote file content to a local file
-  if ( save_file_cont(filename_trg, &p_flerr_srv->file.cont) != 0 ) {
+  err_inf *p_err_tmp = NULL; // a nulled pointer to an error info structure
+  if ( save_file_cont(filename_trg, &p_flerr_srv->file.cont, &p_err_tmp) != 0 ) {
+    process_file_error(p_err_tmp);
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv);
     exit(22);
   }
