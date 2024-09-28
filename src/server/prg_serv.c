@@ -27,9 +27,28 @@ void print_error(const char *oper_type, const struct err_inf *p_errinf)
 /* 
  * The Upload file Section
  */
+// Save a file content to a new local file
+// TODO: implement the read_file_cont() in the same manner
+static int save_file_cont(const t_flname flname, const t_flcont *p_flcont, err_inf **pp_errinf)
+{
+  FILE *hfile = NULL;    // the file handler
+
+  // Open the file
+  if ( (hfile = open_file(flname, "wbx", pp_errinf)) == NULL )
+    return (*pp_errinf)->num;
+
+  // Write a content of the client file to a new file
+  if ( write_file(flname, p_flcont, hfile, pp_errinf) != 0 )
+    return (*pp_errinf)->num;
+
+  // Close the file stream
+  if ( close_file(flname, hfile, pp_errinf) != 0 )
+    return (*pp_errinf)->num;
+
+  return 0;
+}
+
 // The main RPC function to Upload a file
-// TODO: check if the file content, passed as an argument, should be freed at the end of this function 
-//       and in case of errors?
 err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 {
   if (DBG_SERV)
@@ -50,36 +69,46 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 
   if (DBG_SERV) printf("[upload_file] 1, error info was init'ed\n");
 
-  // Open the file
-  if ( (hfile = open_file(file_upld->name, "wbx", &p_ret_err)) == NULL ) {
-    print_error("Upload", p_ret_err); // print the error message to STDERR
-    return p_ret_err;
-  }
-
-  if (DBG_SERV) printf("[upload_file] 2 file openned\n");
-
-  // Write a content of the client file to a new file
-  if ( write_file(file_upld->name, &file_upld->cont, hfile, &p_ret_err) != 0 ) {
-    print_error("Upload", p_ret_err); // print the error message to STDERR
-    return p_ret_err;
-  }
-
-  if (DBG_SERV) printf("[upload_file] 3 file has written\n");
-
-  // Close the file stream
-  if ( close_file(file_upld->name, hfile, &p_ret_err) != 0 ) {
+  // Save the passed file content to a new local file
+  if ( save_file_cont(file_upld->name, &file_upld->cont, &p_ret_err) != 0 ) {
     print_error("Upload", p_ret_err);
+    xdr_free((xdrproc_t)xdr_file_inf, file_upld); // free the file info
     return p_ret_err;
   }
 
   if (DBG_SERV) printf("[upload_file] DONE\n\n");
+  // TODO: check if the file content, passed as an argument, should be freed 
+  // at the end of this function and in case of errors?
   return p_ret_err;
 }
 
 /*
  * The Download file Section
  */
-// The main RPC function to Download a file
+// Read the file content into the buffer
+static int read_file_cont(const t_flname flname, t_flcont *p_flcont, err_inf **pp_errinf)
+{
+  FILE *hfile = NULL;    // the file handler
+
+  // Open the file
+  if ( (hfile = open_file(flname, "rb", pp_errinf)) == NULL )
+    return (*pp_errinf)->num;
+
+  // Read the file content into the buffer
+  if ( read_file(flname, p_flcont, hfile, pp_errinf) != 0 )
+    return (*pp_errinf)->num;
+
+  // Close the file stream
+  if ( close_file(flname, hfile, pp_errinf) != 0 )
+    return (*pp_errinf)->num;
+
+  printf("[read_file_cont] DONE\n");
+  return 0;
+}
+
+// The main RPC function to Download a file.
+// Note: if an error occurs, xdr_free() is called automatically to free 
+// the file content memory.
 file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 {
   if (DBG_SERV)
@@ -113,27 +142,9 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
   // Set the file name to be read
   p_fileinf->name = *p_flname;
 
-  // Open the file
-  if ( (hfile = open_file(p_fileinf->name, "rb", &p_errinf)) == NULL ) {
-    print_error("Download", p_errinf);
-    return &ret_flerr;
-  }
-
-  if (DBG_SERV) printf("[download_file] 3 file openned\n");
-
   // Read the file content into the buffer
-  if ( read_file(p_fileinf->name, &p_fileinf->cont, hfile, &p_errinf) != 0 ) {
+  if ( read_file_cont(p_fileinf->name, &p_fileinf->cont, &p_errinf) != 0 ) {
     print_error("Download", p_errinf);
-    xdr_free((xdrproc_t)xdr_file_inf, p_fileinf); // free the file info
-    return &ret_flerr;
-  }
-
-  if (DBG_SERV) printf("[download_file] 5 file has read\n");
-
-  // Close the file stream
-  if ( close_file(p_fileinf->name, hfile, &p_errinf) != 0 ) {
-    print_error("Download", p_errinf);
-    xdr_free((xdrproc_t)xdr_file_inf, p_fileinf); // free the file info
     return &ret_flerr;
   }
 

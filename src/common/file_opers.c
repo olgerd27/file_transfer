@@ -195,7 +195,7 @@ int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
   int rc = fclose(hfile);
   if (rc != 0)
     (void)process_error(flname, 64, "Failed to close the file", pp_errinf);
-  if (DBG_FLOP && !rc) printf("[close file] DONE\n");
+  if (DBG_FLOP && !rc) printf("[close_file] DONE\n");
   return rc;
 }
 
