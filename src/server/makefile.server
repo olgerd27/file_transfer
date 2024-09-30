@@ -1,12 +1,18 @@
 # Build the server
-# Pass the MODE=DBG argument if you need a debug mode compilation.
+# If you need to build in Debug mode - pass the MODE=DBG argument.
+# If you need to build in Release mode - don't pass the MODE argument.
 
 # Analyze the program with valgrind (Interaction & Upload):
 # valgrind --tool=memcheck --leak-check=yes --track-origins=yes ../../bin/release/prg_serv
 
+.PHONY: all clean debug_xdr debug_makefile
+
 # Default target - must be at the top of makefile that allows to execute 'all' automatically
-.PHONY: all clean debug
-all: TITLE RPC_BUILD SRV_BUILD
+all: TITLE BUILD_RPC BUILD_SRV
+
+# Build server with the debug version of the XDR source file.
+# Debug here means: Print the debugging messages added to the XDR functions.
+debug_xdr: BUILD_DBG_XDR BUILD_SRV
 
 # Directories
 # The final dir name where the source & object files resides
@@ -67,21 +73,25 @@ CMD_LINK = $(CC) $(OPT_MODE) $^ $(LIBS) -o $@
 # Include automatically generated dependencies related to server
 -include $(OBJ_SRV:.o=.d)
 
-DLM:="---------------"
+DLM:="----------"
 
 ### Execution
 TITLE:
-	@echo "$(DLM) Server build $(DLM)"
+	@echo "$(DLM) Server build:"
 
 # RPC object files must be generated before building the server
-RPC_BUILD: $(OBJ_RPC)
-
-$(OBJ_RPC): $(SRC_RPC_X)
-	@echo "Building RPC files"
-	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc
+BUILD_RPC: $(OBJ_RPC)
 
 # Build the server
-SRV_BUILD: $(EXE)
+BUILD_SRV: $(EXE)
+
+BUILD_DBG_XDR:
+	@echo "Debug XDR source file:"
+	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc build_dbg_xdr DLM="++++++++++"
+
+$(OBJ_RPC): $(SRC_RPC_X)
+	@echo "Building RPC files:"
+	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc DLM="++++++++++"
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)
@@ -105,8 +115,8 @@ clean:
 	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc clean
 
 # Debug rule to print all variables
-debug:
-	@echo "$(DLM) Server debug info $(DLM)"
+debug_makefile:
+	@echo "$(DLM) Server makefile debug info:"
 	@echo "D_OBJ_SRV: $(D_OBJ_SRV)"
 	@echo "D_OBJ_CMN: $(D_OBJ_CMN)"
 	@echo "D_OBJ_RPC: $(D_OBJ_RPC)"

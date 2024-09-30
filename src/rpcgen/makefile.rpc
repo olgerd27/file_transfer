@@ -1,12 +1,15 @@
 # Build the RPC files for both server & client
-# Pass the MODE=DBG argument if you need a debug mode compilation.
+# If you need to build in Debug mode - pass the MODE=DBG argument.
+# If you need to build in Release mode - don't pass the MODE argument.
+
+.PHONY: all clean build_dbg_xdr clean_xdr debug_makefile
 
 # Default target - must be at the top of makefile that allows to execute 'all' automatically
-.PHONY: all clean debug_xdr clean_xdr debug
 all: TITLE_BEG SWITCH_XDR_NORMAL BUILD_OBJ TITLE_END
 
-# Build XDR object file only
-debug_xdr: clean_xdr SWITCH_XDR_DBG BUILD_OBJ_XDR
+# Build the debug version of the XDR.
+# Debug here means: Print the debugging messages added to the XDR functions.
+build_dbg_xdr: TITLE_DBG_XDR_BEG clean_xdr SWITCH_XDR_DBG BUILD_OBJ_XDR TITLE_DBG_XDR_END
 
 # Construct the object dir
 ifeq ($(MODE),DBG)
@@ -47,43 +50,66 @@ CMD_CREATE_DIR = mkdir -p $(dir $@)
 MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
 CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) $(INCL) -c $< -o $@
 
+# Commands to switch between Debug and Normal XDR build mode
+CMD_SWITCH_XDR_DBG = \
+if [[ -f $< && -f $<.DBG && ! -f $<.ORG ]]; then \
+  mv $< $<.ORG; \
+  mv $<.DBG $<; \
+  echo "XDR Build switched to Debug Mode"; \
+elif [[ -f $< && -f $<.ORG && ! -f $<.DBG ]]; then \
+  echo "Debug Mode for XDR Build is enabled"; \
+else \
+  echo "Error with XDR file occured. Rebuild all rpc files!"; \
+fi
+
+CMD_SWITCH_XDR_NORMAL = \
+if [[ -f $< && -f $<.ORG && ! -f $<.DBG ]]; then \
+  mv $< $<.DBG; \
+  mv $<.ORG $<; \
+  echo "XDR Build switched to Normal Mode"; \
+elif [[ -f $< && -f $<.DBG && ! -f $<.ORG ]]; then \
+  echo "Normal Mode for XDR Build is enabled"; \
+else \
+  echo "Error with XDR file occured. Rebuild all rpc files!"; \
+fi
+
+# Special for the 'clean' target
+CMD_SWITCH_XDR_NORMAL_CLEAN = \
+if [[ -f $(SRC_XDR) && -f $(SRC_XDR).ORG && ! -f $(SRC_XDR).DBG ]]; then \
+  mv $(SRC_XDR) $(SRC_XDR).DBG; \
+  mv $(SRC_XDR).ORG $(SRC_XDR); \
+  echo "XDR Build switched to Normal Mode"; \
+elif [[ -f $(SRC_XDR) && -f $(SRC_XDR).DBG && ! -f $(SRC_XDR).ORG ]]; then \
+  echo "Normal Mode for XDR Build is enabled"; \
+fi
+
 # Include automatically generated dependencies
 -include $(OBJS:.o=.d)
 
-DLM := "---------------"
+DLM := "----------"
 
 ### Execution
+TITLE_BEG:
+	@echo "$(DLM) RPCGEN build:"
+
+TITLE_END:
+	@echo "$(DLM) RPCGEN build completed $(DLM)"
+
+TITLE_DBG_XDR_BEG:
+	@echo "$(DLM) Build the XDR debug version:"
+
+TITLE_DBG_XDR_END:
+	@echo "$(DLM) XDR debug version built $(DLM)"
+
+SWITCH_XDR_DBG: $(SRC_XDR)
+	@$(CMD_SWITCH_XDR_DBG)
+
+SWITCH_XDR_NORMAL: $(SRC_XDR) clean_xdr
+	@$(CMD_SWITCH_XDR_NORMAL)
+
 BUILD_OBJ: $(OBJS)
 
 BUILD_OBJ_XDR: $(OBJ_XDR)
-
-TITLE_BEG:
-	@echo "$(DLM) RPCGEN build $(DLM)"
-
-TITLE_END:
-	@echo "$(DLM) RPCGEN build completed"
-
-SWITCH_XDR_DBG: $(SRC_XDR)
-	@if [[ -f $< && -f $<.DBG && ! -f $<.ORG ]]; then \
-		mv $< $<.ORG; \
-		mv $<.DBG $<; \
-		echo "XDR Build switched to Debug Mode"; \
-	elif [[ -f $< && -f $<.ORG && ! -f $<.DBG ]]; then \
-		echo "Debug Mode for XDR Build is enabled"; \
-	else \
-		echo "Error with XDR file occured. Rebuild all rpc files!"; \
-	fi
-
-SWITCH_XDR_NORMAL: $(SRC_XDR) clean_xdr
-	@if [[ -f $< && -f $<.ORG && ! -f $<.DBG ]]; then \
-		mv $< $<.DBG; \
-		mv $<.ORG $<; \
-		echo "XDR Build switched to Normal Mode"; \
-	elif [[ -f $< && -f $<.DBG && ! -f $<.ORG ]]; then \
-		echo "Normal Mode for XDR Build is enabled"; \
-	else \
-		echo "Error with XDR file occured. Rebuild all rpc files!"; \
-	fi
 
 $(D_OBJ)/%.o: %.c
 	@$(CMD_CREATE_DIR)
@@ -96,14 +122,15 @@ $(HDR_RPC) $(SRCS): $(SRC_RPC)
 
 clean:
 	@echo "$(DLM) RPCGEN clean $(DLM)"
+	@$(CMD_SWITCH_XDR_NORMAL_CLEAN)
 	@rm -fv $(OBJS) $(OBJS:.o=.d) $(SRCS) $(HDR_RPC)
 
 clean_xdr:
 	@rm -fv $(OBJ_XDR)
 
 # Debug rule to print all variables
-debug:
-	@echo "$(DLM) RPCGEN debug info $(DLM)"
+debug_makefile:
+	@echo "$(DLM) RPCGEN makefile debug info:"
 	@echo "HDR_RPC: $(HDR_RPC)"
 	@echo "SRCS: $(SRCS)"
 	@echo

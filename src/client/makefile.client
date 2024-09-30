@@ -1,12 +1,14 @@
 # Build the client
-# Pass the MODE=DBG argument if you need a debug mode compilation.
+# If you need to build in Debug mode - pass the MODE=DBG argument.
+# If you need to build in Release mode - don't pass the MODE argument.
 
 # Analyze the program with valgrind (Interaction & Upload):
 # valgrind --tool=memcheck --leak-check=yes --track-origins=yes ../../bin/release/prg_clnt -u vmfedora -i
 
+.PHONY: all clean debug_makefile
+
 # Default target - must be at the top of makefile that allows to execute 'all' automatically
-.PHONY: all clean debug
-all: TITLE RPC_BUILD CLN_BUILD
+all: TITLE BUILD_RPC BUILD_CLN
 
 # Directories
 # The final dir name where the source & object files resides
@@ -67,20 +69,20 @@ CMD_LINK = $(CC) $(OPT_MODE) $^ $(LIBS) -o $@
 # Include automatically generated dependencies
 -include $(OBJ_CLN:.o=.d)
 
-DLM:="---------------"
+DLM:="----------"
 
 ### Execution
 TITLE:
-	@echo "$(DLM) Client build $(DLM)"
+	@echo "$(DLM) Client build:"
 
-# RPC object files must be generated before building the server
-RPC_BUILD: $(OBJ_RPC)
+# RPC object files must be generated before building the client
+BUILD_RPC: $(OBJ_RPC)
+
+BUILD_CLN: $(EXE)
 
 $(OBJ_RPC): $(SRC_RPC_X)
-	@echo "Building RPC files"
+	@echo "Building RPC files:"
 	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc
-
-CLN_BUILD: $(EXE)
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)
@@ -104,8 +106,8 @@ clean:
 	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc clean
 
 # Debug rule to print all variables
-debug:
-	@echo "$(DLM) Client debug info $(DLM)"
+debug_makefile:
+	@echo "$(DLM) Client makefile debug info:"
 	@echo "D_OBJ_CLN: $(D_OBJ_CLN)"
 	@echo "D_OBJ_CMN: $(D_OBJ_CMN)"
 	@echo "D_OBJ_RPC: $(D_OBJ_RPC)"
