@@ -24,10 +24,8 @@ static void print_error(const char *oper_type, const struct err_inf *p_errinf)
           oper_type, p_errinf->num, p_errinf->err_inf_u.msg);
 }
 
-/* 
- * The Upload file Section
- */
-// The main RPC function to Upload a file
+// The main RPC function to Upload a file.
+// Note: file_inf and err_inf objects will be auto-freed by xdr_free() at function end.
 err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 {
   if (DBG_SERV)
@@ -51,24 +49,14 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
   // Save the passed file content to a new local file
   if ( save_file_cont(file_upld->name, &file_upld->cont, &p_ret_err) != 0 ) {
     print_error("Upload", p_ret_err);
-    xdr_free((xdrproc_t)xdr_file_inf, file_upld); // free the file info
     return p_ret_err;
   }
-  if (DBG_SERV) printf("[upload_file] 2, file saved\n");
-
-  if (DBG_SERV) printf("[upload_file] DONE\n\n");
-  // TODO: check if the file content, passed as an argument, should be freed 
-  // at the end of this function and in case of errors?
-  xdr_free((xdrproc_t)xdr_file_inf, file_upld); // free the file info
+  if (DBG_SERV) printf("[upload_file] file saved, DONE\n\n");
   return p_ret_err;
 }
 
-/*
- * The Download file Section
- */
 // The main RPC function to Download a file.
-// Note: if an error occurs, xdr_free() is called automatically to free 
-// the file content memory.
+// Note: file_err object will be auto-freed by xdr_free() at function end.
 file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 {
   if (DBG_SERV)
@@ -112,7 +100,7 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
   return &ret_flerr;
 }
 
-// The main RPC function for interactive pick a file on the server
+// The main RPC function for Interactive Selection a file on the server
 file_err * pick_file_1_svc(picked_file *p_flpkd, struct svc_req *)
 {
   if (DBG_SERV) printf("[pick_file] 0\n");
