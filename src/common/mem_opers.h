@@ -5,8 +5,7 @@
 
 /* The memory manipulation operations */
 
-/*
- * Allocate memory to store the file content.
+/* Allocate memory to store the file content.
  *
  * This function allocates memory to store file content if it hasn't already been
  * allocated. If memory has already been allocated, it returns a pointer to the
@@ -21,8 +20,7 @@
  */
 char *alloc_file_cont(t_flcont *p_flcont, size_t size);
 
-/*
- * Free the file name memory.
+/* Free the file name memory.
  * This function frees the memory allocated for a file name string.
  *
  * Parameters:
@@ -30,8 +28,7 @@ char *alloc_file_cont(t_flcont *p_flcont, size_t size);
  */
 void free_file_name(t_flname *p_flname);
 
-/*
- * Free the file content memory.
+/* Free the file content memory.
  * This function frees the memory allocated for a file content instance.
  *
  * Parameters:
@@ -39,8 +36,7 @@ void free_file_name(t_flname *p_flname);
  */
 void free_file_cont(t_flcont *p_flcont);
 
-/*
- * Free the file info memory.
+/* Free the file info memory.
  * This function frees the memory allocated for a file info instance.
  *
  * Parameters:
@@ -48,8 +44,7 @@ void free_file_cont(t_flcont *p_flcont);
  */
 void free_file_inf(file_inf *p_file);
 
-/*
- * Free the error info memory.
+/* Free the error info memory.
  * This function frees the memory allocated for an error info instance.
  *
  * Parameters:
@@ -57,8 +52,7 @@ void free_file_inf(file_inf *p_file);
  */
 void free_err_inf(err_inf *p_err);
 
-/*
- * Reset (init) the file name & type.
+/* Reset (init) the file name & type.
  *
  * The file name's memory size is constant (LEN_PATH_MAX) and it's allocated just once
  * if it is currently unallocated.
@@ -81,8 +75,7 @@ void free_err_inf(err_inf *p_err);
  */
 int reset_file_name_type(file_inf *p_file);
 
-/*
- * Reset (init) the file content.
+/* Reset (init) the file content.
  *
  * Memory deallocation and allocation of new one with the size_fcont size.
  * Due to its variable size, the file contents are reset by reallocating memory
@@ -98,8 +91,7 @@ int reset_file_name_type(file_inf *p_file);
  */
 int reset_file_cont(t_flcont *p_flcont, size_t size_fcont);
 
-/*
- * Reset (init) the file info.
+/* Reset (init) the file info.
  *
  * This function resets (initializes) the file information, including the file name, type, and content.
  * It allocates new memory for the file content based on the specified size.
@@ -113,8 +105,7 @@ int reset_file_cont(t_flcont *p_flcont, size_t size_fcont);
  */
 int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont);
 
-/*
- * Reset (init) the error info.
+/* Reset (init) the error info.
  *
  * This function resets (initializes) an error info instance by allocating memory for the error
  * message if it is not already allocated and setting the error number and system
@@ -127,5 +118,18 @@ int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont);
  *  0 on success, >0 on failure.
  */
 int reset_err_inf(err_inf *p_err);
+
+/* Allocate and reset the error information structure.
+ * This function allocates memory for an error information structure and resets its
+ * contents to prepare it for storing error data. If memory allocation fails, it
+ * prints an error message and returns a failure code.
+ *
+ * Parameters:
+ *  pp_errinf - A double pointer to an error info structure to allocate and reset.
+ *
+ * Return value:
+ *  0 on success, >0 on failure. (e.g., memory allocation error).
+ */
+int alloc_reset_err_inf(err_inf **pp_errinf);
 
 #endif

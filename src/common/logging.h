@@ -44,7 +44,7 @@
 
 // Debug messages for memory manipulation
 #ifndef LOG_TYPE_MEM
-#define LOG_TYPE_MEM 0
+#define LOG_TYPE_MEM 1
 #endif
 
 // Debug messages for file operations
@@ -53,13 +53,13 @@
 #endif
 
 // String representations for log levels
-const char* log_level_str(int level) {
+static const char* log_level_str(int level) {
     switch (level) {
         case LOG_LEVEL_ERROR: return "ERROR";
         case LOG_LEVEL_WARN:  return "WARN";
         case LOG_LEVEL_INFO:  return "INFO";
         case LOG_LEVEL_DEBUG: return "DEBUG";
-        default: return "UNKNOWN";
+        default: return "UNKWN";
     }
 }
 
@@ -67,7 +67,7 @@ const char* log_level_str(int level) {
 #define LOG(type, level, fmt, ...) \
     do { \
         if (type && level <= GLOBAL_LOG_LEVEL) { \
-            fprintf(stderr, "[%s] [%s:%d::%s] " fmt "\n", \
+            fprintf(stderr, "%-5s | %s:%d, %s | " fmt "\n", \
               log_level_str(level), __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
         } \
     } while(0)

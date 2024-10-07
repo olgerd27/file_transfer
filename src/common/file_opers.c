@@ -11,36 +11,6 @@
 
 extern int errno; // global system error number
 
-/* Common functions for file operations */
-/* Allocate and reset the error information structure.
- * This function allocates memory for an error information structure and resets its
- * contents to prepare it for storing error data. If memory allocation fails, it
- * prints an error message and returns a failure code.
- *
- * Parameters:
- *  pp_errinf - A double pointer to an error info structure to allocate and reset.
- *
- * Return value:
- *  0 on success, >0 on failure. (e.g., memory allocation error).
- */
-static int alloc_reset_err_inf(err_inf **pp_errinf) {
-    // Allocate memory if needed
-    *pp_errinf = (err_inf*)malloc(sizeof(err_inf));
-    if (!*pp_errinf) {
-      fprintf(stderr, "Memory allocation failed for the error info instance\n");
-      return 1;
-    }
-    
-    // Allocate or reset the error message buffer
-    (*pp_errinf)->err_inf_u.msg = NULL; // needed for a correct work of reset_err_inf()
-    if (reset_err_inf(*pp_errinf) != 0) { // allocate memory for error message buffer
-      fprintf(stderr, "Cannot reset the memory for the error info instance\n");
-      return 2;
-    }
-
-    return 0;
-}
-
 /* Process error info and format an error message.
  *
  * This function processes error information and constructs an error message that
