@@ -49,7 +49,7 @@
 
 // Debug messages for file operations
 #ifndef LOG_TYPE_FLOP
-#define LOG_TYPE_FLOP 0
+#define LOG_TYPE_FLOP 1
 #endif
 
 // String representations for log levels

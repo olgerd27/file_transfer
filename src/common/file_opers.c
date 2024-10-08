@@ -6,8 +6,7 @@
 #include "file_opers.h"
 #include "mem_opers.h"
 #include "fs_opers.h"
-
-#define DBG_FLOP 1 // debug the file operations
+#include "logging.h"
 
 extern int errno; // global system error number
 
@@ -37,6 +36,9 @@ extern int errno; // global system error number
 static int process_error(const char *filename, int errnum, 
                          const char *errmsg_act, err_inf **pp_errinf)
 {
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_ERROR, "Begin error processing");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_ERROR, "Main error message: %s", errmsg_act);
+
   // Save the system error value, because it'll be reset by alloc_reset_err_inf()
   int errno_sys = errno;
 
@@ -59,6 +61,7 @@ static int process_error(const char *filename, int errnum,
     snprintf((*pp_errinf)->err_inf_u.msg + nch, LEN_ERRMSG_MAX, 
               "System error %i: %s\n", errno_sys, strerror(errno_sys));
 
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_ERROR, "Done.");
   return 0;
 }
 
@@ -133,10 +136,11 @@ static const char *get_error_message(const char *mode) {
  */
 static FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_errinf)
 {
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
   FILE *hfile = fopen(flname, mode);
   if (hfile == NULL)
     (void)process_error(flname, 60, get_error_message(mode), pp_errinf);
-  if (DBG_FLOP && hfile) printf("[open_file] DONE\n");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
   return hfile;
 }
 
@@ -162,10 +166,11 @@ static FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_err
  */
 static int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
 {
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
   int rc = fclose(hfile);
   if (rc != 0)
     (void)process_error(flname, 64, "Failed to close the file", pp_errinf);
-  if (DBG_FLOP && !rc) printf("[close_file] DONE\n");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
   return rc;
 }
 
@@ -194,6 +199,8 @@ static int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
 static int read_file(const t_flname flname, t_flcont *p_flcont, 
                      FILE *hfile, err_inf **pp_errinf)
 {
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+
   // Allocate the memory to store the file content
   if ( alloc_file_cont(p_flcont, get_file_size(hfile)) == NULL ) {
     errno = 0; // reset system error to avoid getting a system error message for this error case
@@ -203,6 +210,7 @@ static int read_file(const t_flname flname, t_flcont *p_flcont,
   }
 
   size_t nch = fread(p_flcont->t_flcont_val, 1, p_flcont->t_flcont_len, hfile);
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "reading completed");
 
   // Check if an error has occurred during the reading operation
   if (ferror(hfile)) {
@@ -219,7 +227,7 @@ static int read_file(const t_flname flname, t_flcont *p_flcont,
     return 3;
   }
 
-  if (DBG_FLOP) printf("[read_file] DONE\n");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
   return 0;
 }
 
@@ -236,6 +244,8 @@ static int read_file(const t_flname flname, t_flcont *p_flcont,
 int read_file_cont(const t_flname flname, t_flcont *p_flcont,
                    err_inf **pp_errinf)
 {
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+  
   // Open the file
   FILE *hfile = NULL;    // the file handler
   if ( (hfile = open_file(flname, "rb", pp_errinf)) == NULL )
@@ -249,7 +259,7 @@ int read_file_cont(const t_flname flname, t_flcont *p_flcont,
   if ( close_file(flname, hfile, pp_errinf) != 0 )
     return (*pp_errinf)->num;
 
-  printf("[read_file_cont] DONE\n");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
   return 0;
 }
 
@@ -277,8 +287,10 @@ int read_file_cont(const t_flname flname, t_flcont *p_flcont,
 static int write_file(const t_flname flname, const t_flcont *p_flcont, 
                       FILE *hfile, err_inf **pp_errinf)
 {
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+
   size_t nch = fwrite(p_flcont->t_flcont_val, 1, p_flcont->t_flcont_len, hfile);
-  if (DBG_FLOP) printf("[write_file] 1, writing completed\n");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "writing completed");
 
   // Check if an error has occurred during the writing operation
   if (ferror(hfile)) {
@@ -296,7 +308,7 @@ static int write_file(const t_flname flname, const t_flcont *p_flcont,
     return 2;
   }
 
-  if (DBG_FLOP) printf("[write_file] DONE\n");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
   return 0;
 }
 
@@ -304,6 +316,8 @@ static int write_file(const t_flname flname, const t_flcont *p_flcont,
 int save_file_cont(const t_flname flname, const t_flcont *p_flcont,
                    err_inf **pp_errinf)
 {
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+  
   // Open the file
   FILE *hfile = NULL;    // the file handler
   if ( (hfile = open_file(flname, "wbx", pp_errinf)) == NULL )
@@ -317,5 +331,6 @@ int save_file_cont(const t_flname flname, const t_flcont *p_flcont,
   if ( close_file(flname, hfile, pp_errinf) != 0 )
     return (*pp_errinf)->num;
 
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
   return 0;
 }
