@@ -110,7 +110,6 @@ enum filetype get_file_type(const char *filepath)
         errno == ENOENT ? "FTYPE_NEX (non-existent)" : "FTYPE_INV (invalid)");
     return errno == ENOENT ? FTYPE_NEX : FTYPE_INV;
   }
-  LOG(LOG_TYPE_FTINF, LOG_LEVEL_DEBUG, "stat() was successfully executed");
 
   // Determine the file type
   char cftp = get_file_type_unix(statbuf.st_mode); // character of a file type
@@ -144,11 +143,9 @@ enum filetype get_file_type(const char *filepath)
  */
 size_t get_file_size(FILE *hfile)
 {
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "Begin");
   fseek(hfile, 0, SEEK_END);
   unsigned size = ftell(hfile);
   rewind(hfile);
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "Done.");
   return size;
 }
 
@@ -297,7 +294,6 @@ static int numb_digits(long val)
  */
 static void update_lsdir_setts(struct stat *p_statbuf, const char *filename, struct lsdir_setts *p_lsd_set)
 {
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Begin");
   struct passwd *pwd;
   struct group *grp;
   int len = 0;
@@ -308,19 +304,21 @@ static void update_lsdir_setts(struct stat *p_statbuf, const char *filename, str
   // Update the max length of the user (owner) name  
   if ((pwd = getpwuid(p_statbuf->st_uid)) != NULL) {
     len = strlen(pwd->pw_name);
-    if (len > p_lsd_set->lenmax_usr)
+    if (len > p_lsd_set->lenmax_usr) {
       p_lsd_set->lenmax_usr = len;
-    LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG,
-        "Max length of the user name was updated, len_max=%d", p_lsd_set->lenmax_usr);
+      LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG,
+          "Max length of the user name was updated, len_max=%d", p_lsd_set->lenmax_usr);
+    }
   }
 
   // Update the max length of the group name  
   if ((grp = getgrgid(p_statbuf->st_gid)) != NULL) {
     len = strlen(grp->gr_name);
-    if (len > p_lsd_set->lenmax_grp)
+    if (len > p_lsd_set->lenmax_grp) {
       p_lsd_set->lenmax_grp = len;
-    LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, 
-        "Max length of the group name was updated, len_max=%d", p_lsd_set->lenmax_grp);
+      LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, 
+          "Max length of the group name was updated, len_max=%d", p_lsd_set->lenmax_grp);
+    }
   }
 
   // Update the max file size
@@ -333,9 +331,8 @@ static void update_lsdir_setts(struct stat *p_statbuf, const char *filename, str
 
   // Update the total filenames length
   p_lsd_set->lensum_names += strlen(filename);
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO,
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG,
       "Total filenames length is updated, len=%ld", p_lsd_set->lensum_names);
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Done.");
 }
 
 /*
@@ -404,7 +401,6 @@ static size_t calc_dir_cont_size(const struct lsdir_setts *p_lsd_set)
 void get_file_info(struct stat *p_statbuf, const char *filename, 
                    const struct lsdir_setts *p_lsd_set, char *p_buff)
 {
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Begin");
   char           strperm[11];
   struct passwd *pwd;
   struct group  *grp;
@@ -439,7 +435,6 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
   tm = localtime(&p_statbuf->st_mtime);
   strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
   p_buff += sprintf(p_buff, " %s %s\n", datestring, filename);
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Done.");
 }
 
 /*
@@ -468,7 +463,6 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
  */
 int ls_dir_str(file_err *p_flerr)
 {
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Begin");
   DIR                *hdir; // directory handler
   struct dirent      *de; // directory entry
   struct stat         statbuf; // struct contains the file status information
@@ -524,7 +518,6 @@ int ls_dir_str(file_err *p_flerr)
     }
   }
   closedir(hdir);
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Done.");
   return 0;
 }
 

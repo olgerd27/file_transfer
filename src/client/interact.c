@@ -6,8 +6,6 @@
 #include "../common/fs_opers.h"
 #include "../common/logging.h"
 
-#define DBG_INTR 0
-
 /*
  * Get user input for a filename.
  *
@@ -64,6 +62,7 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
 
   // Check if nothing was written to a full path
   if (nwrt <= 0) {
+    LOG(LOG_TYPE_INTR, LOG_LEVEL_ERROR, "Invalid filename: '%s'", path_new);
     fprintf(stderr, "Invalid filename: '%s'\n", path_new);
     return -1;
   }
@@ -71,6 +70,7 @@ int construct_full_path(char *path_new, size_t lenmax, char *path_full)
   // Check if the whole path_new was added to path_full.
   // '+1' was added, as '/' was also written to path_full
   if (nwrt != strlen(path_new) + 1) {
+    LOG(LOG_TYPE_INTR, LOG_LEVEL_ERROR, "Cannot append the inputted filename to the result filename");
     fprintf(stderr, "Cannot append the inputted filename to the result filename\n");
     return -2;
   }
@@ -150,6 +150,8 @@ const char *get_pkd_ftype_name(pick_ftype pk_fltype)
 char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect, 
                          const char *hostname, char *path_res)
 {
+  LOG(LOG_TYPE_INTR, LOG_LEVEL_INFO, "Begin. Request to get %s filename on %s host", 
+      get_pkd_ftype_name(p_flpkd->pftype), hostname);
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
   char path_prev[LEN_PATH_MAX]; // a copy of the previous path to restore it if necessary
   char fname_inp[LEN_PATH_MAX]; // inputted filename (LEN_PATH_MAX is used, as filename can be an absolute path)
@@ -165,22 +167,21 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
 
   // Init the current path (path_curr) in a way of copying the passed start dir for traversal
   offset = copy_path(flpkd_curr.name, path_curr);
-
-  if (DBG_INTR)
-    printf("[get_filename_inter] 1, offset: %d, path_curr:\n  '%s'\n", offset, path_curr);
+  LOG(LOG_TYPE_INTR, LOG_LEVEL_DEBUG, "offset: %d, path_curr: %s", offset, path_curr);
 
   // Main loop
   while (1) {
     // Call the file selection function via its pointer for either local or remote file selection
     flpkd_curr.name = path_curr;      // set the current path to the file name that should be picked
     p_flerr = (*pf_flselect)(&flpkd_curr); // make a function pointer call
-    if (DBG_INTR) printf("[get_filename_inter] 2, p_flerr: %p\n", (void*)p_flerr);
+    LOG(LOG_TYPE_INTR, LOG_LEVEL_DEBUG, "file selection has done, p_flerr: %p", (void *)p_flerr);
     if (p_flerr->err.num == 0) {
       if (p_flerr->file.type == FTYPE_REG || p_flerr->file.type == FTYPE_NEX) {
         // Successful file selection, it's a regular or non-existent file type.
         // Copy the result path before freeing the memory of file_err object
         copy_path(p_flerr->file.name, path_res);
         xdr_free((xdrproc_t)xdr_file_err, p_flerr); // free the file & error info
+        LOG(LOG_TYPE_INTR, LOG_LEVEL_INFO, "Done.");
         return path_res;
       }
     }
@@ -230,9 +231,9 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
       pfname_inp = fname_inp; // points at the beginning of the inputted filename
     }
 
-    if (DBG_INTR)
-      printf("[get_filename_inter] 3, path_curr + offset(%i): '%s'\n  fname_inp: '%s', pfname_inp: '%s'\n",
-             offset, path_curr + offset - 2, fname_inp, pfname_inp);
+    LOG(LOG_TYPE_INTR, LOG_LEVEL_DEBUG,
+        "path_curr + offset(%i): '%s'\n  fname_inp: '%s', pfname_inp: '%s'",
+        offset, path_curr + offset - 2, fname_inp, pfname_inp);
 
     // Construct the full path of the selected file
     nwrt_fname = construct_full_path(pfname_inp, LEN_PATH_MAX - offset, path_curr + offset);
@@ -241,11 +242,11 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
     // Increment the offset by the number of chars written to path_curr (after completed checks)
     offset += nwrt_fname;
 
-    if (DBG_INTR)
-      printf("[get_filename_inter] 4, nwrt_fname: %d, offset: %d, path_curr:\n  '%s'\n",
-             nwrt_fname, offset, path_curr);
+    LOG(LOG_TYPE_INTR, LOG_LEVEL_DEBUG,
+        "nwrt_fname: %d, offset: %d, path_curr:\n  %s", nwrt_fname, offset, path_curr);
     xdr_free((xdrproc_t)xdr_file_err, p_flerr); // free the file & error info
-    if (DBG_INTR) printf("[get_filename_inter] 5, file_error object freed\n");
+    LOG(LOG_TYPE_INTR, LOG_LEVEL_DEBUG, "file_error object freed, ptr=%p", (void*)p_flerr);
   }
+  LOG(LOG_TYPE_INTR, LOG_LEVEL_ERROR, "Function ends unsuccessfully.");
   return NULL;
 }
