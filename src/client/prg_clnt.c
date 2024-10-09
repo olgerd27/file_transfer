@@ -381,7 +381,7 @@ static int get_user_confirm()
 // Get the filename and prompt the user to confirm the selection.
 // Can be used for all types of selection: Source & Target file on Client & Server.
 static char * get_and_confirm_filename(const picked_file *p_flpkd, const char *hostname,
-                                T_pf_select pf_select, char *selected_filename)
+                                       T_pf_select pf_select, char *selected_filename)
 {
   do {
     if (!get_filename_inter(p_flpkd, pf_select, hostname, selected_filename))
@@ -400,23 +400,19 @@ static void interact(enum Action *act)
   // Get and set the source & target file names
   if (*act & act_upload) {
     // Select a Source file on a local host
-    // strcpy(filename_src, "../test/transfer_files/file_orig.txt"); for debugging
     if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_source}, "localhost",
                                     select_file, filename_src) ) { return; }
 
     // Select a Target file on a remote host
-    // strcpy(filename_trg, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_4.txt"); // for debugging
     if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_target}, rmt_host,
                                     file_select_rmt, filename_trg) ) { return; }
   }
   else if (*act & act_download) {
     // Select a Source file on a remote host
-    // strcpy(filename_src, "/home/oleh/space/c/studying/linux/rpc/file_transfer/test/transfer_files/file_orig.txt"); // for debugging
     if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_source}, rmt_host,
                                     file_select_rmt, filename_src) ) { return; }
 
     // Select a Target file on a local host
-    // strcpy(filename_trg, "../test/transfer_files/file_6.txt"); // for debugging
     if ( !get_and_confirm_filename(&(picked_file){".", pk_ftype_target}, "localhost",
                                     select_file, filename_trg) ) { return; }
   }

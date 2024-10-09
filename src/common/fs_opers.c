@@ -13,10 +13,7 @@
 
 #include "fs_opers.h"
 #include "mem_opers.h"
-
-#define DBG_FT 0    // debug the file type info
-#define DBG_PATH 0  // debug the path's manipulation
-#define DBG_SLCT 0  // debug the file selection
+#include "logging.h"
 
 extern int errno; // global system error number
 
@@ -102,20 +99,22 @@ static char * str_perm(mode_t mode, char *strmode)
  */
 enum filetype get_file_type(const char *filepath)
 {
-  if (DBG_FT) printf("[get_file_type] 0, filepath: '%s'\n", filepath);
+  LOG(LOG_TYPE_FTINF, LOG_LEVEL_INFO, "Begin, filepath: '%s'", filepath);
   enum filetype ftype;
   struct stat statbuf;
 
-  // Check if stat() returns an error due to file non-existance, return FTYPE_NEX; 
-  // otherwise, return an invalid file type - FTYPE_INV.
+  // Call stat() and check if it returns an error due to either a non-existent 
+  // file (FTYPE_NEX) or an invalid file type (FTYPE_INV)
   if (stat(filepath, &statbuf) == -1) {
-    if (DBG_FT) printf("[get_file_type] 1, stat() error - File %s\n", 
-                       errno == ENOENT ? "not exist" : "invalid");
+    LOG(LOG_TYPE_FTINF, LOG_LEVEL_ERROR, "stat() error - filetype: %s", 
+        errno == ENOENT ? "FTYPE_NEX (non-existent)" : "FTYPE_INV (invalid)");
     return errno == ENOENT ? FTYPE_NEX : FTYPE_INV;
   }
+  LOG(LOG_TYPE_FTINF, LOG_LEVEL_DEBUG, "stat() was successfully executed");
 
   // Determine the file type
-  switch( get_file_type_unix(statbuf.st_mode) ) {
+  char cftp = get_file_type_unix(statbuf.st_mode); // character of a file type
+  switch(cftp) {
     case 'd':
       ftype = FTYPE_DIR;
       break;
@@ -126,7 +125,7 @@ enum filetype get_file_type(const char *filepath)
       ftype = FTYPE_OTH;
       break;
   }
-  if (DBG_FT) printf("[get_file_type] $, filetype: %d\n", (int)ftype);
+  LOG(LOG_TYPE_FTINF, LOG_LEVEL_INFO, "filetype: %d (%c). Done.", (int)ftype, cftp);
   return ftype;
 }
 
@@ -145,9 +144,11 @@ enum filetype get_file_type(const char *filepath)
  */
 size_t get_file_size(FILE *hfile)
 {
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "Begin");
   fseek(hfile, 0, SEEK_END);
   unsigned size = ftell(hfile);
   rewind(hfile);
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "Done.");
   return size;
 }
 
@@ -170,6 +171,7 @@ size_t get_file_size(FILE *hfile)
 char *rel_to_full_path(const char *path_rel, char *path_full, char **errmsg)
 {
   if (!realpath(path_rel, path_full)) {
+    LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "Failed to resolve the specified path: %s", path_rel);
     // allocate memory and put the error message
     *errmsg = malloc(LEN_ERRMSG_MAX);
     if (*errmsg)
@@ -218,27 +220,31 @@ int copy_path(const char *path_src, char *path_trg)
  * Return value:
  *  0 on success, >0 on failure.
  */
-static int get_file_stat(const char *dirname, const char *filename, struct stat *p_statbuf, char **errmsg)
+static int get_file_stat(const char *dirname, const char *filename, 
+                         struct stat *p_statbuf, char **errmsg)
 {
   char fullpath[LEN_PATH_MAX];
 
   // Construct the full path to the needed file
   // A NULL-character appends to fullpath automatically by snprintf()
   if ( snprintf(fullpath, LEN_PATH_MAX, "%s/%s", dirname, filename) < 0 ) {
+    LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, 
+        "get_file_stat(): Invalid path to filename:\n  %s/%s", dirname, filename);
     // allocate memory and put the error message
     *errmsg = malloc(LEN_ERRMSG_MAX);
     if (*errmsg)
-      sprintf(*errmsg, "get_file_stat(): Invalid path to filename:\n'%s/%s'\n", 
-              dirname, filename);
+      sprintf(*errmsg, "get_file_stat(): Invalid path to filename:\n  %s/%s\n", dirname, filename);
     return 1;
   }
 
   // Get the file status (info)
   if (lstat(fullpath, p_statbuf) == -1) {
+    LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR,
+        "get_file_stat(): Cannot get the file status for:\n  %s/%s", dirname, filename);
     // allocate memory and put the error message
     *errmsg = malloc(LEN_ERRMSG_MAX);
     if (*errmsg)
-      sprintf(*errmsg, "get_file_stat(): Cannot get the file status for:\n'%s/%s'\n%s\n",
+      sprintf(*errmsg, "get_file_stat(): Cannot get the file status for:\n  %s/%s\n%s\n",
               dirname, filename, strerror(errno));
     return 2;
   }
@@ -291,6 +297,7 @@ static int numb_digits(long val)
  */
 static void update_lsdir_setts(struct stat *p_statbuf, const char *filename, struct lsdir_setts *p_lsd_set)
 {
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Begin");
   struct passwd *pwd;
   struct group *grp;
   int len = 0;
@@ -303,6 +310,8 @@ static void update_lsdir_setts(struct stat *p_statbuf, const char *filename, str
     len = strlen(pwd->pw_name);
     if (len > p_lsd_set->lenmax_usr)
       p_lsd_set->lenmax_usr = len;
+    LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG,
+        "Max length of the user name was updated, len_max=%d", p_lsd_set->lenmax_usr);
   }
 
   // Update the max length of the group name  
@@ -310,15 +319,23 @@ static void update_lsdir_setts(struct stat *p_statbuf, const char *filename, str
     len = strlen(grp->gr_name);
     if (len > p_lsd_set->lenmax_grp)
       p_lsd_set->lenmax_grp = len;
+    LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, 
+        "Max length of the group name was updated, len_max=%d", p_lsd_set->lenmax_grp);
   }
 
   // Update the max file size
   len = numb_digits(p_statbuf->st_size);
-  if (len > p_lsd_set->lenmax_size)
+  if (len > p_lsd_set->lenmax_size) {
     p_lsd_set->lenmax_size = len;
+    LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG,
+        "Max file size was updated, size_max=%d", p_lsd_set->lenmax_size);
+  }
 
   // Update the total filenames length
   p_lsd_set->lensum_names += strlen(filename);
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO,
+      "Total filenames length is updated, len=%ld", p_lsd_set->lensum_names);
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Done.");
 }
 
 /*
@@ -387,6 +404,7 @@ static size_t calc_dir_cont_size(const struct lsdir_setts *p_lsd_set)
 void get_file_info(struct stat *p_statbuf, const char *filename, 
                    const struct lsdir_setts *p_lsd_set, char *p_buff)
 {
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Begin");
   char           strperm[11];
   struct passwd *pwd;
   struct group  *grp;
@@ -421,6 +439,7 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
   tm = localtime(&p_statbuf->st_mtime);
   strftime(datestring, sizeof(datestring), "%b %d %R %Y", tm);
   p_buff += sprintf(p_buff, " %s %s\n", datestring, filename);
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Done.");
 }
 
 /*
@@ -449,6 +468,7 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
  */
 int ls_dir_str(file_err *p_flerr)
 {
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Begin");
   DIR                *hdir; // directory handler
   struct dirent      *de; // directory entry
   struct stat         statbuf; // struct contains the file status information
@@ -504,6 +524,7 @@ int ls_dir_str(file_err *p_flerr)
     }
   }
   closedir(hdir);
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Done.");
   return 0;
 }
 
@@ -512,8 +533,8 @@ int ls_dir_str(file_err *p_flerr)
  *
  * This function determines the type of the specified file and converts its
  * relative path to an absolute path.
- * It initializes the error info, file name & type, and also the file content buffer in ls_dir_str() 
- * before performing these operations. The results, including any errors, are stored 
+ * It initializes the error info, file name & type, and also the file content buffer in ls_dir_str()
+ * before performing these operations. The results, including any errors, are stored
  * in the provided file_err structure.
  *
  * Parameters:
@@ -523,20 +544,28 @@ int ls_dir_str(file_err *p_flerr)
  *  pftype  - an enum value of type pick_ftype indicating whether the file to be selected
  *            is a source or target file.
  *
- * Return value:
- *  RC: 0 on success, >0 on failure.
+ * Return value of the file_err.err.num:
+ *  0 on success,
+ *  !0 on failure.
+ * Note: Errors in this function can be related to the file system or other causes.
+ *       To differentiate, check the `file.type` field of the returned `file_err` object.
+ *       If `file.type == FTYPE_DFL`, the issue is not file system related.
+ *       Any other value from the `filetype` enum indicates a file system-related error.
  */
 // TODO: update the documentation for this function
 file_err * select_file(picked_file *p_flpicked)
 {
-  if (DBG_SLCT) printf("[select_file] 0\n");
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Begin, picked file: %s", p_flpicked->name);
   static file_err flerr;
-  if (DBG_SLCT) printf("[select_file] 1, file_err created, ptr=%p\n", &flerr);
+  flerr.file.type = FTYPE_DFL; // reset the file type
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "file_err created, ptr=%p, filetype set to default", &flerr);
 
   // Init the error info before file selection
   if ( reset_err_inf(&flerr.err) != 0 ) {
     // A workaround: set a special value if an error has occurred while initializing the error info
     flerr.err.num = ERRNUM_ERRINF_ERR;
+    flerr.err.err_inf_u.msg = "Failed to init error info";
+    LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "%s", flerr.err.err_inf_u.msg);
     return &flerr;
   }
 
@@ -544,27 +573,27 @@ file_err * select_file(picked_file *p_flpicked)
   if ( reset_file_name_type(&flerr.file) != 0 ) {
     flerr.err.num = 81;
     sprintf(flerr.err.err_inf_u.msg,
-            "Error %i: Failed to init the file name & type\n", flerr.err.num);
+            "Error %i: Failed to init file name & type", flerr.err.num);
+    LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "%s", flerr.err.err_inf_u.msg);
     return &flerr;
   }
 
   // Determine the file type
   flerr.file.type = get_file_type(p_flpicked->name);
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "file type: %d", (int)flerr.file.type);
 
   // Process the case of non-existent file required for the target file.
   // Should be processed before conversion p_flpicked->name to the absolute one.
   if (flerr.file.type == FTYPE_NEX) {
     // Copy the selected file name into the file info instance
-    // TODO: delete a line with strncpy() after final acception of the line with copy_path()
-    // strncpy(flerr.file.name, p_flpicked->name, strlen(p_flpicked->name) + 1);
     copy_path(p_flpicked->name, flerr.file.name);
 
     // Check the correctness of the current file selection based on the selection file type
     if (p_flpicked->pftype == pk_ftype_target)
       ; // OK: the non-existent file type was selected as expected for a 'target' selection file type
     else if (p_flpicked->pftype == pk_ftype_source) {
-      // Fail: the source file selection (a regular file) was expected, but the target file selection
-      // (a non-existent file) was actually attempted -> produce the error
+      // Failure: the source file selection (a regular file) was expected, but the target 
+      // file selection (a non-existent file) was actually attempted -> produce the error
       flerr.err.num = 82;
       sprintf(flerr.err.err_inf_u.msg,
               "Error %i: The selected file does not exist:\n'%s'\n"
@@ -576,12 +605,13 @@ file_err * select_file(picked_file *p_flpicked)
 
   // Convert the passed path into the full (absolute) path - needed to any type of existent file
   char *errmsg = NULL;
-  if (!rel_to_full_path(p_flpicked->name, flerr.file.name, &errmsg)) {
+  if ( !rel_to_full_path(p_flpicked->name, flerr.file.name, &errmsg) ) {
     flerr.err.num = 80;
     sprintf(flerr.err.err_inf_u.msg, "Error %i: %s\n", flerr.err.num, errmsg);
     free(errmsg); // free allocated memory
     return &flerr;
   }
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "full path of picked file: %s", flerr.file.name);
 
   // Process the cases of existent file
   switch (flerr.file.type) {
@@ -596,13 +626,13 @@ file_err * select_file(picked_file *p_flpicked)
       if (p_flpicked->pftype == pk_ftype_source)
         ; // OK: the regular file type was selected as expected for a 'source' selection file type
       else if (p_flpicked->pftype == pk_ftype_target) {
-        // Fail: the target file selection (a non-existent file) was expected, but the source file selection
-        // (a regular file) was actually attempted -> produce the error
+        // Failure: the target file selection (a non-existent file) was expected, but the source 
+        // file selection (a regular file) was actually attempted -> produce the error
         flerr.err.num = 83;
         sprintf(flerr.err.err_inf_u.msg,
                 "Error %i: The wrong file type was selected - regular file:\n'%s'\n"
                 "Only the non-existent file can be selected as the target file.\n",
-                flerr.err.num, flerr.file.name);
+                flerr.err.num, flerr.file.name); 
       }
       break;
 
@@ -621,6 +651,6 @@ file_err * select_file(picked_file *p_flpicked)
               flerr.err.num, flerr.file.name, strerror(errno));
       break;
   }
-  if (DBG_SLCT) printf("[select_file] DONE\n");
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Done.");
   return &flerr;
 }

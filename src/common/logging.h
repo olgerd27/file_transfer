@@ -29,17 +29,17 @@
 
 // Debug messages for interaction operations
 #ifndef LOG_TYPE_INTR
-#define LOG_TYPE_INTR 0
+#define LOG_TYPE_INTR 1
 #endif
 
 // Debug messages for file type info
 #ifndef LOG_TYPE_FTINF
-#define LOG_TYPE_FTINF 0
+#define LOG_TYPE_FTINF 1
 #endif
 
 // Debug messages for file selection
 #ifndef LOG_TYPE_SLCT
-#define LOG_TYPE_SLCT 0
+#define LOG_TYPE_SLCT 1
 #endif
 
 // Debug messages for memory manipulation

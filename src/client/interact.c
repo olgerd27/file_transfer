@@ -4,6 +4,7 @@
 #include "interact.h"
 #include "../common/mem_opers.h"
 #include "../common/fs_opers.h"
+#include "../common/logging.h"
 
 #define DBG_INTR 0
 
@@ -83,7 +84,7 @@ const char *get_pkd_ftype_name(pick_ftype pk_fltype)
   switch (pk_fltype) {
     case pk_ftype_source: return "Source";
     case pk_ftype_target: return "Target";
-    default:              return "Invalid pick type";
+    default:              return "Invalid pick file type";
   }
 }
 
@@ -185,10 +186,14 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
     }
     else {
       // An error occurred while selecting a file 
-      fprintf(stderr, "%s", 
-              p_flerr->err.num != ERRNUM_ERRINF_ERR 
-              ? p_flerr->err.err_inf_u.msg /* normal error occurred */
-              : "Failed to reset the error information"); /* error occurred while resetting the error info (workaround) */
+      // Check if file type was not set (has default value), it's the fatal error 
+      // that isn't related to error with a failed file selection 
+      if (p_flerr->file.type == FTYPE_DFL) {
+        fprintf(stderr, "Fatal error: cannot select a file. "
+                        "Please enable the full logging and check the records\n");
+        exit(1); // TODO: use a right returned error code
+      }
+      LOG(LOG_TYPE_INTR, LOG_LEVEL_ERROR, "%s", p_flerr->err.err_inf_u.msg);
       offset = copy_path(path_prev, path_curr); // restore the previous valid path
       continue; // start loop from the beginning to select the previous valid path
     }

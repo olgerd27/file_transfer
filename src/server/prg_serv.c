@@ -40,7 +40,7 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
     ret_err.num = ERRNUM_ERRINF_ERR;
     ret_err.err_inf_u.msg = "Failed to init the error info\n";
     print_error("Upload", p_ret_err); // print the error message to STDERR
-    LOG(LOG_TYPE_SERV, LOG_LEVEL_ERROR, "Failed to init the error info");
+    LOG(LOG_TYPE_SERV, LOG_LEVEL_ERROR, "%s", ret_err.err_inf_u.msg);
     return p_ret_err;
   }
 
