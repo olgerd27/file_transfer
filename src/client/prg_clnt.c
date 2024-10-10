@@ -5,20 +5,19 @@
 #include <stdio.h>
 #include <string.h> 
 #include <errno.h>
-#include "../common/mem_opers.h" /* for the memory manipulations */
-#include "../common/fs_opers.h" /* for working with the File System */
+#include "../common/mem_opers.h"  /* for the memory manipulations */
+#include "../common/fs_opers.h"   /* for working with the File System */
 #include "../common/file_opers.h" /* for the files manipulations */
-#include "interact.h" /* for interaction operations */
-
-#define DBG_CLNT 1
+#include "../common/logging.h"    /* for logging */
+#include "interact.h"             /* for interaction operations */
 
 // Global definitions
-static CLIENT *pclient;       // a client handle
-static const char *rmt_host;  // a remote host name
-static char *filename_src; // a source file name on a client (if upload) or server (if download) side
-static char *filename_trg; // a target file name on a server (if upload) or client (if download) side
-static char *dynamic_src = NULL; // pointer to dynamically allocated memory to store the source file name
-static char *dynamic_trg = NULL; // pointer to dynamically allocated memory to store the target file name
+static CLIENT *pclient;           // a client handle
+static const char *rmt_host;      // a remote host name
+static char *filename_src;        // a source file name on a client (if upload) or server (if download) side
+static char *filename_trg;        // a target file name on a server (if upload) or client (if download) side
+static char *dynamic_src = NULL;  // pointer to dynamically allocated memory to store the source file name
+static char *dynamic_trg = NULL;  // pointer to dynamically allocated memory to store the target file name
 
 extern int errno; // global system error number
 
@@ -178,11 +177,10 @@ static void process_file_error(err_inf *p_errinf)
  * The Upload File section
  * Error numbers range: 10-19
  */
-// The main function to Upload file through RPC call
+// The main function to Upload file through RPC
 static int file_upload()
 {
-  if (DBG_CLNT)
-    printf("[file_upload] 0, initiate File Upload - source file:\n  '%s'\n", filename_src);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Begin: initiate File Upload - local source file:\n  %s", filename_src);
   file_inf fileinf; // file info object
   err_inf *p_err_srv = NULL; // result from a server - error info
 
@@ -190,38 +188,38 @@ static int file_upload()
   fileinf.name = NULL; // init with NULL for stable memory allocation
   fileinf.cont.t_flcont_val = NULL; // init with NULL for stable memory allocation
   reset_file_name_type(&fileinf);
-  if (DBG_CLNT) printf("[file_upload] 1, file name & type info was init'ed\n");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "file name & type was init'ed");
 
   // Set the target file name to the file object
-  strncpy(fileinf.name, filename_trg, strlen(filename_trg) + 1);
-  if (DBG_CLNT) printf("[file_upload] 2\n");
+  strncpy(fileinf.name, filename_trg, LEN_PATH_MAX);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "target filename was set to:\n  %s", fileinf.name);
 
   // Get (read) the file content and save it into the file object for transfering
   if ( read_file_cont(filename_src, &fileinf.cont, &p_err_srv) != 0 ) {
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Error reading the local file:\n  %s", filename_src);
     process_file_error(p_err_srv);
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf);
     return 12;
   }
-  if (DBG_CLNT) printf("[file_upload] 3, read file DONE\n");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "file contents was read, before RPC");
 
   // Make a file upload to a server through RPC
   p_err_srv = upload_file_1(&fileinf, pclient);
-  if (DBG_CLNT)
-    printf("[file_upload] 4, RPC operation DONE, filename:\n  '%s'\n", fileinf.name);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "RPC operation DONE");
 
-  // Print a message to STDERR indicating why an RPC call failed.
+  // Print a message to STDERR indicating why an RPC failed.
   // Used after clnt_call(), that is called here by upload_file_1().
   if (p_err_srv == (err_inf *)NULL) {
-    if (DBG_CLNT) printf("[file_upload] 5, RPC error\n");
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC error - NULL returned");
     clnt_perror(pclient, rmt_host);
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
     return 13;
   }
-  if (DBG_CLNT) printf("[file_upload] 6\n");
 
   // Check an error that may occur on the server
   if (p_err_srv->num != 0) {
     // Error on a server has occurred. Print error message and die.
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Server error occurred:\n  %s", p_err_srv->err_inf_u.msg);
     fprintf(stderr, "!--Server error %d: %s\n", 
             p_err_srv->num, p_err_srv->err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
@@ -231,15 +229,15 @@ static int file_upload()
   }
 
   // Okay, we successfully called the remote procedure.
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "RPC was successful");
 
   // Free the memory
-  if (DBG_CLNT)
-    printf("[file_upload] 7, RPC call -> OK, before memory freeing, pointers: "
-           "&fileinf=%p, p_err_srv=%p\n", &fileinf, p_err_srv);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG,
+    "before memory freeing: &fileinf=%p, p_err_srv=%p", &fileinf, p_err_srv);
   xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
   xdr_free((xdrproc_t)xdr_err_inf, p_err_srv); // free the error info returned from server
  
-  if (DBG_CLNT) printf("[file_upload] DONE\n");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Done.");
   return 0;
 }
 
@@ -247,22 +245,21 @@ static int file_upload()
  * The Download File section
  * Error numbers range: 20-29
  */
-// The main function to Download file through RPC call
+// The main function to Download file through RPC
 // TODO: check the return codes in this function
 static int file_download()
 {
-  if (DBG_CLNT) printf("[file_download] 0, initiate File Download - source file:\n  '%s'\n", filename_src);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Begin: initiate File Download - remote source file:\n  %s", filename_src);
 
   // Make a file download from a server through RPC and return the downloaded
   // file info & error info object (error info is filled in if an error occurs)
   file_err *p_flerr_srv = download_file_1((char **)&filename_src, pclient);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "RPC operation DONE");
 
-  if (DBG_CLNT) printf("[file_download] 1, RPC operation DONE\n");
-
-  // Print a message to STDERR indicating why an RPC call failed.
+  // Print a message to STDERR indicating why an RPC failed.
   // Used after clnt_call(), that is called here by download_file_1().
   if (p_flerr_srv == (file_err *)NULL) {
-    if (DBG_CLNT) printf("[file_download] 2, RPC error: NULL was returned\n");
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC error - NULL returned");
     clnt_perror(pclient, rmt_host);
     return 20;
   }
@@ -270,6 +267,7 @@ static int file_download()
   // Check an error that may occur on the server
   if (p_flerr_srv->err.num != 0) {
     // Error on a server has occurred. Print error message and die.
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Server error occurred:\n  %s", p_flerr_srv->err.err_inf_u.msg);
     fprintf(stderr, "!--Server error %d: %s\n", 
             p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free file & error info returned from server
@@ -278,27 +276,24 @@ static int file_download()
   }
 
   // Okay, we successfully called the remote procedure.
-  if (DBG_CLNT)
-    printf("[file_download] 3, RPC is successful, Downloaded file:\n  '%s'\n", p_flerr_srv->file.name);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "RPC was successful, downloaded remote file:\n  %s", p_flerr_srv->file.name);
   
   // Save (write) the remote file content to a local file
   err_inf *p_err_tmp = NULL; // a nulled pointer to an error info structure
   if ( save_file_cont(filename_trg, &p_flerr_srv->file.cont, &p_err_tmp) != 0 ) {
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Error saving the file:\n  %s", filename_trg);
     process_file_error(p_err_tmp);
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv);
     return 22;
   }
-  if (DBG_CLNT) 
-    printf("[file_download] 4, file saved, filename:\n  '%s'\n", filename_trg);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "file contents was saved to:\n  %s", filename_trg);
 
   // Free the file & error info returned from server
-  if (DBG_CLNT)
-    printf("[file_download] 5, before memory freeing: "
-           "file_err=%p, file=%p, err=%p\n",
-           p_flerr_srv, &p_flerr_srv->file, &p_flerr_srv->err);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, 
+    "before memory freeing: file_err=%p, file=%p, err=%p", p_flerr_srv, &p_flerr_srv->file, &p_flerr_srv->err);
   xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv);
 
-  if (DBG_CLNT) printf("[file_download] DONE\n");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Done.");
   return 0;
 }
 
@@ -306,21 +301,20 @@ static int file_download()
  * The Pick File section
  * Error numbers range: ??-??
  */
-// The main function to Pick (choose) file remotelly through the RPC call.
+// The main function to Pick (choose) file remotelly through the RPC.
 // Also, this function is a wrapper of the pick_file() RPC function call.
 file_err * file_select_rmt(picked_file *p_flpkd)
 {
-  if (DBG_CLNT) printf("[file_select_rmt] 0, init filename:\n  '%s'\n", p_flpkd->name);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Begin: initiate File Selection - init filename:\n  %s", p_flpkd->name);
 
   // Choose a file on the server via RPC and return the choosen file info or an error
   file_err *p_flerr_srv = pick_file_1(p_flpkd, pclient);
-  
-  if (DBG_CLNT) printf("[file_select_rmt] 1, RPC operation DONE\n");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "RPC operation DONE");
 
-  // Print a message to STDERR indicating why an RPC call failed.
+  // Print a message to STDERR indicating why an RPC failed.
   // Used after clnt_call(), that is called here by download_file_1().
   if (p_flerr_srv == (file_err *)NULL) {
-    if (DBG_CLNT) printf("[file_select_rmt] 2, RPC error: NULL was returned\n");
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC error - NULL returned");
     clnt_perror(pclient, rmt_host);
     exit(20); // TODO: change to return NULL?
   }
@@ -328,6 +322,7 @@ file_err * file_select_rmt(picked_file *p_flpkd)
   // Check an error that may occur on the server
   if (p_flerr_srv->err.num != 0) {
     // Error on a server has occurred. Print error message and die.
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Server error occurred:\n  %s", p_flerr_srv->err.err_inf_u.msg);
     fprintf(stderr, "!--Server error %d: %s\n", 
             p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free the file & error info
@@ -336,9 +331,8 @@ file_err * file_select_rmt(picked_file *p_flpkd)
   }
 
   // Okay, we successfully called the remote procedure.
-  if (DBG_CLNT)
-    printf("[file_select_rmt] DONE, RPC was successful, selected file:\n  '%s'\n",
-           p_flerr_srv->file.name);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "RPC was successful, selected file:\n  %s", p_flerr_srv->file.name);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Done.");
   return p_flerr_srv;
 }
 
@@ -374,7 +368,7 @@ static int get_user_confirm()
     printf("Incorrect input, please repeat (y/n) [y]: ");
     ans = get_stdin_char();
   }
-  if (DBG_CLNT) printf("[confirm_operation] DONE, ans: '%c'\n", ans);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "ans='%s'. Done.", ans);
   return (ans == 'y' || ans == '\n') ? 0 : 1;
 }
 
@@ -423,7 +417,7 @@ static void interact(enum Action *act)
   print_confirm_trop_msg(act);
   if (get_user_confirm() == 0)
     *act &= ~act_interact;
-  if (DBG_CLNT) printf("[interact] DONE\n");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Done.");
 }
 
 // Perform a RPC action
@@ -433,6 +427,7 @@ static int do_RPC_action(enum Action act)
   // act_interact is ON. File transfer operation can proceed only when act_interact is OFF.
   while (act & act_interact)
     interact(&act);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Interaction completed. Before File Transfer operation");
 
   // Make the file transfer operation
   int rc;
@@ -446,9 +441,11 @@ static int do_RPC_action(enum Action act)
       rc = file_download();
       break;
     default:
+      LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Unknown program execution mode");
       fprintf(stderr, "Unknown program execution mode\n");
       rc = 7;
   }
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "File Transfer completed");
 
   // Free the memory allocated for file names
   free(dynamic_src);

@@ -12,6 +12,8 @@
 #define LOG_LEVEL_DEBUG  4
 
 // Define the log level globally (can be overridden via the Makefile)
+// To disable logging, set LOG_LEVEL_NONE value for GLOBAL_LOG_LEVEL;
+// to enable the most detailed logging, set LOG_LEVEL_DEBUG value for GLOBAL_LOG_LEVEL.
 #ifndef GLOBAL_LOG_LEVEL
 #define GLOBAL_LOG_LEVEL LOG_LEVEL_DEBUG
 #endif
@@ -24,7 +26,7 @@
 
 // Debug messages for client
 #ifndef LOG_TYPE_CLNT
-#define LOG_TYPE_CLNT 0
+#define LOG_TYPE_CLNT 1
 #endif
 
 // Debug messages for interaction operations

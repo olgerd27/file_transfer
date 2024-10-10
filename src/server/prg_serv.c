@@ -28,7 +28,7 @@ static void print_error(const char *oper_type, const struct err_inf *p_errinf)
 err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 {
   LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, 
-    "Begin. Request to Upload file and save it on server as:\n  %s", file_upld->name);
+    "Begin: request to Upload file and save it on server as:\n  %s", file_upld->name);
   
   static err_inf ret_err; // returned variable, must be static
   static err_inf *p_ret_err = &ret_err; // pointer to a returned static variable
@@ -44,7 +44,7 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
     return p_ret_err;
   }
 
-  LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, "error info was init'ed");
+  LOG(LOG_TYPE_SERV, LOG_LEVEL_DEBUG, "error info was init'ed");
 
   // Save the passed file content to a new local file
   if ( save_file_cont(file_upld->name, &file_upld->cont, &p_ret_err) != 0 ) {
@@ -60,7 +60,7 @@ err_inf * upload_file_1_svc(file_inf *file_upld, struct svc_req *)
 // Note: file_err object will be auto-freed by xdr_free() at function end.
 file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 {
-  LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, "Begin. Request to Download server's file:\n  %s", *p_flname);
+  LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, "Begin: request to Download a file:\n  %s", *p_flname);
 
   static file_err ret_flerr; // returned variable, must be static
   static file_inf *p_fileinf = &ret_flerr.file; // a pointer to a file info
@@ -77,7 +77,7 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
     return &ret_flerr;
   }
 
-  LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, "error info was init'ed");
+  LOG(LOG_TYPE_SERV, LOG_LEVEL_DEBUG, "error info was init'ed");
 
   // Init the file name & type info remained from the previous call of 'download' function
   if ( reset_file_name_type(p_fileinf) != 0 ) {
@@ -88,7 +88,7 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
     return &ret_flerr;
   }
 
-  LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, "file name & type was init'ed");
+  LOG(LOG_TYPE_SERV, LOG_LEVEL_DEBUG, "file name & type was init'ed");
 
   // Set the file name to be read
   p_fileinf->name = *p_flname;
@@ -106,7 +106,7 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 // The main RPC function for Interactive Selection a file on the server
 file_err * pick_file_1_svc(picked_file *p_flpkd, struct svc_req *)
 {
-  LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, "Begin: request to pick file: %s", p_flpkd->name);
   static file_err *p_flerr_ret; // returned pointer, must be static
   p_flerr_ret = select_file(p_flpkd); // select_file() returns pointer to a static file_err object
   LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, "Done.\n");

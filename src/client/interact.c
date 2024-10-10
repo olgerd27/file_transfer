@@ -150,7 +150,7 @@ const char *get_pkd_ftype_name(pick_ftype pk_fltype)
 char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect, 
                          const char *hostname, char *path_res)
 {
-  LOG(LOG_TYPE_INTR, LOG_LEVEL_INFO, "Begin. Request to get %s filename on %s host", 
+  LOG(LOG_TYPE_INTR, LOG_LEVEL_INFO, "Begin. Request to get %s filename on %s", 
       get_pkd_ftype_name(p_flpkd->pftype), hostname);
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
   char path_prev[LEN_PATH_MAX]; // a copy of the previous path to restore it if necessary
@@ -186,8 +186,8 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
       }
     }
     else {
-      // An error occurred while selecting a file 
-      // Check if file type was not set (has default value), it's the fatal error 
+      // An error occurred while selecting a file.
+      // Check if file type was not set (a default value was set). That means it's the fatal error 
       // that isn't related to error with a failed file selection 
       if (p_flerr->file.type == FTYPE_DFL) {
         fprintf(stderr, "Fatal error: cannot select a file. "
