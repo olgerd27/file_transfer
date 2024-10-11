@@ -10,6 +10,10 @@
 # Default target - must be at the top of makefile that allows to execute 'all' automatically
 all: TITLE BUILD_RPC BUILD_CLN
 
+# Build client with the debug version of the XDR source file.
+# Debug here means to print the debugging messages added to the XDR functions.
+debug_xdr: BUILD_DBG_XDR BUILD_CLN
+
 # Directories
 # The final dir name where the source & object files resides
 D_CLN := $(notdir $(CURDIR))
@@ -17,12 +21,11 @@ D_CMN := common
 D_RPC := rpcgen
 
 # The target dirs for object and executable files
+OPT_MODE :=
+D_MODE := release
 ifeq ($(MODE),DBG)
   OPT_MODE := -g -Wall
   D_MODE := debug
-else
-  OPT_MODE :=
-  D_MODE := release
 endif
 D_OBJ_CLN := ../../obj/$(D_MODE)/CLIENT_PROJECT/$(D_CLN)
 D_OBJ_CMN := $(subst $(D_CLN),$(D_CMN),$(D_OBJ_CLN))
@@ -78,7 +81,13 @@ TITLE:
 # RPC object files must be generated before building the client
 BUILD_RPC: $(OBJ_RPC)
 
+# Build the client
 BUILD_CLN: $(EXE)
+
+BUILD_DBG_XDR:
+	@echo "Debug XDR source file:"
+	@cd ../$(D_RPC) && \
+	  make --no-print-directory -f makefile.rpc build_dbg_xdr PRJ=client DLM="++++++++++"
 
 $(OBJ_RPC): $(SRC_RPC_X)
 	@echo "Building RPC files:"
@@ -104,7 +113,8 @@ $(D_OBJ_CMN)/%.o: ../$(D_CMN)/%.c
 clean:
 	@echo "$(DLM) Client clean $(DLM)"
 	@rm -fv $(EXE) $(OBJ_CLN) $(OBJ_CLN:.o=.d)
-	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc clean PRJ=client
+	@cd ../$(D_RPC) && \
+	  make --no-print-directory -f makefile.rpc clean PRJ=client
 
 # Debug rule to print all variables
 debug_makefile:

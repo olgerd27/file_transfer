@@ -11,7 +11,7 @@
 all: TITLE BUILD_RPC BUILD_SRV
 
 # Build server with the debug version of the XDR source file.
-# Debug here means: Print the debugging messages added to the XDR functions.
+# Debug here means to print the debugging messages added to the XDR functions.
 debug_xdr: BUILD_DBG_XDR BUILD_SRV
 
 # Directories
@@ -21,12 +21,11 @@ D_CMN := common
 D_RPC := rpcgen
 
 # The target dirs for object and executable files
+OPT_MODE :=
+D_MODE := release
 ifeq ($(MODE),DBG)
   OPT_MODE := -g -Wall
   D_MODE := debug
-else
-  OPT_MODE :=
-  D_MODE := release
 endif
 D_OBJ_SRV := ../../obj/$(D_MODE)/SERVER_PROJECT/$(D_SRV)
 D_OBJ_CMN := $(subst $(D_SRV),$(D_CMN),$(D_OBJ_SRV))
