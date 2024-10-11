@@ -150,7 +150,7 @@ const char *get_pkd_ftype_name(pick_ftype pk_fltype)
 char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect, 
                          const char *hostname, char *path_res)
 {
-  LOG(LOG_TYPE_INTR, LOG_LEVEL_INFO, "Begin. Request to get %s filename on %s", 
+  LOG(LOG_TYPE_INTR, LOG_LEVEL_DEBUG, "Begin. Request to get %s filename on %s", 
       get_pkd_ftype_name(p_flpkd->pftype), hostname);
   char path_curr[LEN_PATH_MAX]; // current path used to walk through the directories and construct path_res
   char path_prev[LEN_PATH_MAX]; // a copy of the previous path to restore it if necessary
@@ -172,7 +172,7 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
   // Main loop
   while (1) {
     // Call the file selection function via its pointer for either local or remote file selection
-    flpkd_curr.name = path_curr;      // set the current path to the file name that should be picked
+    flpkd_curr.name = path_curr; // set the current path to the file name that should be picked
     p_flerr = (*pf_flselect)(&flpkd_curr); // make a function pointer call
     LOG(LOG_TYPE_INTR, LOG_LEVEL_DEBUG, "file selection has done, p_flerr: %p", (void *)p_flerr);
     if (p_flerr->err.num == 0) {
@@ -181,7 +181,8 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
         // Copy the result path before freeing the memory of file_err object
         copy_path(p_flerr->file.name, path_res);
         xdr_free((xdrproc_t)xdr_file_err, p_flerr); // free the file & error info
-        LOG(LOG_TYPE_INTR, LOG_LEVEL_INFO, "Done.");
+        LOG(LOG_TYPE_INTR, LOG_LEVEL_INFO, "Successful selection of file:\n  %s", path_res);
+        LOG(LOG_TYPE_INTR, LOG_LEVEL_DEBUG, "Done.");
         return path_res;
       }
     }

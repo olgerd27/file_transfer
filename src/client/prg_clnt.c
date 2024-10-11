@@ -180,7 +180,7 @@ static void process_file_error(err_inf *p_errinf)
 // The main function to Upload file through RPC
 static int file_upload()
 {
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Begin: initiate File Upload - local source file:\n  %s", filename_src);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Begin: initiate File Upload - local source file:\n  %s", filename_src);
   file_inf fileinf; // file info object
   err_inf *p_err_srv = NULL; // result from a server - error info
 
@@ -237,7 +237,7 @@ static int file_upload()
   xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
   xdr_free((xdrproc_t)xdr_err_inf, p_err_srv); // free the error info returned from server
  
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
@@ -249,7 +249,7 @@ static int file_upload()
 // TODO: check the return codes in this function
 static int file_download()
 {
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Begin: initiate File Download - remote source file:\n  %s", filename_src);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Begin: initiate File Download - remote source file:\n  %s", filename_src);
 
   // Make a file download from a server through RPC and return the downloaded
   // file info & error info object (error info is filled in if an error occurs)
@@ -293,7 +293,7 @@ static int file_download()
     "before memory freeing: file_err=%p, file=%p, err=%p", p_flerr_srv, &p_flerr_srv->file, &p_flerr_srv->err);
   xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv);
 
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
@@ -305,7 +305,7 @@ static int file_download()
 // Also, this function is a wrapper of the pick_file() RPC function call.
 file_err * file_select_rmt(picked_file *p_flpkd)
 {
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Begin: initiate File Selection - init filename:\n  %s", p_flpkd->name);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Begin: initiate File Selection - init filename:\n  %s", p_flpkd->name);
 
   // Choose a file on the server via RPC and return the choosen file info or an error
   file_err *p_flerr_srv = pick_file_1(p_flpkd, pclient);
@@ -332,7 +332,7 @@ file_err * file_select_rmt(picked_file *p_flpkd)
 
   // Okay, we successfully called the remote procedure.
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "RPC was successful, selected file:\n  %s", p_flerr_srv->file.name);
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Done.");
   return p_flerr_srv;
 }
 

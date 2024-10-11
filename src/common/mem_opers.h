@@ -103,7 +103,7 @@ int reset_file_cont(t_flcont *p_flcont, size_t size_fcont);
  * Return value:
  *  0 on success, >0 on failure.
  */
-int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont);
+int reset_file_inf(file_inf *p_file, size_t size_fcont);
 
 /* Reset (init) the error info.
  *

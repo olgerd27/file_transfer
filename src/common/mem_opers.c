@@ -24,7 +24,7 @@ extern int errno; // global system error number
  */
 char * alloc_file_cont(t_flcont *p_flcont, size_t size)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
   
   // Check if the memory for the file content instance is allocated
   if (!p_flcont) {
@@ -43,15 +43,16 @@ char * alloc_file_cont(t_flcont *p_flcont, size_t size)
       // A caller of this function can produce a more general error message and send it
       // to another side through the error info instance, which is not accessible here.
       LOG(LOG_TYPE_MEM, LOG_LEVEL_ERROR, 
-        "Failed to allocate memory for file content, required size: %ld", size);
+          "Failed to allocate memory for file content, required size: %ld", size);
       return NULL;
     }
     p_flcont->t_flcont_val[0] = '\0'; // required to ensure strlen() works correctly on this memory
     p_flcont->t_flcont_len = size;
-    LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, 
-      "file content allocated, ptr=%p, size=%d", p_flcont->t_flcont_val, p_flcont->t_flcont_len);
+    LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, 
+        "memory for file contents has been allocated, ptr=%p, size=%d", 
+        p_flcont->t_flcont_val, p_flcont->t_flcont_len);
   }
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
   return p_flcont->t_flcont_val;
 }
 
@@ -63,13 +64,14 @@ char * alloc_file_cont(t_flcont *p_flcont, size_t size)
  */
 void free_file_name(t_flname *p_flname)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
   if (p_flname) {
     LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "before freeing, ptr=%p", *p_flname);
     free(*p_flname);
     *p_flname = NULL;
+    LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "freeing completed");
   }
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
 }
 
 /* Free the file content memory.
@@ -80,14 +82,15 @@ void free_file_name(t_flname *p_flname)
  */
 void free_file_cont(t_flcont *p_flcont)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
   if (p_flcont && p_flcont->t_flcont_val) {
     LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "before freeing, ptr=%p", p_flcont->t_flcont_val);
     free(p_flcont->t_flcont_val);
     p_flcont->t_flcont_val = NULL;
     p_flcont->t_flcont_len = 0;
+    LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "freeing completed");
   }
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
 }
 
 /* Free the file info memory.
@@ -98,12 +101,12 @@ void free_file_cont(t_flcont *p_flcont)
  */
 void free_file_inf(file_inf *p_file)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
   if (p_file) {
     free_file_name(&p_file->name); // free the file name memory
     free_file_cont(&p_file->cont); // free the file content memory
   }
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
 }
 
 /* Free the error info memory.
@@ -114,14 +117,15 @@ void free_file_inf(file_inf *p_file)
  */
 void free_err_inf(err_inf *p_err)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
   if (p_err && p_err->err_inf_u.msg) {
     LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "before freeing, ptr=%p", p_err->err_inf_u.msg);
     free(p_err->err_inf_u.msg);
     p_err->err_inf_u.msg = NULL;
     p_err->num = 0;
+    LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "freeing completed");
   }
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
 }
 
 // TODO: check if the error numbers are ok in this function
@@ -148,7 +152,7 @@ void free_err_inf(err_inf *p_err)
  */
 int reset_file_name_type(file_inf *p_file)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
 
   // Check if the memory for the file info struct instance is allocated
   if (!p_file) {
@@ -170,21 +174,21 @@ int reset_file_name_type(file_inf *p_file)
       return 9;
     }
     p_file->name[0] = '\0'; // required to ensure strlen() works correctly on this memory
-    LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, 
-        "file name allocated, ptr=%p, size=%d", p_file->name, LEN_PATH_MAX);
+    LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, 
+        "memory for file name has been allocated, ptr=%p, size=%d", p_file->name, LEN_PATH_MAX);
   }
   else {
     // Reset the previous file name.
     // Due to its constant size, the file name is reset by setting the memory to 0.
     // Since the file name changes often, a memory reset should occur in each call of this function.
     memset(p_file->name, 0, strlen(p_file->name));
-    LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "file name set to 0, ptr=%p", p_file->name);
+    LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "file name set to 0, ptr=%p", p_file->name);
   }
 
   // Init the file type
   p_file->type = FTYPE_DFL;
 
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
@@ -204,11 +208,11 @@ int reset_file_name_type(file_inf *p_file)
  */
 int reset_file_cont(t_flcont *p_flcont, size_t size_fcont)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
   free_file_cont(p_flcont);
   if (!alloc_file_cont(p_flcont, size_fcont))
     return 10;
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
@@ -224,9 +228,9 @@ int reset_file_cont(t_flcont *p_flcont, size_t size_fcont)
  * Return value:
  *  0 on success, >0 on failure.
  */
-int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont)
+int reset_file_inf(file_inf *p_file, size_t size_fcont)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
 
   // check if the memory for the file info instance is allocated
   if (!p_file) {
@@ -244,7 +248,7 @@ int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont)
   if ( (rc = reset_file_cont(&p_file->cont, size_fcont)) != 0 )
     return rc;
 
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
@@ -269,7 +273,7 @@ int reset_file_inf_NEW(file_inf *p_file, size_t size_fcont)
  */
 int reset_err_inf(err_inf *p_err)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
 
   // Check if the memory for the error info instance is allocated
   if (!p_err) {
@@ -291,8 +295,8 @@ int reset_err_inf(err_inf *p_err)
     }
     p_err->err_inf_u.msg[0] = '\0'; // required to ensure strlen() works correctly on this memory
     p_err->num = 0;
-    LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, 
-        "error info allocated, ptr=%p, size=%d", p_err->err_inf_u.msg, LEN_ERRMSG_MAX);
+    LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "memory for error info has been allocated, ptr=%p, size=%d", 
+        p_err->err_inf_u.msg, LEN_ERRMSG_MAX);
   }
   else {
     // Reset the previous error info.
@@ -302,14 +306,14 @@ int reset_err_inf(err_inf *p_err)
     if (p_err->num && p_err->num != ERRNUM_ERRINF_ERR) {
       p_err->num = 0;
       memset(p_err->err_inf_u.msg, 0, strlen(p_err->err_inf_u.msg));
-      LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "error info set to 0, ptr=%p", p_err->err_inf_u.msg);
+      LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "error info set to 0, ptr=%p", p_err->err_inf_u.msg);
     }
   }
 
   // Reset the system error number
   if (errno) errno = 0;
 
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
@@ -326,7 +330,7 @@ int reset_err_inf(err_inf *p_err)
  */
 int alloc_reset_err_inf(err_inf **pp_errinf)
 {
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
 
   // Allocate memory if needed
   *pp_errinf = (err_inf*)malloc(sizeof(err_inf));
@@ -342,6 +346,6 @@ int alloc_reset_err_inf(err_inf **pp_errinf)
     return 2;
   }
 
-  LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
