@@ -99,7 +99,7 @@ static char * str_perm(mode_t mode, char *strmode)
  */
 enum filetype get_file_type(const char *filepath)
 {
-  LOG(LOG_TYPE_FTINF, LOG_LEVEL_INFO, "Begin, filepath: '%s'", filepath);
+  LOG(LOG_TYPE_FTINF, LOG_LEVEL_DEBUG, "Begin, filepath: '%s'", filepath);
   enum filetype ftype;
   struct stat statbuf;
 
@@ -124,7 +124,9 @@ enum filetype get_file_type(const char *filepath)
       ftype = FTYPE_OTH;
       break;
   }
-  LOG(LOG_TYPE_FTINF, LOG_LEVEL_INFO, "filetype: %d (%c). Done.", (int)ftype, cftp);
+  LOG(LOG_TYPE_FTINF, LOG_LEVEL_INFO, 
+      "filetype of '%s' is: %d ('%c')", filepath, (int)ftype, cftp);
+  LOG(LOG_TYPE_FTINF, LOG_LEVEL_DEBUG, "Done.");
   return ftype;
 }
 
@@ -548,7 +550,7 @@ int ls_dir_str(file_err *p_flerr)
 // TODO: update the documentation for this function
 file_err * select_file(picked_file *p_flpicked)
 {
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Begin, picked file: %s", p_flpicked->name);
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "Begin, picked file: %s", p_flpicked->name);
   static file_err flerr;
   flerr.file.type = FTYPE_DFL; // reset the file type
   LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "file_err created, ptr=%p, filetype set to default", &flerr);
@@ -570,6 +572,7 @@ file_err * select_file(picked_file *p_flpicked)
     LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "%s", flerr.err.err_inf_u.msg);
     return &flerr;
   }
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "file_err object has been reset, ptr=%p", &flerr);
 
   // Determine the file type
   flerr.file.type = get_file_type(p_flpicked->name);
@@ -582,14 +585,18 @@ file_err * select_file(picked_file *p_flpicked)
     copy_path(p_flpicked->name, flerr.file.name);
 
     // Check the correctness of the current file selection based on the selection file type
-    if (p_flpicked->pftype == pk_ftype_target)
-      ; // OK: the non-existent file type was selected as expected for a 'target' selection file type
+    if (p_flpicked->pftype == pk_ftype_target) {
+      // OK: the non-existent file type was selected as expected for a 'target' selection file type
+      LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "A non-existent file was selected as the target file, as expected");
+    }
     else if (p_flpicked->pftype == pk_ftype_source) {
       // Failure: the source file selection (a regular file) was expected, but the target 
       // file selection (a non-existent file) was actually attempted -> produce the error
+      LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR,
+          "Invalid source file was selected - non-existent, but expected - regular file");
       flerr.err.num = 82;
       sprintf(flerr.err.err_inf_u.msg,
-              "Error %i: The selected file does not exist:\n'%s'\n"
+              "Error %i: The selected file does not exist:\n  '%s'\n"
               "Only the regular file can be selected as the source file.\n",
               flerr.err.num, flerr.file.name);
     }
@@ -616,20 +623,25 @@ file_err * select_file(picked_file *p_flpicked)
 
     case FTYPE_REG: /* regular file */
       // Check the correctness of the current file selection based on the selection file type
-      if (p_flpicked->pftype == pk_ftype_source)
-        ; // OK: the regular file type was selected as expected for a 'source' selection file type
+      if (p_flpicked->pftype == pk_ftype_source) {
+        // OK: the regular file type was selected as expected for a 'source' selection file type
+        LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "A regular file selected as source file, as expected");
+      }
       else if (p_flpicked->pftype == pk_ftype_target) {
         // Failure: the target file selection (a non-existent file) was expected, but the source 
         // file selection (a regular file) was actually attempted -> produce the error
+      LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR,
+          "Invalid target file was selected - regular, but expected - non-existent file");
         flerr.err.num = 83;
         sprintf(flerr.err.err_inf_u.msg,
-                "Error %i: The wrong file type was selected - regular file:\n'%s'\n"
+                "Error %i: The wrong file type was selected - regular file:\n  '%s'\n"
                 "Only the non-existent file can be selected as the target file.\n",
                 flerr.err.num, flerr.file.name); 
       }
       break;
 
     case FTYPE_OTH: /* any other file type like link, socket, etc. */
+      LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "'Other' file type was selected, it's not supported");
       flerr.err.num = 84;
       sprintf(flerr.err.err_inf_u.msg,
               "Error %i: Unsupported file type was selected (other):\n'%s'\n",
@@ -638,12 +650,13 @@ file_err * select_file(picked_file *p_flpicked)
 
     case FTYPE_INV: /* invalid file */
       // NOTE: If the rel_to_full_path() call above fails, this case will never be reached.
+      LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "'Invalid' file type was selected, it's not supported");
       flerr.err.num = 85;
       sprintf(flerr.err.err_inf_u.msg,
               "Error %i: Invalid file was selected:\n'%s'\n%s\n",
               flerr.err.num, flerr.file.name, strerror(errno));
       break;
   }
-  LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "Done.");
   return &flerr;
 }

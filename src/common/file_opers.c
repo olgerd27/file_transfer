@@ -136,11 +136,11 @@ static const char *get_error_message(const char *mode) {
  */
 static FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_errinf)
 {
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Begin");
   FILE *hfile = fopen(flname, mode);
   if (hfile == NULL)
     (void)process_error(flname, 60, get_error_message(mode), pp_errinf);
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Done.");
   return hfile;
 }
 
@@ -166,11 +166,11 @@ static FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_err
  */
 static int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
 {
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Begin");
   int rc = fclose(hfile);
   if (rc != 0)
     (void)process_error(flname, 64, "Failed to close the file", pp_errinf);
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Done.");
   return rc;
 }
 
@@ -199,7 +199,7 @@ static int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
 static int read_file(const t_flname flname, t_flcont *p_flcont, 
                      FILE *hfile, err_inf **pp_errinf)
 {
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Begin");
 
   // Allocate the memory to store the file content
   if ( alloc_file_cont(p_flcont, get_file_size(hfile)) == NULL ) {
@@ -210,7 +210,7 @@ static int read_file(const t_flname flname, t_flcont *p_flcont,
   }
 
   size_t nch = fread(p_flcont->t_flcont_val, 1, p_flcont->t_flcont_len, hfile);
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "reading completed");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "reading completed");
 
   // Check if an error has occurred during the reading operation
   if (ferror(hfile)) {
@@ -226,8 +226,8 @@ static int read_file(const t_flname flname, t_flcont *p_flcont,
     fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 3;
   }
-
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "reading completed successfully");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
@@ -244,7 +244,7 @@ static int read_file(const t_flname flname, t_flcont *p_flcont,
 int read_file_cont(const t_flname flname, t_flcont *p_flcont,
                    err_inf **pp_errinf)
 {
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Begin");
   
   // Open the file
   FILE *hfile = NULL;    // the file handler
@@ -259,7 +259,7 @@ int read_file_cont(const t_flname flname, t_flcont *p_flcont,
   if ( close_file(flname, hfile, pp_errinf) != 0 )
     return (*pp_errinf)->num;
 
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
@@ -287,10 +287,10 @@ int read_file_cont(const t_flname flname, t_flcont *p_flcont,
 static int write_file(const t_flname flname, const t_flcont *p_flcont, 
                       FILE *hfile, err_inf **pp_errinf)
 {
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Begin");
 
   size_t nch = fwrite(p_flcont->t_flcont_val, 1, p_flcont->t_flcont_len, hfile);
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "writing completed");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "writing completed");
 
   // Check if an error has occurred during the writing operation
   if (ferror(hfile)) {
@@ -307,8 +307,8 @@ static int write_file(const t_flname flname, const t_flcont *p_flcont,
     fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 2;
   }
-
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "writing completed successfully");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
@@ -316,7 +316,7 @@ static int write_file(const t_flname flname, const t_flcont *p_flcont,
 int save_file_cont(const t_flname flname, const t_flcont *p_flcont,
                    err_inf **pp_errinf)
 {
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Begin");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Begin");
   
   // Open the file
   FILE *hfile = NULL;    // the file handler
@@ -331,6 +331,6 @@ int save_file_cont(const t_flname flname, const t_flcont *p_flcont,
   if ( close_file(flname, hfile, pp_errinf) != 0 )
     return (*pp_errinf)->num;
 
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_INFO, "Done.");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }

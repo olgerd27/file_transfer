@@ -1,6 +1,16 @@
 #ifndef _LOGGING_H_
 #define _LOGGING_H_
 
+// NOTE: Logging works not correct, because there is not options to configure logging
+// differently for server and client. What means if you got common object files
+// when you built server, these common object files will be used in the client program
+// with all the logging settings applied to them. So, it should be different places
+// to store common object files for server and client. Example for fs_opers.o:
+// - for Server: obj/release/proj_server/common/fs_opers.o
+// - for Client: obj/release/proj_client/common/fs_opers.o
+// So, it should be one "common" directory with source files and client and server 
+// can take sources from there, but the build results should differentiate.
+
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -15,7 +25,7 @@
 // To disable logging, set LOG_LEVEL_NONE value for GLOBAL_LOG_LEVEL;
 // to enable the most detailed logging, set LOG_LEVEL_DEBUG value for GLOBAL_LOG_LEVEL.
 #ifndef GLOBAL_LOG_LEVEL
-#define GLOBAL_LOG_LEVEL LOG_LEVEL_DEBUG
+#define GLOBAL_LOG_LEVEL LOG_LEVEL_INFO
 #endif
 
 // Macros for enabling/disabling specific logging types
@@ -26,17 +36,17 @@
 
 // Debug messages for client
 #ifndef LOG_TYPE_CLNT
-#define LOG_TYPE_CLNT 1
+#define LOG_TYPE_CLNT 0
 #endif
 
 // Debug messages for interaction operations
 #ifndef LOG_TYPE_INTR
-#define LOG_TYPE_INTR 1
+#define LOG_TYPE_INTR 0
 #endif
 
 // Debug messages for file type info
 #ifndef LOG_TYPE_FTINF
-#define LOG_TYPE_FTINF 1
+#define LOG_TYPE_FTINF 0
 #endif
 
 // Debug messages for file selection
@@ -46,7 +56,7 @@
 
 // Debug messages for memory manipulation
 #ifndef LOG_TYPE_MEM
-#define LOG_TYPE_MEM 1
+#define LOG_TYPE_MEM 0
 #endif
 
 // Debug messages for file operations
