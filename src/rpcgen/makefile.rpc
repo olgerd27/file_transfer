@@ -11,15 +11,22 @@ all: TITLE_BEG SWITCH_XDR_NORMAL BUILD_OBJ TITLE_END
 # Debug here means: Print the debugging messages added to the XDR functions.
 build_dbg_xdr: TITLE_DBG_XDR_BEG clean_xdr SWITCH_XDR_DBG BUILD_OBJ_XDR TITLE_DBG_XDR_END
 
-# Construct the object dir
+# Process the build project parameter (PRJ)
+D_PRJ := SERVER_PROJECT
+ifeq ($(PRJ),client)
+  D_PRJ := CLIENT_PROJECT
+endif
+
+# Process the build mode parameter (MODE)
+OPT_MODE :=
+D_MODE := release
 ifeq ($(MODE),DBG)
   OPT_MODE := -g -Wall
   D_MODE := debug
-else
-  OPT_MODE :=
-  D_MODE := release
 endif
-D_OBJ := ../../obj/$(D_MODE)/$(notdir $(CURDIR))
+
+# Construct the object dir
+D_OBJ := ../../obj/$(D_MODE)/$(D_PRJ)/$(notdir $(CURDIR))
 
 # Dependency compiler options
 OPT_DEPS := -MMD -MP

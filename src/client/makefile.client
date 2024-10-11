@@ -24,7 +24,7 @@ else
   OPT_MODE :=
   D_MODE := release
 endif
-D_OBJ_CLN := ../../obj/$(D_MODE)/$(D_CLN)
+D_OBJ_CLN := ../../obj/$(D_MODE)/CLIENT_PROJECT/$(D_CLN)
 D_OBJ_CMN := $(subst $(D_CLN),$(D_CMN),$(D_OBJ_CLN))
 D_OBJ_RPC := $(subst $(D_CLN),$(D_RPC),$(D_OBJ_CLN))
 D_BIN := ../../bin/$(D_MODE)
@@ -82,7 +82,8 @@ BUILD_CLN: $(EXE)
 
 $(OBJ_RPC): $(SRC_RPC_X)
 	@echo "Building RPC files:"
-	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc
+	@cd ../$(D_RPC) && \
+	  make --no-print-directory -f makefile.rpc PRJ=client DLM="++++++++++"
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)
@@ -103,7 +104,7 @@ $(D_OBJ_CMN)/%.o: ../$(D_CMN)/%.c
 clean:
 	@echo "$(DLM) Client clean $(DLM)"
 	@rm -fv $(EXE) $(OBJ_CLN) $(OBJ_CLN:.o=.d)
-	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc clean
+	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc clean PRJ=client
 
 # Debug rule to print all variables
 debug_makefile:

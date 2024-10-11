@@ -28,7 +28,7 @@ else
   OPT_MODE :=
   D_MODE := release
 endif
-D_OBJ_SRV := ../../obj/$(D_MODE)/$(D_SRV)
+D_OBJ_SRV := ../../obj/$(D_MODE)/SERVER_PROJECT/$(D_SRV)
 D_OBJ_CMN := $(subst $(D_SRV),$(D_CMN),$(D_OBJ_SRV))
 D_OBJ_RPC := $(subst $(D_SRV),$(D_RPC),$(D_OBJ_SRV))
 D_BIN := ../../bin/$(D_MODE)
@@ -46,9 +46,9 @@ SRC_CMN := ../$(D_CMN)/mem_opers.c ../$(D_CMN)/fs_opers.c ../$(D_CMN)/file_opers
 
 # The object files with respective paths
 OBJ_RPC := $(D_OBJ_RPC)/$(notdir $(subst .x,_svc.o,$(SRC_RPC_X))) \
-			$(D_OBJ_RPC)/$(notdir $(subst .x,_xdr.o,$(SRC_RPC_X)))
+		   $(D_OBJ_RPC)/$(notdir $(subst .x,_xdr.o,$(SRC_RPC_X)))
 OBJ_SRV := $(addprefix $(D_OBJ_SRV)/,$(subst .c,.o,$(SRC_SRV))) \
-			$(addprefix $(D_OBJ_CMN)/,$(notdir $(subst .c,.o,$(SRC_CMN))))
+		   $(addprefix $(D_OBJ_CMN)/,$(notdir $(subst .c,.o,$(SRC_CMN))))
 OBJS := $(OBJ_SRV) $(OBJ_RPC)
 
 # Final executable
@@ -87,11 +87,13 @@ BUILD_SRV: $(EXE)
 
 BUILD_DBG_XDR:
 	@echo "Debug XDR source file:"
-	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc build_dbg_xdr DLM="++++++++++"
+	@cd ../$(D_RPC) && \
+	  make --no-print-directory -f makefile.rpc build_dbg_xdr PRJ=server DLM="++++++++++"
 
 $(OBJ_RPC): $(SRC_RPC_X)
 	@echo "Building RPC files:"
-	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc DLM="++++++++++"
+	@cd ../$(D_RPC) && \
+	  make --no-print-directory -f makefile.rpc PRJ=server DLM="++++++++++"
 
 $(EXE): $(OBJS)
 	@$(CMD_CREATE_DIR)
@@ -112,7 +114,8 @@ $(D_OBJ_CMN)/%.o: ../$(D_CMN)/%.c
 clean:
 	@echo "$(DLM) Server clean $(DLM)"
 	@rm -fv $(EXE) $(OBJ_SRV) $(OBJ_SRV:.o=.d)
-	@cd ../$(D_RPC) && make --no-print-directory -f makefile.rpc clean
+	@cd ../$(D_RPC) && \
+	  make --no-print-directory -f makefile.rpc clean PRJ=server
 
 # Debug rule to print all variables
 debug_makefile:
