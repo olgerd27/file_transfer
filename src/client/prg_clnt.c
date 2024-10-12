@@ -351,24 +351,27 @@ static void print_confirm_trop_msg(enum Action *act)
 
 static char get_stdin_char()
 {
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Begin");
   char ch, ans = getchar(); // get one (first) character
-  // If just Enter was pressed, return it;
-  // If any other character was entered, clear the newline character left
-  // in the buffer and return the inputted character. 
-  if (ans == '\n') return ans;
-  while ((ch = getchar()) != '\n' && ch != EOF);
+  // If any character + Enter is typed, the newline character left in the buffer is 
+  // cleared and the typed character is returned.
+  // If only Enter is typed, just return it.
+  if (ans != '\n') while ((ch = getchar()) != '\n' && ch != EOF);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "inputed char (int): '%c' (%d). Done.", ans, (int)ans);
   return ans;
 }
 
 // Get user input to confirm a operation.
 static int get_user_confirm()
 {
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Begin");
   char ans = get_stdin_char();
   while (ans != 'y' && ans != 'n' && ans != '\n') {
     printf("Incorrect input, please repeat (y/n) [y]: ");
     ans = get_stdin_char();
   }
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "ans='%s'. Done.", ans);
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, 
+      "input %s. Done.", (ans == 'y' || ans == '\n') ? "confirmed" : "NOT confirmed");
   return (ans == 'y' || ans == '\n') ? 0 : 1;
 }
 
