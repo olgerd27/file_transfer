@@ -18,10 +18,10 @@ ifeq ($(PRJ),client)
 endif
 
 # Process the build mode parameter (MODE)
-OPT_MODE :=
+CFLAGS :=
 D_MODE := release
 ifeq ($(MODE),DBG)
-  OPT_MODE := -g -Wall
+  CFLAGS := -g -Wall
   D_MODE := debug
 endif
 
@@ -29,7 +29,7 @@ endif
 D_OBJ := ../../obj/$(D_MODE)/$(D_PRJ)/$(notdir $(CURDIR))
 
 # Dependency compiler options
-OPT_DEPS := -MMD -MP
+CFLAGS += -MMD -MP
 
 # Initial RPC source files
 SRC_RPC := fltr.x
@@ -48,14 +48,14 @@ OBJ_XDR := $(addprefix $(D_OBJ)/,$(subst .c,.o,$(SRC_XDR)))
 
 # Including the TI-RPC header files as the system ones allows 
 # to not include them to the dependencies files
-INCL:=-isystem /usr/include/tirpc
+INCL := -isystem /usr/include/tirpc
 
 # Commands
 CC := gcc
 CMD_CREATE_DIR = mkdir -p $(dir $@)
 
 MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
-CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) $(INCL) -c $< -o $@
+CMD_COMP = $(CC) $(CFLAGS) $(INCL) -c $< -o $@
 
 # Commands to switch between Debug and Normal XDR build mode
 CMD_SWITCH_XDR_DBG = \

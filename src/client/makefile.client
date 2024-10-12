@@ -7,34 +7,34 @@
 
 .PHONY: all clean debug_makefile
 
-# Default target - must be at the top of makefile that allows to execute 'all' automatically
+### Default target - must be at the top of makefile that allows to execute 'all' automatically
 all: TITLE BUILD_RPC BUILD_CLN
 
-# Build client with the debug version of the XDR source file.
+### Build client with the debug version of the XDR source file.
 # Debug here means to print the debugging messages added to the XDR functions.
 debug_xdr: BUILD_DBG_XDR BUILD_CLN
 
-# Directories
+### Process the build mode parameter (MODE)
+CFLAGS :=
+D_MODE := release
+ifeq ($(MODE),DBG)
+  CFLAGS := -g -Wall
+  D_MODE := debug
+endif
+
+### Directories
 # The final dir name where the source & object files resides
 D_CLN := $(notdir $(CURDIR))
 D_CMN := common
 D_RPC := rpcgen
 
 # The target dirs for object and executable files
-OPT_MODE :=
-D_MODE := release
-ifeq ($(MODE),DBG)
-  OPT_MODE := -g -Wall
-  D_MODE := debug
-endif
 D_OBJ_CLN := ../../obj/$(D_MODE)/CLIENT_PROJECT/$(D_CLN)
 D_OBJ_CMN := $(subst $(D_CLN),$(D_CMN),$(D_OBJ_CLN))
 D_OBJ_RPC := $(subst $(D_CLN),$(D_RPC),$(D_OBJ_CLN))
 D_BIN := ../../bin/$(D_MODE)
 
-# Dependency compiler options
-OPT_DEPS := -MMD -MP
-
+### Sources
 # RPC sources
 SRC_RPC_X := ../$(D_RPC)/fltr.x
 
@@ -50,24 +50,44 @@ OBJ_CLN := $(addprefix $(D_OBJ_CLN)/,$(subst .c,.o,$(SRC_CLN))) \
 			$(addprefix $(D_OBJ_CMN)/,$(notdir $(subst .c,.o,$(SRC_CMN))))
 OBJS := $(OBJ_RPC) $(OBJ_CLN)
 
-# Final executable
+### Final executable
 EXE := $(D_BIN)/$(subst .c,,$(SRC_MAIN))
 
+### Dependency compiler options
+CFLAGS += -MMD -MP
+
+### Logging settings for Client code.
+# Logging levels:
+LOG_LEVEL_NONE  := 0
+LOG_LEVEL_ERROR := 1
+LOG_LEVEL_WARN  := 2
+LOG_LEVEL_INFO  := 3
+LOG_LEVEL_DEBUG := 4
+
+# Specific logging type and global log level definitions for each object file.
+$(D_OBJ_CLN)/prg_clnt.o: CFLAGS += -DLOG_TYPE_CLNT=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_DEBUG)
+$(D_OBJ_CLN)/interact.o: CFLAGS += -DLOG_TYPE_INTR=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_DEBUG)
+$(D_OBJ_CMN)/mem_opers.o: CFLAGS += -DLOG_TYPE_MEM=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_DEBUG)
+$(D_OBJ_CMN)/fs_opers.o: CFLAGS += -DLOG_TYPE_FTINF=1 -DLOG_TYPE_SLCT=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_DEBUG)
+$(D_OBJ_CMN)/file_opers.o: CFLAGS += -DLOG_TYPE_FLOP=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_DEBUG)
+
+### Include
 # Including the TI-RPC header files as the system ones allows 
 # to not include them to the dependencies files
 INCL := -isystem /usr/include/tirpc
 
+### Libraries for linking
 LIBS := -lnsl -ltirpc
 
-# Commands
+### Commands
 CC := gcc
 CMD_CREATE_DIR = mkdir -p $(dir $@)
 
 MSG_COMP = echo "Compiling $(notdir $<) -> $(notdir $@):"
-CMD_COMP = $(CC) $(OPT_MODE) $(OPT_DEPS) $(INCL) -c $< -o $@
+CMD_COMP = $(CC) $(CFLAGS) $(INCL) -c $< -o $@
 
 MSG_LINK = echo "Linking $(notdir $@):"
-CMD_LINK = $(CC) $(OPT_MODE) $^ $(LIBS) -o $@
+CMD_LINK = $(CC) $^ $(LIBS) -o $@
 
 # Include automatically generated dependencies
 -include $(OBJ_CLN:.o=.d)
