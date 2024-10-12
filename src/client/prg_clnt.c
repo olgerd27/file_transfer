@@ -225,6 +225,7 @@ static int file_upload()
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
     xdr_free((xdrproc_t)xdr_err_inf, p_err_srv); // free the error info returned from server
     clnt_destroy(pclient); // delete the client object
+    pclient = NULL;
     return 14;
   }
 
@@ -272,6 +273,7 @@ static int file_download()
             p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free file & error info returned from server
     clnt_destroy(pclient); // delete the client object
+    pclient = NULL;
     return 21;
   }
 
@@ -327,6 +329,7 @@ file_err * file_select_rmt(picked_file *p_flpkd)
             p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free the file & error info
     clnt_destroy(pclient); // delete the client object
+    pclient = NULL;
     exit(21); // TODO: change to return p_flerr_srv?
   }
 
@@ -428,11 +431,12 @@ static int do_RPC_action(enum Action act)
 {
   // Make the interaction operation: set source & target file names interactively while
   // act_interact is ON. File transfer operation can proceed only when act_interact is OFF.
+  if (act & act_interact) LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "before Interaction");
   while (act & act_interact)
     interact(&act);
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Interaction completed. Before File Transfer operation");
 
   // Make the file transfer operation
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Before File Transfer operation");
   int rc;
   switch (act) {
     case act_upload:
@@ -448,12 +452,13 @@ static int do_RPC_action(enum Action act)
       fprintf(stderr, "Unknown program execution mode\n");
       rc = 7;
   }
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "File Transfer completed");
+  if (rc == 0) LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "File Transfer completed");
+  else         LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "File Transfer failed!");
 
   // Free the memory allocated for file names
   free(dynamic_src);
   free(dynamic_trg);
-
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "dynamicaly allocated filenames were freed");
   return rc;
 }
 
@@ -489,7 +494,7 @@ int main(int argc, char *argv[])
   (void)do_RPC_action(action);
 
   // Delete the client object
-  clnt_destroy(pclient);
+  if (pclient) clnt_destroy(pclient);
 
   return 0;
 }
