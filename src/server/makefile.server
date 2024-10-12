@@ -65,10 +65,10 @@ LOG_LEVEL_INFO  := 3
 LOG_LEVEL_DEBUG := 4
 
 # Specific logging type and global log level definitions for each object file.
-$(D_OBJ_SRV)/prg_serv.o: CFLAGS += -DLOG_TYPE_SERV=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_DEBUG)
-$(D_OBJ_CMN)/mem_opers.o: CFLAGS += -DLOG_TYPE_MEM=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_DEBUG)
-$(D_OBJ_CMN)/fs_opers.o: CFLAGS += -DLOG_TYPE_FTINF=1 -DLOG_TYPE_SLCT=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_DEBUG)
-$(D_OBJ_CMN)/file_opers.o: CFLAGS += -DLOG_TYPE_FLOP=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_DEBUG)
+$(D_OBJ_SRV)/prg_serv.o: CFLAGS += -DLOG_TYPE_SERV=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_INFO)
+$(D_OBJ_CMN)/mem_opers.o: CFLAGS += -DLOG_TYPE_MEM=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_ERROR)
+$(D_OBJ_CMN)/fs_opers.o: CFLAGS += -DLOG_TYPE_FTINF=0 -DLOG_TYPE_SLCT=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_INFO)
+$(D_OBJ_CMN)/file_opers.o: CFLAGS += -DLOG_TYPE_FLOP=1 -DGLOBAL_LOG_LEVEL=$(LOG_LEVEL_INFO)
 
 ### Include
 # Including the TI-RPC header files as the system ones allows 

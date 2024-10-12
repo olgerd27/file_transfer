@@ -36,7 +36,7 @@ extern int errno; // global system error number
 static int process_error(const char *filename, int errnum, 
                          const char *errmsg_act, err_inf **pp_errinf)
 {
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_ERROR, "Begin error processing");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Begin error processing");
   LOG(LOG_TYPE_FLOP, LOG_LEVEL_ERROR, "Main error message: %s", errmsg_act);
 
   // Save the system error value, because it'll be reset by alloc_reset_err_inf()
@@ -61,7 +61,7 @@ static int process_error(const char *filename, int errnum,
     snprintf((*pp_errinf)->err_inf_u.msg + nch, LEN_ERRMSG_MAX, 
               "System error %i: %s\n", errno_sys, strerror(errno_sys));
 
-  LOG(LOG_TYPE_FLOP, LOG_LEVEL_ERROR, "Done.");
+  LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
 
