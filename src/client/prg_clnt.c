@@ -178,7 +178,7 @@ static void process_file_error(err_inf *p_errinf)
  * Error numbers range: 10-19
  */
 // The main function to Upload file through RPC
-static int file_upload()
+static void file_upload()
 {
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Begin: initiate File Upload - local source file:\n  %s", filename_src);
   file_inf fileinf; // file info object
@@ -199,7 +199,7 @@ static int file_upload()
     LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Error reading the local file:\n  %s", filename_src);
     process_file_error(p_err_srv);
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf);
-    return 12;
+    exit(12);
   }
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "file contents was read, before RPC");
 
@@ -212,21 +212,21 @@ static int file_upload()
   if (p_err_srv == (err_inf *)NULL) {
     LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC error - NULL returned");
     clnt_perror(pclient, rmt_host);
+    clnt_destroy(pclient);                       // delete the client object
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
-    return 13;
+    exit(13);
   }
 
   // Check an error that may occur on the server
   if (p_err_srv->num != 0) {
     // Error on a server has occurred. Print error message and die.
-    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Server error occurred:\n  %s", p_err_srv->err_inf_u.msg);
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Server error occurred:\n%s", p_err_srv->err_inf_u.msg);
     fprintf(stderr, "!--Server error %d: %s\n", 
             p_err_srv->num, p_err_srv->err_inf_u.msg);
+    clnt_destroy(pclient);                       // delete the client object
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
     xdr_free((xdrproc_t)xdr_err_inf, p_err_srv); // free the error info returned from server
-    clnt_destroy(pclient); // delete the client object
-    pclient = NULL;
-    return 14;
+    exit(14);
   }
 
   // Okay, we successfully called the remote procedure.
@@ -237,9 +237,7 @@ static int file_upload()
     "before memory freeing: &fileinf=%p, p_err_srv=%p", &fileinf, p_err_srv);
   xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
   xdr_free((xdrproc_t)xdr_err_inf, p_err_srv); // free the error info returned from server
- 
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Done.");
-  return 0;
 }
 
 /*
@@ -248,11 +246,11 @@ static int file_upload()
  */
 // The main function to Download file through RPC
 // TODO: check the return codes in this function
-static int file_download()
+static void file_download()
 {
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Begin: initiate File Download - remote source file:\n  %s", filename_src);
 
-  // Make a file download from a server through RPC and return the downloaded
+  // Perform a file download from a server through RPC and return the downloaded
   // file info & error info object (error info is filled in if an error occurs)
   file_err *p_flerr_srv = download_file_1((char **)&filename_src, pclient);
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "RPC operation DONE");
@@ -262,7 +260,8 @@ static int file_download()
   if (p_flerr_srv == (file_err *)NULL) {
     LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC error - NULL returned");
     clnt_perror(pclient, rmt_host);
-    return 20;
+    clnt_destroy(pclient); // delete the client object
+    exit(20);
   }
 
   // Check an error that may occur on the server
@@ -271,10 +270,9 @@ static int file_download()
     LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Server error occurred:\n  %s", p_flerr_srv->err.err_inf_u.msg);
     fprintf(stderr, "!--Server error %d: %s\n", 
             p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
-    xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free file & error info returned from server
     clnt_destroy(pclient); // delete the client object
-    pclient = NULL;
-    return 21;
+    xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free file & error info returned from server
+    exit(21);
   }
 
   // Okay, we successfully called the remote procedure.
@@ -286,7 +284,7 @@ static int file_download()
     LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Error saving the file:\n  %s", filename_trg);
     process_file_error(p_err_tmp);
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv);
-    return 22;
+    exit(22);
   }
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "file contents was saved to:\n  %s", filename_trg);
 
@@ -294,9 +292,7 @@ static int file_download()
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, 
     "before memory freeing: file_err=%p, file=%p, err=%p", p_flerr_srv, &p_flerr_srv->file, &p_flerr_srv->err);
   xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv);
-
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Done.");
-  return 0;
 }
 
 /*
@@ -318,7 +314,8 @@ file_err * file_select_rmt(picked_file *p_flpkd)
   if (p_flerr_srv == (file_err *)NULL) {
     LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC error - NULL returned");
     clnt_perror(pclient, rmt_host);
-    exit(20); // TODO: change to return NULL?
+    clnt_destroy(pclient); // delete the client object
+    exit(20);
   }
 
   // Check an error that may occur on the server
@@ -327,10 +324,7 @@ file_err * file_select_rmt(picked_file *p_flpkd)
     LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Server error occurred:\n  %s", p_flerr_srv->err.err_inf_u.msg);
     fprintf(stderr, "!--Server error %d: %s\n", 
             p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
-    xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free the file & error info
-    clnt_destroy(pclient); // delete the client object
-    pclient = NULL;
-    exit(21); // TODO: change to return p_flerr_srv?
+    return p_flerr_srv;
   }
 
   // Okay, we successfully called the remote procedure.
@@ -384,10 +378,10 @@ static char * get_and_confirm_filename(const picked_file *p_flpkd, const char *h
                                        T_pf_select pf_select, char *selected_filename)
 {
   do {
-    if (!get_filename_inter(p_flpkd, pf_select, hostname, selected_filename))
+    if ( !get_filename_inter(p_flpkd, pf_select, hostname, selected_filename) )
       return NULL;
     printf("'%s'\nDo you really want to select this file? (y/n) [y]: ", selected_filename);
-  } while (get_user_confirm() != 0);
+  } while ( get_user_confirm() != 0 );
   printf("The %s file was successfully selected on %s.\n",
          get_pkd_ftype_name(p_flpkd->pftype), hostname);
   return selected_filename;
@@ -427,39 +421,36 @@ static void interact(enum Action *act)
 }
 
 // Perform a RPC action
-static int do_RPC_action(enum Action act)
+static void do_RPC_action(enum Action act)
 {
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, 
+      "Begin %s", (act & act_interact) ? ", before Interaction" : "");
   // Make the interaction operation: set source & target file names interactively while
   // act_interact is ON. File transfer operation can proceed only when act_interact is OFF.
-  if (act & act_interact) LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "before Interaction");
   while (act & act_interact)
     interact(&act);
 
   // Make the file transfer operation
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Before File Transfer operation");
-  int rc;
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "before File Transfer operation");
   switch (act) {
     case act_upload:
       // upload file to the server
-      rc = file_upload(); 
+      file_upload(); 
       break;
     case act_download:
       // download file from the server
-      rc = file_download();
+      file_download();
       break;
     default:
       LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Unknown program execution mode");
       fprintf(stderr, "Unknown program execution mode\n");
-      rc = 7;
   }
-  if (rc == 0) LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "File Transfer completed");
-  else         LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "File Transfer failed!");
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "File Transfer completed");
 
   // Free the memory allocated for file names
   free(dynamic_src);
   free(dynamic_trg);
-  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "dynamicaly allocated filenames were freed");
-  return rc;
+  LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Done.");
 }
 
 // Perform a non-RPC action
@@ -491,10 +482,10 @@ int main(int argc, char *argv[])
   (void)create_client();
 
   // Do an RPC action
-  (void)do_RPC_action(action);
+  do_RPC_action(action);
 
   // Delete the client object
-  if (pclient) clnt_destroy(pclient);
+  clnt_destroy(pclient);
 
   return 0;
 }

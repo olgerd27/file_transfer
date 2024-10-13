@@ -188,13 +188,16 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
     }
     else {
       // An error occurred while selecting a file.
-      // Check if file type was not set (a default value was set). That means it's the fatal error 
-      // that isn't related to error with a failed file selection 
+      // Check if a real file type was defined. If no - that means it's a fatal 
+      // error case, and this error is not related to the failed file selection error, 
+      // so we just need to leave this function.
       if (p_flerr->file.type == FTYPE_DFL) {
-        fprintf(stderr, "Fatal error: cannot select a file. "
-                        "Please enable the full logging and check the records\n");
-        exit(1); // TODO: use a right returned error code
+        fprintf(stderr, "Fatal error: file has not been selected. "
+                        "More info should be provided if loggin level set to LOG_LEVEL_DEBUG\n");
+        break;
       }
+      // If running reaches this point, it does mean it's indeed a file selection error 
+      // and we can provide the user with a new attempt to select a file
       LOG(LOG_TYPE_INTR, LOG_LEVEL_ERROR, "%s", p_flerr->err.err_inf_u.msg);
       offset = copy_path(path_prev, path_curr); // restore the previous valid path
       continue; // start loop from the beginning to select the previous valid path
@@ -248,6 +251,6 @@ char *get_filename_inter(const picked_file *p_flpkd, T_pf_select pf_flselect,
     xdr_free((xdrproc_t)xdr_file_err, p_flerr); // free the file & error info
     LOG(LOG_TYPE_INTR, LOG_LEVEL_DEBUG, "file_error object freed, ptr=%p", (void*)p_flerr);
   }
-  LOG(LOG_TYPE_INTR, LOG_LEVEL_ERROR, "Function ends unsuccessfully.");
+  LOG(LOG_TYPE_INTR, LOG_LEVEL_ERROR, "Unsuccessful end.\n");
   return NULL;
 }
