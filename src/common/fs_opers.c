@@ -1,3 +1,7 @@
+/*
+ * fs_opers.c: a set of functions to work with file system.
+ * Errors range: 21-28 (reserve 29-30)
+ */
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -473,7 +477,7 @@ int ls_dir_str(file_err *p_flerr)
 
   // Open the passed directory
   if ( (hdir = opendir(p_flerr->file.name)) == NULL ) {
-    p_flerr->err.num = 85;
+    p_flerr->err.num = 21;
     sprintf(p_flerr->err.err_inf_u.msg, "Error %i: Cannot open directory:\n'%s'\n%s\n",
             p_flerr->err.num, p_flerr->file.name, strerror(errno));
     return p_flerr->err.num;
@@ -495,8 +499,7 @@ int ls_dir_str(file_err *p_flerr)
 
   // Init the file content before filling it with directory listing data
   if ( reset_file_cont(&p_flerr->file.cont, calc_dir_cont_size(&lsdir_set)) != 0 ) {
-    // TODO: check an error number
-    p_flerr->err.num = 86;
+    p_flerr->err.num = 22;
     sprintf(p_flerr->err.err_inf_u.msg,
             "Error %i: Failed to init the file content\n", p_flerr->err.num);
     return p_flerr->err.num;
@@ -566,7 +569,7 @@ file_err * select_file(picked_file *p_flpicked)
 
   // Init the file name & type 
   if ( reset_file_name_type(&flerr.file) != 0 ) {
-    flerr.err.num = 81;
+    flerr.err.num = 23;
     sprintf(flerr.err.err_inf_u.msg,
             "Error %i: Failed to init file name & type", flerr.err.num);
     LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "%s", flerr.err.err_inf_u.msg);
@@ -594,7 +597,7 @@ file_err * select_file(picked_file *p_flpicked)
       // file selection (a non-existent file) was actually attempted -> produce the error
       LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR,
           "Invalid source file was selected - non-existent, but expected - regular file");
-      flerr.err.num = 82;
+      flerr.err.num = 24;
       sprintf(flerr.err.err_inf_u.msg,
               "Error %i: The selected file does not exist:\n  '%s'\n"
               "Only the regular file can be selected as the source file.\n",
@@ -606,7 +609,7 @@ file_err * select_file(picked_file *p_flpicked)
   // Convert the passed path into the full (absolute) path - needed to any type of existent file
   char *errmsg = NULL;
   if ( !rel_to_full_path(p_flpicked->name, flerr.file.name, &errmsg) ) {
-    flerr.err.num = 80;
+    flerr.err.num = 25;
     sprintf(flerr.err.err_inf_u.msg, "Error %i: %s\n", flerr.err.num, errmsg);
     free(errmsg); // free allocated memory
     return &flerr;
@@ -632,7 +635,7 @@ file_err * select_file(picked_file *p_flpicked)
         // file selection (a regular file) was actually attempted -> produce the error
       LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR,
           "Invalid target file was selected - regular, but expected - non-existent file");
-        flerr.err.num = 83;
+        flerr.err.num = 26;
         sprintf(flerr.err.err_inf_u.msg,
                 "Error %i: The wrong file type was selected - regular file:\n  '%s'\n"
                 "Only the non-existent file can be selected as the target file.\n",
@@ -642,7 +645,7 @@ file_err * select_file(picked_file *p_flpicked)
 
     case FTYPE_OTH: /* any other file type like link, socket, etc. */
       LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "'Other' file type was selected, it's not supported");
-      flerr.err.num = 84;
+      flerr.err.num = 27;
       sprintf(flerr.err.err_inf_u.msg,
               "Error %i: Unsupported file type was selected (other):\n'%s'\n",
               flerr.err.num, flerr.file.name);
@@ -651,7 +654,7 @@ file_err * select_file(picked_file *p_flpicked)
     case FTYPE_INV: /* invalid file */
       // NOTE: If the rel_to_full_path() call above fails, this case will never be reached.
       LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "'Invalid' file type was selected, it's not supported");
-      flerr.err.num = 85;
+      flerr.err.num = 28;
       sprintf(flerr.err.err_inf_u.msg,
               "Error %i: Invalid file was selected:\n'%s'\n%s\n",
               flerr.err.num, flerr.file.name, strerror(errno));

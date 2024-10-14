@@ -56,7 +56,7 @@ static int input_filename(char *filename)
  *  The number of characters written to path_full on success (excluding the null terminator).
  *  >0 on success, <=0 on failure.
  */
-int construct_full_path(char *path_new, size_t lenmax, char *path_full)
+static int construct_full_path(char *path_new, size_t lenmax, char *path_full)
 {
   int nwrt = snprintf(path_full, lenmax, "/%s", path_new);
 

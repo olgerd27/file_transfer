@@ -1,3 +1,7 @@
+/*
+ * mem_opers.c: a set of functions for memory manipulations like allocate, free, reset.
+ * Errors range: 31-45 (reserve 31-45)
+ */
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -8,7 +12,6 @@
 
 extern int errno; // global system error number
 
-// TODO: check if the error number is ok in this function; this function should be used here and in both client and server code.
 /* Allocate memory to store the file content.
  *
  * This function allocates memory to store file content if it hasn't already been
@@ -128,7 +131,6 @@ void free_err_inf(err_inf *p_err)
   LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
 }
 
-// TODO: check if the error numbers are ok in this function
 /* Reset (init) the file name & type.
  *
  * The file name's memory size is constant (LEN_PATH_MAX) and it's allocated just once
@@ -158,7 +160,7 @@ int reset_file_name_type(file_inf *p_file)
   if (!p_file) {
     LOG(LOG_TYPE_MEM, LOG_LEVEL_ERROR, 
       "An invalid file info pointer has passed, p_file=%p", (void *)p_file);
-    return 8;
+    return 1;
   }
 
   // Init the file name
@@ -166,12 +168,11 @@ int reset_file_name_type(file_inf *p_file)
     // Initial dynamic memory allocation.
     // It performs for the first call of this function or after memory freeing.
     // Deallocation is required later
-    // TODO: maybe use calloc() instead of malloc() here and then there's no need to set '\n' to the first value
     p_file->name = (char*)malloc(LEN_PATH_MAX * sizeof(char));
     if (!p_file->name) {
       LOG(LOG_TYPE_MEM, LOG_LEVEL_ERROR,
         "Failed to allocate a memory for the file name, name ptr=%p, req size=%d", (void *)p_file->name, LEN_PATH_MAX);
-      return 9;
+      return 2;
     }
     p_file->name[0] = '\0'; // required to ensure strlen() works correctly on this memory
     LOG(LOG_TYPE_MEM, LOG_LEVEL_INFO, 
@@ -210,8 +211,8 @@ int reset_file_cont(t_flcont *p_flcont, size_t size_fcont)
 {
   LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Begin");
   free_file_cont(p_flcont);
-  if (!alloc_file_cont(p_flcont, size_fcont))
-    return 10;
+  if ( alloc_file_cont(p_flcont, size_fcont) == NULL )
+    return 1;
   LOG(LOG_TYPE_MEM, LOG_LEVEL_DEBUG, "Done.");
   return 0;
 }
@@ -236,7 +237,7 @@ int reset_file_inf(file_inf *p_file, size_t size_fcont)
   if (!p_file) {
     LOG(LOG_TYPE_MEM, LOG_LEVEL_ERROR, 
       "An invalid file info pointer has passed, p_file=%p", (void *)p_file);
-    return 8;
+    return 1;
   }
 
   // reset the file name & type
@@ -252,7 +253,6 @@ int reset_file_inf(file_inf *p_file, size_t size_fcont)
   return 0;
 }
 
-// TODO: check if the error numbers are ok in this function
 /* Reset (init) the error info.
  *
  * This function resets (initializes) an error info instance by allocating memory for 
@@ -279,7 +279,7 @@ int reset_err_inf(err_inf *p_err)
   if (!p_err) {
     LOG(LOG_TYPE_MEM, LOG_LEVEL_ERROR, 
       "An invalid error info pointer has passed, p_err=%p", (void *)p_err);
-    return 11;
+    return 1;
   }
 
   // Init the error message
@@ -287,11 +287,10 @@ int reset_err_inf(err_inf *p_err)
     // Initial dynamic memory allocation.
     // It performs for the first call of this function or after memory freeing.
     // Deallocation is required later
-    // TODO: maybe use calloc() instead of malloc() here and then there's no need to set '\n' to the first value
     p_err->err_inf_u.msg = (char*)malloc(LEN_ERRMSG_MAX * sizeof(char));
     if (!p_err->err_inf_u.msg) {
       LOG(LOG_TYPE_MEM, LOG_LEVEL_ERROR, "Failed to allocate a memory for the error info");
-      return 12;
+      return 1;
     }
     p_err->err_inf_u.msg[0] = '\0'; // required to ensure strlen() works correctly on this memory
     p_err->num = 0;

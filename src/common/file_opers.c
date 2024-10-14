@@ -1,3 +1,7 @@
+/*
+ * file_opers.c: a set of functions to manipulate the file like open, close, read, write a file.
+ * Errors range: 11-17 (reserve 18-20)
+ */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h> 
@@ -48,7 +52,7 @@ static int process_error(const char *filename, int errnum,
     return -1;
 
   // - allocate the memory for the error info instance if it's not done previously
-  if (!*pp_errinf && alloc_reset_err_inf(pp_errinf) != 0)
+  if ( *pp_errinf == NULL && alloc_reset_err_inf(pp_errinf) != 0)
     return -1;
 
   // Construct the error info
@@ -139,7 +143,7 @@ static FILE *open_file(const t_flname flname, const char *mode, err_inf **pp_err
   LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Begin");
   FILE *hfile = fopen(flname, mode);
   if (hfile == NULL)
-    (void)process_error(flname, 60, get_error_message(mode), pp_errinf);
+    (void)process_error(flname, 11, get_error_message(mode), pp_errinf);
   LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Done.");
   return hfile;
 }
@@ -169,7 +173,7 @@ static int close_file(const t_flname flname, FILE *hfile, err_inf **pp_errinf)
   LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Begin");
   int rc = fclose(hfile);
   if (rc != 0)
-    (void)process_error(flname, 64, "Failed to close the file", pp_errinf);
+    (void)process_error(flname, 12, "Failed to close the file", pp_errinf);
   LOG(LOG_TYPE_FLOP, LOG_LEVEL_DEBUG, "Done.");
   return rc;
 }
@@ -203,8 +207,8 @@ static int read_file(const t_flname flname, t_flcont *p_flcont,
 
   // Allocate the memory to store the file content
   if ( alloc_file_cont(p_flcont, get_file_size(hfile)) == NULL ) {
-    errno = 0; // reset system error to avoid getting a system error message for this error case
-    (void)process_error(flname, 61, "Failed to allocate memory for the content of file", pp_errinf);
+    errno = 0; // reset system error remained from the previous error case
+    (void)process_error(flname, 13, "Failed to allocate memory for the content of file", pp_errinf);
     fclose(hfile);
     return 1;
   }
@@ -214,15 +218,14 @@ static int read_file(const t_flname flname, t_flcont *p_flcont,
 
   // Check if an error has occurred during the reading operation
   if (ferror(hfile)) {
-    (void)process_error(flname, 62, "Failed to read from the file", pp_errinf);
+    (void)process_error(flname, 14, "Failed to read from the file", pp_errinf);
     fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 2;
   }
 
   // Check a number of items read
   if (nch < p_flcont->t_flcont_len) {
-    // TODO: check the error number. But also think, maybe it worths to return system error number?
-    (void)process_error(flname, 63, "Partial reading of the file", pp_errinf);
+    (void)process_error(flname, 15, "Partial reading of the file", pp_errinf);
     fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 3;
   }
@@ -294,16 +297,14 @@ static int write_file(const t_flname flname, const t_flcont *p_flcont,
 
   // Check if an error has occurred during the writing operation
   if (ferror(hfile)) {
-    // TODO: check the error number. But also think, maybe it worths to return system error number?
-    (void)process_error(flname, 51, "Failed to write to the file", pp_errinf);
+    (void)process_error(flname, 16, "Failed to write to the file", pp_errinf);
     fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 1;
   }
 
   // Check a number of written items 
   if (nch < p_flcont->t_flcont_len) {
-    // TODO: check the error number. But also think, maybe it worths to return system error number?
-    (void)process_error(flname, 52, "Partial writing to the file", pp_errinf);
+    (void)process_error(flname, 17, "Partial writing to the file", pp_errinf);
     fclose(hfile); // decided not to use close_file() so as not to lose this error message
     return 2;
   }

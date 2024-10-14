@@ -1,16 +1,6 @@
 #ifndef _LOGGING_H_
 #define _LOGGING_H_
 
-// NOTE: Logging works not correct, because there is not options to configure logging
-// differently for server and client. What means if you got common object files
-// when you built server, these common object files will be used in the client program
-// with all the logging settings applied to them. So, it should be different places
-// to store common object files for server and client. Example for fs_opers.o:
-// - for Server: obj/release/proj_server/common/fs_opers.o
-// - for Client: obj/release/proj_client/common/fs_opers.o
-// So, it should be one "common" directory with source files and client and server 
-// can take sources from there, but the build results should differentiate.
-
 #include <stdio.h>
 #include <time.h>
 #include <stdarg.h>
@@ -81,7 +71,7 @@ static const char* log_level_str(int level)
 static const char * get_timestamp()
 {
     // Static buffer reused across calls.
-    // Doesn't works in a multi-threaded environment
+    // Doesn't work correctly in a multi-threaded environment
     static char timestamp[64];
     time_t now = time(NULL);
     struct tm *t = localtime(&now);

@@ -1,5 +1,6 @@
 /*
- * prg_serv.c: implementation of the server functions for file transfers.
+ * prg_serv.c: the Server program to process the remote requests.
+ * Errors range: 1-5 (reserve 6-10)
  */
 
 #include <string.h>
@@ -75,7 +76,7 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
     p_errinf->num = ERRNUM_ERRINF_ERR;
     p_errinf->err_inf_u.msg = "Failed to init the error info\n";
     print_error("Download", p_errinf);
-    LOG(LOG_TYPE_SERV, LOG_LEVEL_ERROR, "Failed to init the error info");
+    LOG(LOG_TYPE_SERV, LOG_LEVEL_ERROR, "%s", p_errinf->err_inf_u.msg);
     return &ret_flerr;
   }
 
@@ -83,10 +84,10 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
 
   // Init the file name & type info remained from the previous call of 'download' function
   if ( reset_file_name_type(p_fileinf) != 0 ) {
-    p_errinf->num = 64;
+    p_errinf->num = 1;
     sprintf(p_errinf->err_inf_u.msg, "Failed to init the file name & type\n");
     print_error("Download", p_errinf);
-    LOG(LOG_TYPE_SERV, LOG_LEVEL_ERROR, "Failed to init the file name & type");
+    LOG(LOG_TYPE_SERV, LOG_LEVEL_ERROR, "%s", p_errinf->err_inf_u.msg);
     return &ret_flerr;
   }
 
@@ -106,13 +107,18 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
   return &ret_flerr;
 }
 
-// The main RPC function for Interactive Selection a file on the server
+// The main RPC function for Interactive Selection (Picking) a file on the server
 file_err * pick_file_1_svc(picked_file *p_flpkd, struct svc_req *)
 {
   LOG(LOG_TYPE_SERV, LOG_LEVEL_DEBUG, "Begin");
   static file_err *p_flerr_ret; // returned pointer, must be static
   LOG(LOG_TYPE_SERV, LOG_LEVEL_INFO, "process the Pick file request: %s", p_flpkd->name);
+  
   p_flerr_ret = select_file(p_flpkd); // select_file() returns pointer to a static file_err object
+  if (p_flerr_ret->err.num != 0)
+    LOG(LOG_TYPE_SERV, LOG_LEVEL_ERROR, 
+        "Failed selection, error #%d:%s\n", p_flerr_ret->err.num, p_flerr_ret->err.err_inf_u.msg);
+  
   LOG(LOG_TYPE_SERV, LOG_LEVEL_DEBUG, "Done.\n");
   return p_flerr_ret;
 }

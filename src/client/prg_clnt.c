@@ -1,7 +1,7 @@
 /*
- * prg_clnt.c: the client program to initiate the remote file transfers
+ * prg_clnt.c: the client program to initiate the remote requests.
+ * Errors range: 1-5 (reserve 6-10)
  */
-
 #include <stdio.h>
 #include <string.h> 
 #include <errno.h>
@@ -160,7 +160,7 @@ static CLIENT * create_client()
     // Print an error indication why a client handle could not be created.
     // Used when clnt_create() call fails.
     clnt_pcreateerror(rmt_host);
-    exit(6);
+    exit(2);
   }
   return pclient;
 }
@@ -173,11 +173,7 @@ static void process_file_error(err_inf *p_errinf)
   xdr_free((xdrproc_t)xdr_err_inf, p_errinf);
 }
 
-/*
- * The Upload File section
- * Error numbers range: 10-19
- */
-// The main function to Upload file through RPC
+// Upload the File through RPC
 static void file_upload()
 {
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Begin: initiate File Upload - local source file:\n  %s", filename_src);
@@ -185,9 +181,9 @@ static void file_upload()
   err_inf *p_err_srv = NULL; // result from a server - error info
 
   // Init the file name & type
-  fileinf.name = NULL; // init with NULL for stable memory allocation
-  fileinf.cont.t_flcont_val = NULL; // init with NULL for stable memory allocation
-  reset_file_name_type(&fileinf);
+  fileinf.name = fileinf.cont.t_flcont_val = NULL; // init for stable memory allocation
+  if ( reset_file_name_type(&fileinf) != 0 )
+    exit(3);
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "file name & type was init'ed");
 
   // Set the target file name to the file object
@@ -199,7 +195,7 @@ static void file_upload()
     LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Error reading the local file:\n  %s", filename_src);
     process_file_error(p_err_srv);
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf);
-    exit(12);
+    exit(4);
   }
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "file contents was read, before RPC");
 
@@ -207,14 +203,14 @@ static void file_upload()
   p_err_srv = upload_file_1(&fileinf, pclient);
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "RPC operation DONE");
 
-  // Print a message to STDERR indicating why an RPC failed.
+  // Print an error message indicating why an RPC failed.
   // Used after clnt_call(), that is called here by upload_file_1().
   if (p_err_srv == (err_inf *)NULL) {
-    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC error - NULL returned");
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC failed - NULL returned");
     clnt_perror(pclient, rmt_host);
     clnt_destroy(pclient);                       // delete the client object
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
-    exit(13);
+    exit(5);
   }
 
   // Check an error that may occur on the server
@@ -226,7 +222,7 @@ static void file_upload()
     clnt_destroy(pclient);                       // delete the client object
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
     xdr_free((xdrproc_t)xdr_err_inf, p_err_srv); // free the error info returned from server
-    exit(14);
+    exit(p_flerr_srv->err.num);
   }
 
   // Okay, we successfully called the remote procedure.
@@ -240,12 +236,7 @@ static void file_upload()
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Done.");
 }
 
-/*
- * The Download File section
- * Error numbers range: 20-29
- */
-// The main function to Download file through RPC
-// TODO: check the return codes in this function
+// Download the File through RPC
 static void file_download()
 {
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "Begin: initiate File Download - remote source file:\n  %s", filename_src);
@@ -255,13 +246,13 @@ static void file_download()
   file_err *p_flerr_srv = download_file_1((char **)&filename_src, pclient);
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "RPC operation DONE");
 
-  // Print a message to STDERR indicating why an RPC failed.
+  // Print an error message indicating why an RPC failed.
   // Used after clnt_call(), that is called here by download_file_1().
   if (p_flerr_srv == (file_err *)NULL) {
-    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC error - NULL returned");
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC failed - NULL returned");
     clnt_perror(pclient, rmt_host);
     clnt_destroy(pclient); // delete the client object
-    exit(20);
+    exit(5);
   }
 
   // Check an error that may occur on the server
@@ -272,7 +263,7 @@ static void file_download()
             p_flerr_srv->err.num, p_flerr_srv->err.err_inf_u.msg);
     clnt_destroy(pclient); // delete the client object
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv); // free file & error info returned from server
-    exit(21);
+    exit(p_flerr_srv->err.num);
   }
 
   // Okay, we successfully called the remote procedure.
@@ -284,7 +275,7 @@ static void file_download()
     LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "Error saving the file:\n  %s", filename_trg);
     process_file_error(p_err_tmp);
     xdr_free((xdrproc_t)xdr_file_err, p_flerr_srv);
-    exit(22);
+    exit(6);
   }
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_INFO, "file contents was saved to:\n  %s", filename_trg);
 
@@ -309,13 +300,13 @@ file_err * file_select_rmt(picked_file *p_flpkd)
   file_err *p_flerr_srv = pick_file_1(p_flpkd, pclient);
   LOG(LOG_TYPE_CLNT, LOG_LEVEL_DEBUG, "RPC operation DONE");
 
-  // Print a message to STDERR indicating why an RPC failed.
+  // Print an error message indicating why an RPC failed.
   // Used after clnt_call(), that is called here by download_file_1().
   if (p_flerr_srv == (file_err *)NULL) {
-    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC error - NULL returned");
+    LOG(LOG_TYPE_CLNT, LOG_LEVEL_ERROR, "RPC failed - NULL returned");
     clnt_perror(pclient, rmt_host);
     clnt_destroy(pclient); // delete the client object
-    exit(20);
+    exit(5);
   }
 
   // Check an error that may occur on the server
