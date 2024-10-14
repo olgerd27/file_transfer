@@ -12,6 +12,7 @@
 // can take sources from there, but the build results should differentiate.
 
 #include <stdio.h>
+#include <time.h>
 #include <stdarg.h>
 
 // Logging levels
@@ -65,7 +66,8 @@
 #endif
 
 // String representations for log levels
-static const char* log_level_str(int level) {
+static const char* log_level_str(int level)
+{
     switch (level) {
         case LOG_LEVEL_ERROR: return "ERROR";
         case LOG_LEVEL_WARN:  return "WARN";
@@ -75,13 +77,28 @@ static const char* log_level_str(int level) {
     }
 }
 
+// Get the current timestamp
+static const char * get_timestamp()
+{
+    // Static buffer reused across calls.
+    // Doesn't works in a multi-threaded environment
+    static char timestamp[64];
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts); // to get milliseconds
+    snprintf(timestamp, sizeof(timestamp), "%04d-%02d-%02d %02d:%02d:%02d.%03ld",
+             t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+             t->tm_hour, t->tm_min, t->tm_sec, ts.tv_nsec / 1000000);
+    return timestamp;
+}
+
 // General logging macro that checks the log level and the logging type
 #define LOG(type, level, fmt, ...) \
     do { \
-        if (type && level <= GLOBAL_LOG_LEVEL) { \
-            fprintf(stderr, "%-5s | %s:%d, %s | " fmt "\n", \
-              log_level_str(level), __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
-        } \
+        if (type && level <= GLOBAL_LOG_LEVEL) \
+            fprintf(stderr, "%s | %-5s | %s:%d, %s | " fmt "\n", \
+              get_timestamp(), log_level_str(level), __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
     } while(0)
 
 #endif

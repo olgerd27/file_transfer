@@ -587,7 +587,7 @@ file_err * select_file(picked_file *p_flpicked)
     // Check the correctness of the current file selection based on the selection file type
     if (p_flpicked->pftype == pk_ftype_target) {
       // OK: the non-existent file type was selected as expected for a 'target' selection file type
-      LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "A non-existent file was selected as the target file, as expected");
+      LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "A non-existent file was selected as the target file -> OK");
     }
     else if (p_flpicked->pftype == pk_ftype_source) {
       // Failure: the source file selection (a regular file) was expected, but the target 
@@ -625,7 +625,7 @@ file_err * select_file(picked_file *p_flpicked)
       // Check the correctness of the current file selection based on the selection file type
       if (p_flpicked->pftype == pk_ftype_source) {
         // OK: the regular file type was selected as expected for a 'source' selection file type
-        LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "A regular file selected as source file, as expected");
+        LOG(LOG_TYPE_SLCT, LOG_LEVEL_INFO, "A regular file selected as source file -> OK");
       }
       else if (p_flpicked->pftype == pk_ftype_target) {
         // Failure: the target file selection (a non-existent file) was expected, but the source 
