@@ -6,8 +6,7 @@
 #include "../common/fs_opers.h"
 #include "../common/logging.h"
 
-/*
- * Get user input for a filename.
+/* Get user input for a filename.
  *
  * This function prompts the user to enter a filename. If the user inputs nothing
  * (just presses ENTER), an error is returned. It uses `fgets` to read the input
@@ -41,8 +40,7 @@ static int input_filename(char *filename)
   return 0;
 }
 
-/*
- * Constructs a full path by appending a new path segment to the path delimeter '/'.
+/* Constructs a full path by appending a new path segment to the path delimeter '/'.
  *
  * This function appends the provided new path segment (path_new) to the path delimeter '/',
  * storing the resulting full path in path_full.
@@ -88,43 +86,42 @@ const char *get_pkd_ftype_name(pick_ftype pk_fltype)
   }
 }
 
-// TODO: update the documentation
-/*
- * Get the filename interactively by traversing directories.
+/* Get the filename interactively by traversing directories.
  *
  * This function allows a user to interactively select a file by navigating through directories.
  * The user is prompted to enter directory names or file names to traverse the file system starting
- * from a given directory.
+ * from a given directory. The selected file's full path is returned.
  *
  * Parameters:
- *  dir_start - a starting directory for the traversal.
- *  pftype    - an enum value of type pick_ftype indicating whether the file to be selected
- *              is a source or target file.
- *  path_res  - an allocated char array to store the resulting file path.
+ *  p_flpkd    - a pointer to the `picked_file` structure containing the initial
+ *               directory path and file selection type (source/target).
+ *  pf_flselect - a function pointer to the file selection function (local or remote).
+ *  hostname   - a string representing the hostname where the file selection is taking place.
+ *  path_res   - an allocated character array to store the full path of the selected file.
  *
  * Return value:
- *  Returns path_res on success, and NULL on failure.
+ *  Returns `path_res` (full path) on successful file selection, and `NULL` on failure.
  *
  * The function performs the following steps:
- * 1. Initializes the traversal starting at p_flpkd->name or, in case of error, on '/'.
+ * 1. Initializes the traversal starting at p_flpkd->name or '/' in case of an error.
  * 2. Repeatedly prompts the user to select files or directories, updating the current path.
- * 3. If a regular file is selected, it copies the full path to path_res and returns it.
- * 4. Handles errors in file selection and reverts to the previous valid path if necessary.
+ * 3. If a regular or non-existent file is selected, the full path is copied to `path_res`.
+ * 4. In case of an error, the previous valid path is restored, and the user is prompted to retry.
+ * 5. Handles errors in file selection.
  *
- * // TODO: update this procedure to reflect the current way of working the interactive operation
  * General procedure:
- * 1 List of the passed dir (initially "." or "/")
+ * 1 List the content of the passed dir
  * 2 Get user input
  * 3 Add user input to the current path
- * 4 Check the input:
+ * 4 Select the a file the current path points to (performs in select_file()):
  *    4.1 If it's a dir, go to p.1.
  *    4.2 If it's not a dir, do the following:
  *        >> for source file:
  *           - if it's a regular file - OK and return its full path
- *           - if it's NOT a regular file - error and message like:
- *             Please select a regular file.
  *           - if it's NOT exist - error and message like:
- *             File ... doesn't exist. Please select an existing source file.
+ *             File ... doesn't exist.
+ *           - if it's any other file type - error and message like:
+ *             Invalid file type was selected.
  *        >> for target file:
  *           - if it's NOT exist - OK and return its full path
  *           - if it exists (type doesn't matter) - error and message like:
@@ -134,14 +131,14 @@ const char *get_pkd_ftype_name(pick_ftype pk_fltype)
  * prg_clnt.c:main()
  * prg_clnt.c:do_RPC_action()
  * prg_clnt.c:interact() # p_func points to fs_opers.c:select_file(); pass p_func to get_filename_inter()
- * interact.c:get_filename_inter() # it calls p_func in a loop
+ * interact.c:get_filename_inter() # it calls p_func (i.e. select_file()) in a loop
  * fs_opers.c:select_file()
- * 
+ *
  * Chain of calls to run the select_file() on the SERVER:
  * prg_clnt.c:main()
  * prg_clnt.c:do_RPC_action()
  * prg_clnt.c:interact() # p_func points to prg_clnt.c:file_pick_rmt(); pass p_func to get_filename_inter()
- * interact.c:get_filename_inter() # it calls p_func in a loop
+ * interact.c:get_filename_inter() # it calls p_func (i.e. file_pick_rmt()) in a loop
  * prg_clnt.c:file_pick_rmt() # a wrapper for prg_clnt.c:pick_file_1()
  * prg_clnt.c:pick_file_1() # RPC function on client
  * prg_serv.c:pick_file_1_svc() # RPC function on server

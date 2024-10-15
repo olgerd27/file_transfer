@@ -222,7 +222,7 @@ static void file_upload()
     clnt_destroy(pclient);                       // delete the client object
     xdr_free((xdrproc_t)xdr_file_inf, &fileinf); // free the local file info
     xdr_free((xdrproc_t)xdr_err_inf, p_err_srv); // free the error info returned from server
-    exit(p_flerr_srv->err.num);
+    exit(p_err_srv->num);
   }
 
   // Okay, we successfully called the remote procedure.

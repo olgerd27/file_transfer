@@ -21,8 +21,7 @@
 
 extern int errno; // global system error number
 
-/*
- * Return a letter representing the file type used in Unix-like OS.
+/* Return a letter representing the file type used in Unix-like OS.
  *
  * This function takes a `mode_t` value, which represents the file mode,
  * and returns a character corresponding to the file type.
@@ -53,8 +52,7 @@ static char get_file_type_unix(mode_t mode)
   return '?';
 }
 
-/*
- * Convert file permissions from numeric to symbolic form.
+/* Convert file permissions from numeric to symbolic form.
  *
  * This function converts the file mode (permissions) from its numeric
  * representation to the symbolic representation used by the `ls -l` command.
@@ -84,8 +82,7 @@ static char * str_perm(mode_t mode, char *strmode)
   return strmode;
 }
 
-/*
- * Return the file type for the specified file.
+/* Return the file type for the specified file.
  *
  * This function determines the type of a file given its path.
  * It returns a file type enumeration value defined in `fltr.h`.
@@ -110,7 +107,7 @@ enum filetype get_file_type(const char *filepath)
   // Call stat() and check if it returns an error due to either a non-existent 
   // file (FTYPE_NEX) or an invalid file type (FTYPE_INV)
   if (stat(filepath, &statbuf) == -1) {
-    LOG(LOG_TYPE_FTINF, LOG_LEVEL_ERROR, "stat() error - filetype: %s", 
+    LOG(LOG_TYPE_FTINF, LOG_LEVEL_DEBUG, "stat() returns error - filetype: %s", 
         errno == ENOENT ? "FTYPE_NEX (non-existent)" : "FTYPE_INV (invalid)");
     return errno == ENOENT ? FTYPE_NEX : FTYPE_INV;
   }
@@ -134,8 +131,7 @@ enum filetype get_file_type(const char *filepath)
   return ftype;
 }
 
-/*
- * Get the file size in bytes.
+/* Get the file size in bytes.
  *
  * This function calculates the size of a file by seeking to the end of the file,
  * retrieving the position (which represents the file size in bytes), and then
@@ -155,8 +151,7 @@ size_t get_file_size(FILE *hfile)
   return size;
 }
 
-/*
- * Convert the passed relative path to the full (absolute) one.
+/* Convert the passed relative path to the full (absolute) one.
  *
  * This function converts a relative path to an absolute path. If the conversion
  * fails, it allocates memory for an error message and sets it in the provided errmsg pointer.
@@ -171,7 +166,7 @@ size_t get_file_size(FILE *hfile)
  *  The full (absolute) path on success (same as path_full), or NULL on failure with 
  *  the error messages in errmsg which should be freed by a caller of this function.
  */
-char *rel_to_full_path(const char *path_rel, char *path_full, char **errmsg)
+static char *rel_to_full_path(const char *path_rel, char *path_full, char **errmsg)
 {
   if (!realpath(path_rel, path_full)) {
     LOG(LOG_TYPE_SLCT, LOG_LEVEL_ERROR, "Failed to resolve the specified path: %s", path_rel);
@@ -185,8 +180,7 @@ char *rel_to_full_path(const char *path_rel, char *path_full, char **errmsg)
   return path_full;
 }
 
-/*
- * Copy a source path to a target path with a maximum length.
+/* Copy a source path to a target path with a maximum length.
  *
  * This function copies the string `path_src` to `path_trg` ensuring that
  * the number of characters copied does not exceed `LEN_PATH_MAX`.
@@ -207,8 +201,7 @@ int copy_path(const char *path_src, char *path_trg)
   return snprintf(path_trg, LEN_PATH_MAX, "%s", path_src);
 }
 
-/*
- * Get the file status (info).
+/* Get the file status (info).
  *
  * This function constructs the full path to a specified file and retrieves its
  * status information. If the full path is invalid or if the status retrieval fails,
@@ -265,8 +258,7 @@ static struct lsdir_setts
   size_t lensum_names;  // total filenames length
 } lsdir_setts_dflt = {0, 0, 0, 0, 0}; // creation the default instance with default values
 
-/*
- * Calculate the number of digits in a number.
+/* Calculate the number of digits in a number.
  *
  * This function calculates the number of digits in a given long integer
  * by repeatedly dividing the number by 10 until it becomes zero.
@@ -284,8 +276,7 @@ static int numb_digits(long val)
   return numb;
 }
 
-/*
- * Update directory listing settings based on file statistics.
+/* Update directory listing settings based on file statistics.
  *
  * This function updates various settings related to directory listing,
  * such as the number of files, the maximum length of: user (owner) names,
@@ -341,8 +332,7 @@ static void update_lsdir_setts(struct stat *p_statbuf, const char *filename, str
       "Total filenames length is updated, len=%ld", p_lsd_set->lensum_names);
 }
 
-/*
- * Calculate the total size needed to list the directory content.
+/* Calculate the total size needed to list the directory content.
  *
  * This function computes the amount of memory required to store the directory content
  * based on the specified settings. The calculation includes space for file permissions,
@@ -370,8 +360,7 @@ static size_t calc_dir_cont_size(const struct lsdir_setts *p_lsd_set)
         + 1;                          // space for trailing NULL character
 }
 
-/*
- * Get file information.
+/* Get file information.
  *
  * This function gathers and formats information about a specified file or directory.
  * It populates the provided buffer with details about the file's permissions, owner,
@@ -404,8 +393,8 @@ static size_t calc_dir_cont_size(const struct lsdir_setts *p_lsd_set)
  * - The modification time is printed in the format "%b %d %R %Y", which includes the month, day,
  *   time, and year.
  */
-void get_file_info(struct stat *p_statbuf, const char *filename, 
-                   const struct lsdir_setts *p_lsd_set, char *p_buff)
+static void get_file_info(struct stat *p_statbuf, const char *filename, 
+                          const struct lsdir_setts *p_lsd_set, char *p_buff)
 {
   char           strperm[11];
   struct passwd *pwd;
@@ -443,8 +432,7 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
   p_buff += sprintf(p_buff, " %s %s\n", datestring, filename);
 }
 
-/*
- * List the directory content into the file content (char array) stored in the file_err instance.
+/* List the directory content into the file content (char array) stored in the file_err instance.
  *
  * This function reads the contents of a specified directory and stores the directory entries
  * in the file content field of the passed file_err structure. The function assumes that the
@@ -467,7 +455,7 @@ void get_file_info(struct stat *p_statbuf, const char *filename,
  * Return value:
  *  0 on success, >0 on failure.
  */
-int ls_dir_str(file_err *p_flerr)
+static int ls_dir_str(file_err *p_flerr)
 {
   DIR                *hdir; // directory handler
   struct dirent      *de; // directory entry
@@ -526,31 +514,31 @@ int ls_dir_str(file_err *p_flerr)
   return 0;
 }
 
-/*
- * Select a file: determine its type and get its full (absolute) path.
+/* Select a file: determine its type and get its full (absolute) path.
  *
  * This function determines the type of the specified file and converts its
  * relative path to an absolute path.
- * It initializes the error info, file name & type, and also the file content buffer in ls_dir_str()
+ * It initializes the error info, file name & type, and file content buffer (in ls_dir_str())
  * before performing these operations. The results, including any errors, are stored
- * in the provided file_err structure.
+ * in the returned instance of file_err structure.
  *
  * Parameters:
- *  path    - a path of the file that needs to be selected.
- *  p_flerr - a pointer to the file_err RPC struct instance to store file & error info.
- *            This struct is used to set and return the result through the function argument.
- *  pftype  - an enum value of type pick_ftype indicating whether the file to be selected
- *            is a source or target file.
+ * p_flpicked - a pointer to a `picked_file` structure containing the file path and file type
+ *              (source or target).
  *
- * Return value of the file_err.err.num:
+ * Return:
+ *  A pointer to a `file_err` structure containing the file information and any error details.
+ *
+ * Return value of `file_err.err.num`:
  *  0 on success,
- *  !0 on failure.
+ *  non-zero on failure.
  * Note: Errors in this function can be related to the file system or other causes.
  *       To differentiate, check the `file.type` field of the returned `file_err` object.
  *       If `file.type == FTYPE_DFL`, the issue is not file system related.
  *       Any other value from the `filetype` enum indicates a file system-related error.
+ * - For source file selection, only regular files can be selected.
+ * - For target file selection, only non-existent files are valid.
  */
-// TODO: update the documentation for this function
 file_err * select_file(picked_file *p_flpicked)
 {
   LOG(LOG_TYPE_SLCT, LOG_LEVEL_DEBUG, "Begin, picked file: %s", p_flpicked->name);

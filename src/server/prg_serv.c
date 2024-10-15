@@ -107,7 +107,8 @@ file_err * download_file_1_svc(t_flname *p_flname, struct svc_req *)
   return &ret_flerr;
 }
 
-// The main RPC function for Interactive Selection (Picking) a file on the server
+// The main RPC function for Interactive Selection (Picking) a file on the server.
+// Note: file_err object will be auto-freed by xdr_free() at function end.
 file_err * pick_file_1_svc(picked_file *p_flpkd, struct svc_req *)
 {
   LOG(LOG_TYPE_SERV, LOG_LEVEL_DEBUG, "Begin");
@@ -117,7 +118,7 @@ file_err * pick_file_1_svc(picked_file *p_flpkd, struct svc_req *)
   p_flerr_ret = select_file(p_flpkd); // select_file() returns pointer to a static file_err object
   if (p_flerr_ret->err.num != 0)
     LOG(LOG_TYPE_SERV, LOG_LEVEL_ERROR, 
-        "Failed selection, error #%d:%s\n", p_flerr_ret->err.num, p_flerr_ret->err.err_inf_u.msg);
+        "Failed selection: %s\n", p_flerr_ret->err.num, p_flerr_ret->err.err_inf_u.msg);
   
   LOG(LOG_TYPE_SERV, LOG_LEVEL_DEBUG, "Done.\n");
   return p_flerr_ret;
