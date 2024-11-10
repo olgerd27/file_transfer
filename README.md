@@ -59,13 +59,22 @@ Options:
 
 ### Examples:
 1. Upload a Local File:
-  Command: `prg_clnt -u serva /tmp/local_file /tmp/remote_file`
+  Command:
+  ```
+  prg_clnt -u serva /tmp/local_file /tmp/remote_file
+  ```
   Uploads the local file `/tmp/local_file` to the Server `serva` and saves it as `/tmp/remote_file` on the Server.
 2. Download a Remote File:
-  Command: `prg_clnt -d servb /tmp/remote_file /tmp/local_file`
+  Command:
+  ```
+  prg_clnt -d servb /tmp/remote_file /tmp/local_file
+  ```
   Downloads the file `/tmp/remote_file` from Server `servb` and saves it as `/tmp/local_file` on the Client.
 3. Interactive Mode for File Selection:
-  Command: `prg_clnt -u servc -i`
+  Command:
+  ```
+  prg_clnt -u servc -i
+  ```
   Allows users to select files interactively for Upload to Server `servc`.
 
 ### Note
@@ -73,9 +82,6 @@ Options:
 * Consider security and error scenarios in your implementation.
 * The focus is on both the correctness and clarity of the RPC service implementation.
 * Logging: Configurable logging allows monitoring of Client and Server operations for debugging and auditing.
-
-??? This task assesses the candidate's understanding of RPC, their ability to define and implement an RPC interface, and their overall system design and coding skills. 
-??? Additionally, it allows the interviewer to evaluate error handling and testing practices.
 
 ## Useful admin commands
 - Check the status for `rpcbind`:
