@@ -58,19 +58,21 @@ Options:
 * -h: Display help information.
 
 ### Examples:
-1. Upload a Local File:
+- Upload a Local File:
   Command:
   ```
   prg_clnt -u serva /tmp/local_file /tmp/remote_file
   ```
   Uploads the local file `/tmp/local_file` to the Server `serva` and saves it as `/tmp/remote_file` on the Server.
-2. Download a Remote File:
+  
+- Download a Remote File:
   Command:
   ```
   prg_clnt -d servb /tmp/remote_file /tmp/local_file
   ```
   Downloads the file `/tmp/remote_file` from Server `servb` and saves it as `/tmp/local_file` on the Client.
-3. Interactive Mode for File Selection:
+  
+- Interactive Mode for File Selection:
   Command:
   ```
   prg_clnt -u servc -i
